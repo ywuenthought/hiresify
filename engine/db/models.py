@@ -1,0 +1,64 @@
+# Copyright (c) 2025 Yifeng Wu
+# All rights reserved.
+# This file is not licensed for use, modification, or distribution without
+# explicit written permission from the copyright holder.
+
+"""
+Defines the database schema.
+"""
+
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class Base(DeclarativeBase):
+    """The base for all database models to inherit from."""
+
+
+class UserAuth(Base):
+    """The database model for user authentication."""
+
+    __tablename__ = "user_auth"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    #: The unique user name of a user.
+    username: Mapped[str] = mapped_column(String(30), nullable=False, unique=True)
+
+    #: The hashed password associated with the user name.
+    password: Mapped[str] = mapped_column(String(128), nullable=False)
+
+    # A user can have many refresh tokens.
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class RefreshToken(Base):
+    """The database model for a user's refresh token."""
+
+    __tablename__ = "refresh_token"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    #: The hashed refresh token.
+    token: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+
+    #: The date and time when the token was issued.
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    #: The date and time when the token was set to expire.
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    #: A boolean flag for whether the token has been revoked.
+    revoked: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+    #: The user ID that this refresh token is associated with.
+    user_id: Mapped[int] = mapped_column(ForeignKey("user_auth.id"))
+
+    # Each refresh token belongs to one user.
+    user: Mapped["UserAuth"] = relationship(back_populates="refresh_tokens")
