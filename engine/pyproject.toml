@@ -1,10 +1,39 @@
 [project]
-name = "engine"
-version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.11"
 dependencies = [
     "ruff>=0.11.13",
     "sqlalchemy>=2.0.41",
 ]
+description = "Add your description here"
+name = "engine"
+readme = "README.md"
+requires-python = ">=3.11"
+version = "0.1.0"
+
+[tool.ruff]
+exclude = [
+    "__pycache__",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "build",
+    "dist",
+]
+fix = true
+lint.ignore = [
+  "PLR0913",  # too many arguments in function definition
+  "PLR2004",  # magic value comparison
+]
+lint.select = [
+  "B",    # flake8-bugbear
+  "C90",  # mccabe (complexity)
+  "E",    # pycodestyle
+  "F",    # pyflakes
+  "I",    # isort
+  "N",    # pep8-naming
+  "PL",   # pylint rules
+  "RUF",  # ruff-specific rules (includes black-style formatting)
+  "UP",   # pyupgrade
+  "YTT",  # flake8-2020
+]
+line-length = 88
+target-version = "py311"
