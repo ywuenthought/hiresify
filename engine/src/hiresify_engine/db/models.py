@@ -57,6 +57,15 @@ class RefreshToken(Base):
     #: A boolean flag for whether the token has been revoked.
     revoked: Mapped[bool] = mapped_column(default=False, nullable=False)
 
+    #: The user agent or device name for this token.
+    device: Mapped[str] = mapped_column(String(128), nullable=True)
+
+    #: The IP address where this token was requested.
+    ip: Mapped[str] = mapped_column(String(45), nullable=True)
+
+    #: The platform used when requesting this token.
+    platform: Mapped[str] = mapped_column(String(32), nullable=True)
+
     #: The user ID that this refresh token is associated with.
     user_id: Mapped[int] = mapped_column(ForeignKey("user_auth.id"))
 
