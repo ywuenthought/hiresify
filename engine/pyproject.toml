@@ -1,5 +1,6 @@
 [project]
 dependencies = [
+    "mypy>=1.16.0",
     "ruff>=0.11.13",
     "sqlalchemy>=2.0.41",
 ]
