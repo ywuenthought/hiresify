@@ -3,9 +3,7 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-"""
-Define the constants shared among modules.
-"""
+"""Define the constants shared among modules."""
 
 #############
 # envvar keys

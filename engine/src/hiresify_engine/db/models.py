@@ -3,9 +3,7 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-"""
-Define the database schema.
-"""
+"""Define the database schema."""
 
 from datetime import datetime
 
@@ -32,7 +30,7 @@ class UserAuth(Base):
 
     # A user can have many refresh tokens.
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
+        back_populates="user", cascade="all, delete-orphan",
     )
 
 
@@ -51,7 +49,7 @@ class RefreshToken(Base):
 
     #: The date and time when the token was set to expire.
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
+        DateTime(timezone=True), nullable=False,
     )
 
     #: A boolean flag for whether the token has been revoked.

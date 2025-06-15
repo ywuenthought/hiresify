@@ -3,9 +3,7 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-"""
-Define custom types used across modules.
-"""
+"""Define custom types used across modules."""
 
 import os
 
