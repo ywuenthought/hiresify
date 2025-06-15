@@ -4,7 +4,7 @@
 # explicit written permission from the copyright holder.
 
 """
-Defines the database schema.
+Define the database schema.
 """
 
 from datetime import datetime

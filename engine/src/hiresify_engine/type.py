@@ -4,7 +4,7 @@
 # explicit written permission from the copyright holder.
 
 """
-Defines custom types used across modules.
+Define custom types used across modules.
 """
 
 import os

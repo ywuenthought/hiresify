@@ -4,7 +4,7 @@
 # explicit written permission from the copyright holder.
 
 """
-Defines the constants shared among modules.
+Define the constants shared among modules.
 """
 
 #############
