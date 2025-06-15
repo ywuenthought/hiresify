@@ -18,8 +18,6 @@ async def repository() -> ty.AsyncGenerator[Repository, None]:
     # delete=False prevents Python from exclusively opening this file.
     temp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     db_path = temp_db.name
-    # Close this file so SQLite can access it.
-    temp_db.close()
 
     try:
         db_url = f"sqlite+aiosqlite:///{db_path}"
