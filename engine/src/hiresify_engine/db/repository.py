@@ -55,8 +55,9 @@ class Repository:
     async def purge_tables(self) -> None:
         """Purge all the tables (delete all the rows)."""
         async with self.session() as session:
-            for table in reversed(Base.metadata.sorted_tables):
-                await session.execute(table.delete())
+            async with session.begin():
+                for table in reversed(Base.metadata.sorted_tables):
+                    await session.execute(table.delete())
 
     async def dispose(self) -> None:
         """Dispose of the database engine and close all pooled connections."""
@@ -98,30 +99,30 @@ class Repository:
         where_clause = UserAuth.username == username
 
         async with self.session() as session:
-            stmt = select(UserAuth).where(where_clause)
-            result = await session.execute(stmt)
+            async with session.begin():
+                stmt = select(UserAuth).where(where_clause)
+                result = await session.execute(stmt)
 
-            try:
-                async with session.begin():
+                try:
                     user = result.scalar_one()
                     user.password = password
-            except NoResultFound as e:
-                raise EntityNotFoundError(UserAuth, username=username) from e
+                except NoResultFound as e:
+                    raise EntityNotFoundError(UserAuth, username=username) from e
 
     async def delete_user(self, username: str) -> None:
         """Delete a user by the given user name."""
         where_clause = UserAuth.username == username
 
         async with self.session() as session:
-            stmt = select(UserAuth).where(where_clause)
-            result = await session.execute(stmt)
+            async with session.begin():
+                stmt = select(UserAuth).where(where_clause)
+                result = await session.execute(stmt)
 
-            try:
-                async with session.begin():
+                try:
                     user = result.scalar_one()
                     await session.delete(user)
-            except NoResultFound as e:
-                raise EntityNotFoundError(UserAuth, username=username) from e
+                except NoResultFound as e:
+                    raise EntityNotFoundError(UserAuth, username=username) from e
 
     ###############
     # refresh token
@@ -143,12 +144,13 @@ class Repository:
                     RefreshToken, token=abbreviate_token(token),
                 ) from e
 
-    async def find_tokens(self, username: str) -> ty.Sequence[RefreshToken]:
+    async def find_tokens(self, username: str) -> list[RefreshToken]:
         """Find all the refresh tokens for a user with the given user name."""
+        option = selectinload(UserAuth.refresh_tokens)
         where_clause = UserAuth.username == username
 
         async with self.session() as session:
-            stmt = select(UserAuth).where(where_clause)
+            stmt = select(UserAuth).options(option).where(where_clause)
             result = await session.execute(stmt)
 
             try:
@@ -158,7 +160,13 @@ class Repository:
                 raise EntityNotFoundError(UserAuth, username=username) from e
 
     async def create_token(
-        self, username: str, token: str, issued_at: datetime, expires_at: datetime,
+        self,
+        username: str,
+        token: str,
+        *,
+        issued_at: datetime,
+        expire_at: datetime,
+        **params: ty.Any,
     ) -> RefreshToken:
         """Create a refresh token for a user with the given user name."""
         user = await self.find_user(username)
@@ -166,8 +174,9 @@ class Repository:
         refresh_token = RefreshToken(
             token=token,
             issued_at=issued_at,
-            expires_at=expires_at,
+            expire_at=expire_at,
             user_id=user.id,
+            **params,
         )
 
         async with self.session() as session:
@@ -187,17 +196,17 @@ class Repository:
         where_clause = RefreshToken.token == token
 
         async with self.session() as session:
-            stmt = select(RefreshToken).where(where_clause)
-            result = await session.execute(stmt)
+            async with session.begin():
+                stmt = select(RefreshToken).where(where_clause)
+                result = await session.execute(stmt)
 
-            try:
-                async with session.begin():
+                try:
                     refresh_token = result.scalar_one()
                     refresh_token.revoked = True
-            except NoResultFound as e:
-                raise EntityNotFoundError(
-                    RefreshToken, token=abbreviate_token(token),
-                ) from e
+                except NoResultFound as e:
+                    raise EntityNotFoundError(
+                        RefreshToken, token=abbreviate_token(token),
+                    ) from e
 
     async def revoke_tokens(self, username: str) -> int:
         """Revoke all the refresh tokens for a user with the given user name."""
@@ -209,28 +218,30 @@ class Repository:
         where_clause = UserAuth.username == username
 
         async with self.session() as session:
-            stmt = select(UserAuth).options(*options).where(where_clause)
-            result = await session.execute(stmt)
+            async with session.begin():
+                stmt = select(UserAuth).options(*options).where(where_clause)
+                result = await session.execute(stmt)
 
-            try:
-                user = result.scalar_one()
+                try:
+                    user = result.scalar_one()
 
-                if not (refresh_tokens := user.refresh_tokens):
-                    return 0
+                    if not (refresh_tokens := user.refresh_tokens):
+                        return 0
 
-                async with session.begin():
                     for refresh_token in refresh_tokens:
                         refresh_token.revoked = True
 
-                return len(refresh_tokens)
+                    return len(refresh_tokens)
 
-            except NoResultFound as e:
-                raise EntityNotFoundError(UserAuth, username=username) from e
+                except NoResultFound as e:
+                    raise EntityNotFoundError(UserAuth, username=username) from e
 
-    async def purge_tokens(self, retention_days: int) -> int:
+    async def purge_tokens(
+        self, retention_days: int, now: datetime | None = None,
+    ) -> int:
         """Purge all the refresh tokens expired for longer than `retention_days`."""
-        cutoff = datetime.now(UTC) - timedelta(days=retention_days)
-        where_clause = RefreshToken.expires_at < cutoff
+        cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
+        where_clause = RefreshToken.expire_at < cutoff
 
         async with self.session() as session:
             async with session.begin():

@@ -48,9 +48,7 @@ class RefreshToken(Base):
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     #: The date and time when the token was set to expire.
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-    )
+    expire_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     #: A boolean flag for whether the token has been revoked.
     revoked: Mapped[bool] = mapped_column(default=False, nullable=False)
