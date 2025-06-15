@@ -29,7 +29,9 @@ class Repository:
     def __init__(self, url: str, **configs: ty.Any) -> None:
         """Initialize a new instance of Repository."""
         self._engine = create_async_engine(url, **configs)
-        self._create_session = async_sessionmaker(bind=self._engine)
+        self._create_session = async_sessionmaker(
+            bind=self._engine, expire_on_commit=False,
+        )
 
     @classmethod
     def from_config_file(cls, url: str, *, config_file: FilePath) -> "Repository":
@@ -49,6 +51,12 @@ class Repository:
         """Initialize all the tables based on a pre-defined schema."""
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
+    async def purge_tables(self) -> None:
+        """Purge all the tables (delete all the rows)."""
+        async with self.session() as session:
+            for table in reversed(Base.metadata.sorted_tables):
+                await session.execute(table.delete())
 
     async def dispose(self) -> None:
         """Dispose of the database engine and close all pooled connections."""
