@@ -17,7 +17,7 @@ class UserAuthSchema(BaseModel):
     username: str = Field(..., max_length=30)
 
     #: The hashed password associated with the user name.
-    password: str | None = Field(None, max_length=128)
+    password: str = Field(..., max_length=128)
 
     #: The refresh tokens associated with this user.
     refresh_tokens: list["RefreshTokenSchema"] | None = None
