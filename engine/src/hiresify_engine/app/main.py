@@ -5,10 +5,12 @@
 
 """Provide the application entry point."""
 
+import tempfile
 import typing as ty
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from redis.asyncio import Redis
 
 from hiresify_engine.db.repository import Repository
 
@@ -18,14 +20,21 @@ from .router import router
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     """Wrap the lifespan events for the application."""
-    import tempfile
-
     with tempfile.NamedTemporaryFile(suffix=".db") as temp_db:
+        # Initialize the database repository.
         db_url = f"sqlite+aiosqlite:///{temp_db.name}"
-        app.state.repository = repository = Repository(db_url)
-        await repository.init_schema()
+        app.state.repo = repo = Repository(db_url)
+        await repo.init_schema()
+
+        # Initialize the in-memory database client.
+        app.state.redis = redis = Redis(
+            host="localhost", port=6379, decode_responses=True,
+        )
+
         yield
-        await repository.dispose()
+
+        await repo.dispose()
+        await redis.aclose()
 
 
 app = FastAPI(lifespan=lifespan)
