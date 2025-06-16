@@ -3,6 +3,7 @@ dependencies = [
     "aiosqlite>=0.21.0",
     "fastapi[all]>=0.115.12",
     "mypy>=1.16.0",
+    "passlib[bcrypt]>=1.7.4",
     "pytest>=8.4.0",
     "pytest-asyncio>=1.0.0",
     "ruff>=0.11.13",
@@ -13,6 +14,9 @@ name = "engine"
 readme = "README.md"
 requires-python = ">=3.11"
 version = "0.1.0"
+
+[tool.mypy]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "-v"
