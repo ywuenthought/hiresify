@@ -19,7 +19,7 @@ from sqlalchemy.orm import selectinload, with_loader_criteria
 from hiresify_engine.type import FilePath
 
 from .exception import EntityConflictError, EntityNotFoundError
-from .models import Base, RefreshToken, UserAuth
+from .model import Base, RefreshToken, UserAuth
 from .util import abbreviate_token
 
 
