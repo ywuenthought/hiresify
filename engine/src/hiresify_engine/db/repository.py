@@ -19,7 +19,7 @@ from sqlalchemy.orm import selectinload, with_loader_criteria
 from hiresify_engine.type import FilePath
 
 from .exception import EntityConflictError, EntityNotFoundError
-from .model import Base, RefreshToken, UserAuth
+from .model import Base, RefreshToken, User
 from .util import abbreviate_token
 
 
@@ -67,62 +67,62 @@ class Repository:
     # user management
     #################
 
-    async def find_user(self, username: str) -> UserAuth:
+    async def find_user(self, username: str) -> User:
         """Find the user with the given user name."""
-        where_clause = UserAuth.username == username
+        where_clause = User.username == username
 
         async with self.session() as session:
-            stmt = select(UserAuth).where(where_clause)
+            stmt = select(User).where(where_clause)
             result = await session.execute(stmt)
 
             try:
                 return result.scalar_one()
             except NoResultFound as e:
-                raise EntityNotFoundError(UserAuth, username=username) from e
+                raise EntityNotFoundError(User, username=username) from e
 
-    async def register_user(self, username: str, password: str) -> UserAuth:
+    async def register_user(self, username: str, password: str) -> User:
         """Register a user given a user name and a hashed password."""
-        user = UserAuth(username=username, password=password)
+        user = User(username=username, password=password)
 
         async with self.session() as session:
             try:
                 async with session.begin():
                     session.add(user)
             except IntegrityError as e:
-                raise EntityConflictError(UserAuth, username=username) from e
+                raise EntityConflictError(User, username=username) from e
 
             await session.refresh(user)
             return user
 
     async def update_password(self, username: str, password: str) -> None:
         """Update a user's password given the user name and the new hashed password."""
-        where_clause = UserAuth.username == username
+        where_clause = User.username == username
 
         async with self.session() as session:
             async with session.begin():
-                stmt = select(UserAuth).where(where_clause)
+                stmt = select(User).where(where_clause)
                 result = await session.execute(stmt)
 
                 try:
                     user = result.scalar_one()
                     user.password = password
                 except NoResultFound as e:
-                    raise EntityNotFoundError(UserAuth, username=username) from e
+                    raise EntityNotFoundError(User, username=username) from e
 
     async def delete_user(self, username: str) -> None:
         """Delete a user by the given user name."""
-        where_clause = UserAuth.username == username
+        where_clause = User.username == username
 
         async with self.session() as session:
             async with session.begin():
-                stmt = select(UserAuth).where(where_clause)
+                stmt = select(User).where(where_clause)
                 result = await session.execute(stmt)
 
                 try:
                     user = result.scalar_one()
                     await session.delete(user)
                 except NoResultFound as e:
-                    raise EntityNotFoundError(UserAuth, username=username) from e
+                    raise EntityNotFoundError(User, username=username) from e
 
     ###############
     # refresh token
@@ -146,18 +146,18 @@ class Repository:
 
     async def find_tokens(self, username: str) -> list[RefreshToken]:
         """Find all the refresh tokens for a user with the given user name."""
-        option = selectinload(UserAuth.refresh_tokens)
-        where_clause = UserAuth.username == username
+        option = selectinload(User.refresh_tokens)
+        where_clause = User.username == username
 
         async with self.session() as session:
-            stmt = select(UserAuth).options(option).where(where_clause)
+            stmt = select(User).options(option).where(where_clause)
             result = await session.execute(stmt)
 
             try:
                 user = result.scalar_one()
                 return user.refresh_tokens
             except NoResultFound as e:
-                raise EntityNotFoundError(UserAuth, username=username) from e
+                raise EntityNotFoundError(User, username=username) from e
 
     async def create_token(
         self,
@@ -211,15 +211,15 @@ class Repository:
     async def revoke_tokens(self, username: str) -> int:
         """Revoke all the refresh tokens for a user with the given user name."""
         options = [
-            selectinload(UserAuth.refresh_tokens),
+            selectinload(User.refresh_tokens),
             with_loader_criteria(RefreshToken, RefreshToken.revoked.is_(False)),
         ]
 
-        where_clause = UserAuth.username == username
+        where_clause = User.username == username
 
         async with self.session() as session:
             async with session.begin():
-                stmt = select(UserAuth).options(*options).where(where_clause)
+                stmt = select(User).options(*options).where(where_clause)
                 result = await session.execute(stmt)
 
                 try:
@@ -234,7 +234,7 @@ class Repository:
                     return len(refresh_tokens)
 
                 except NoResultFound as e:
-                    raise EntityNotFoundError(UserAuth, username=username) from e
+                    raise EntityNotFoundError(User, username=username) from e
 
     async def purge_tokens(
         self, retention_days: int, now: datetime | None = None,

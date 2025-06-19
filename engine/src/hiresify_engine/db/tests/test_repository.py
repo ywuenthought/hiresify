@@ -22,7 +22,7 @@ async def test_register_user(repository: Repository) -> None:
     # When/Then
     with pytest.raises(
         EntityNotFoundError,
-        check=lambda e: str(e) == f"UserAuth with username={username} was not found.",
+        check=lambda e: str(e) == f"User with username={username} was not found.",
     ):
         await repository.find_user(username)
 
@@ -41,7 +41,7 @@ async def test_register_user(repository: Repository) -> None:
     with pytest.raises(
         EntityConflictError,
         check=lambda e: str(e) == (
-            f"UserAuth with username={username} conflicts with an existing entity."
+            f"User with username={username} conflicts with an existing entity."
         ),
     ):
         await repository.register_user(username, password)
@@ -55,7 +55,7 @@ async def test_update_password(repository: Repository) -> None:
     # When/Then
     with pytest.raises(
         EntityNotFoundError,
-        check=lambda e: str(e) == f"UserAuth with username={username} was not found.",
+        check=lambda e: str(e) == f"User with username={username} was not found.",
     ):
         await repository.update_password(username, updated_password)
 
@@ -78,7 +78,7 @@ async def test_delete_user(repository: Repository) -> None:
     # When/Then
     with pytest.raises(
         EntityNotFoundError,
-        check=lambda e: str(e) == f"UserAuth with username={username} was not found.",
+        check=lambda e: str(e) == f"User with username={username} was not found.",
     ):
         await repository.delete_user(username)
 
@@ -91,7 +91,7 @@ async def test_delete_user(repository: Repository) -> None:
     # Then
     with pytest.raises(
         EntityNotFoundError,
-        check=lambda e: str(e) == f"UserAuth with username={username} was not found.",
+        check=lambda e: str(e) == f"User with username={username} was not found.",
     ):
         await repository.find_user(username)
 
@@ -177,7 +177,7 @@ async def test_revoke_tokens(repository: Repository) -> None:
     # When/Then
     with pytest.raises(
         EntityNotFoundError,
-        check=lambda e: str(e) == f"UserAuth with username={username} was not found.",
+        check=lambda e: str(e) == f"User with username={username} was not found.",
     ):
         await repository.revoke_tokens(username)
 

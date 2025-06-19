@@ -14,14 +14,14 @@ from fastapi.responses import RedirectResponse
 from hiresify_engine.db.exception import EntityConflictError
 
 from .dependency import RedisDep, RepositoryDep
-from .schema import UserAuthSchema
+from .schema import UserSchema
 from .util import hash_password
 
 router = APIRouter(prefix="/user")
 
 
 @router.post("")
-async def register_user(user: UserAuthSchema, repo: RepositoryDep):
+async def register_user(user: UserSchema, repo: RepositoryDep):
     """Register a user using the given user name."""
     hashed_password = hash_password(user.password)
 
@@ -56,7 +56,7 @@ async def authorize_user(
         )
 
     if not (session_id := request.cookies.get("session_id")) or not (
-        username := await redis.get(f"session:{session_id}")
+        user_uid := await redis.get(f"session:{session_id}")
     ):
         request_id = uuid4().hex
         url = str(request.url)
@@ -71,7 +71,7 @@ async def authorize_user(
         client_id=client_id,
         code_challenge=code_challenge,
         redirect_uri=str,
-        username=username,
+        user_uid=user_uid,
     )
     # Store the authorization code and its metadata for 5 minutes.
     await redis.setex(f"code:{code}", 300, json.dumps(code_meta))

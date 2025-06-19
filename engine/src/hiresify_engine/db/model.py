@@ -6,6 +6,7 @@
 """Define the database schema."""
 
 from datetime import datetime
+from uuid import uuid4
 
 from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -15,12 +16,15 @@ class Base(DeclarativeBase):
     """The base for all database models to inherit from."""
 
 
-class UserAuth(Base):
-    """The database model for user authentication."""
+class User(Base):
+    """The database model for identifying a user."""
 
-    __tablename__ = "user_auth"
+    __tablename__ = "user"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
+    #: The UID of a user, used externally.
+    uid: Mapped[str] = mapped_column(String(32), default=lambda: uuid4().hex)
 
     #: The unique user name of a user.
     username: Mapped[str] = mapped_column(String(30), nullable=False, unique=True)
@@ -40,6 +44,9 @@ class RefreshToken(Base):
     __tablename__ = "refresh_token"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
+    #: The UID of a refresh token, used externally.
+    uid: Mapped[str] = mapped_column(String(32), default=lambda: uuid4().hex)
 
     #: The hashed refresh token.
     token: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
@@ -63,7 +70,7 @@ class RefreshToken(Base):
     platform: Mapped[str] = mapped_column(String(32), nullable=True)
 
     #: The user ID that this refresh token is associated with.
-    user_id: Mapped[int] = mapped_column(ForeignKey("user_auth.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     # Each refresh token belongs to one user.
-    user: Mapped["UserAuth"] = relationship(back_populates="refresh_tokens")
+    user: Mapped["User"] = relationship(back_populates="refresh_tokens")
