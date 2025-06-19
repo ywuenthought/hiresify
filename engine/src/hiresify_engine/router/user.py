@@ -17,10 +17,10 @@ from .dependency import RedisDep, RepositoryDep
 from .schema import UserAuthSchema
 from .util import hash_password
 
-router = APIRouter()
+router = APIRouter(prefix="/user")
 
 
-@router.post("/user")
+@router.post("")
 async def register_user(user: UserAuthSchema, repo: RepositoryDep):
     """Register a user using the given user name."""
     hashed_password = hash_password(user.password)
@@ -31,7 +31,7 @@ async def register_user(user: UserAuthSchema, repo: RepositoryDep):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT) from e
 
 
-@router.get("/user/authorize")
+@router.get("/authorize")
 async def authorize_user(
     client_id: str,
     code_challenge: str,
@@ -64,7 +64,7 @@ async def authorize_user(
         # Store the original URL for 5 minutes.
         await redis.setex(f"request:{request_id}", 300, url)
 
-        return RedirectResponse(url=f"/login?request_id={request_id}")
+        return RedirectResponse(url=f"/user/login?request_id={request_id}")
 
     code = uuid4().hex
     code_meta = dict(

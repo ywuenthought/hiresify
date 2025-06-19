@@ -13,8 +13,7 @@ from fastapi import FastAPI
 from redis.asyncio import Redis
 
 from hiresify_engine.db.repository import Repository
-
-from .router import router
+from hiresify_engine.router import routers
 
 
 @asynccontextmanager
@@ -38,4 +37,6 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
 
 
 app = FastAPI(lifespan=lifespan)
-app.include_router(router)
+
+for router in routers:
+    app.include_router(router)
