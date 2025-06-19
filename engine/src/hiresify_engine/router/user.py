@@ -72,7 +72,7 @@ async def authorize_user(
         url = str(request.url)
 
         # Store the original URL for 5 minutes.
-        await redis.setex(f"request:{request_id}", 300, url)
+        await redis.setex(f"request:{request_id}", REDIS_TTL, url)
 
         return RedirectResponse(url=f"/user/login?request_id={request_id}")
 
@@ -84,7 +84,7 @@ async def authorize_user(
         user_uid=user_uid,
     )
     # Store the authorization code and its metadata for 5 minutes.
-    await redis.setex(f"code:{code}", 300, json.dumps(code_meta))
+    await redis.setex(f"code:{code}", REDIS_TTL, json.dumps(code_meta))
 
     redirect_url = f"{redirect_uri}?code={code}" + (f"&state={state}" if state else "")
     return RedirectResponse(url=redirect_url)
@@ -113,14 +113,14 @@ async def login_user(
         )
 
     session_id = uuid4().hex
-    await redis.setex(f"session:{session_id}", 1800, db_user.uid)
+    await redis.setex(f"session:{session_id}", SESSION_TTL, db_user.uid)
 
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=auth_url)
     response.set_cookie(
-        expires=datetime.now(UTC) + timedelta(seconds=1800),
+        expires=datetime.now(UTC) + timedelta(seconds=SESSION_TTL),
         httponly=True,
         key="session_id",
-        max_age=1800,
+        max_age=SESSION_TTL,
         samesite="lax",
         secure=True,
         value=session_id,
