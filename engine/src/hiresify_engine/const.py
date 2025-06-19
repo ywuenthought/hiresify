@@ -11,3 +11,9 @@
 
 # The database URL
 DATABASE_URL = "DATABASE_URL"
+
+# The Redis entry TTL
+REDIS_TTL = "REDIS_TTL"
+
+# The HTTPS session TTL
+SESSION_TTL = "SESSION_TTL"

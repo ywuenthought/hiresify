@@ -6,7 +6,6 @@
 """Define the endpoint schemas."""
 
 from datetime import datetime
-from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -15,7 +14,7 @@ class UserSchema(BaseModel):
     """The endpoint schema for user authentication."""
 
     #: The UID of a user.
-    uid: str = Field(default_factory=lambda: uuid4().hex, max_length=32)
+    uid: str | None = Field(default=None, max_length=32)
 
     #: The unique user name of a user.
     username: str = Field(..., max_length=30)
@@ -34,7 +33,7 @@ class RefreshTokenSchema(BaseModel):
     """The endpoint schema for a user's refresh token."""
 
     #: The UID of a refresh token.
-    uid: str = Field(default_factory=lambda: uuid4().hex, max_length=32)
+    uid: str | None = Field(default=None, max_length=32)
 
     #: The hashed refresh token.
     token: str = Field(..., max_length=128)
