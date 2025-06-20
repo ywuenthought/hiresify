@@ -101,9 +101,6 @@ async def test_delete_user(repository: Repository) -> None:
 
 async def test_create_token(repository: Repository) -> None:
     # Given
-    username = "ywu"
-    await repository.register_user(username, "123")
-
     token = "xyz"
 
     # When/Then
@@ -118,10 +115,11 @@ async def test_create_token(repository: Repository) -> None:
     # Given
     issued_at = datetime.now()
     expire_at = issued_at + timedelta(minutes=30)
+    user = await repository.register_user("ywu", "123")
 
     # When
     await repository.create_token(
-        username, token, issued_at=issued_at, expire_at=expire_at,
+        user.uid, token, issued_at=issued_at, expire_at=expire_at,
     )
     refresh_token = await repository.find_token(token)
 
@@ -134,9 +132,6 @@ async def test_create_token(repository: Repository) -> None:
 
 async def test_revoke_token(repository: Repository) -> None:
     # Given
-    username = "ywu"
-    await repository.register_user(username, "123")
-
     token = "xyz"
 
     # When/Then
@@ -149,13 +144,13 @@ async def test_revoke_token(repository: Repository) -> None:
         await repository.revoke_token(token)
 
     # Given
-    token = "xyz"
     issued_at = datetime.now()
     expire_at = issued_at + timedelta(minutes=30)
+    user = await repository.register_user("ywu", "123")
 
     # When
     await repository.create_token(
-        username, token, issued_at=issued_at, expire_at=expire_at,
+        user.uid, token, issued_at=issued_at, expire_at=expire_at,
     )
     refresh_token = await repository.find_token(token)
 
@@ -172,20 +167,20 @@ async def test_revoke_token(repository: Repository) -> None:
 
 async def test_revoke_tokens(repository: Repository) -> None:
     # Given
-    username = "ywu"
+    user_uid = "uid"
 
     # When/Then
     with pytest.raises(
         EntityNotFoundError,
-        check=lambda e: str(e) == f"User with username={username} was not found.",
+        check=lambda e: str(e) == f"User with uid={user_uid} was not found.",
     ):
-        await repository.revoke_tokens(username)
+        await repository.revoke_tokens(user_uid)
 
     # Given
-    await repository.register_user(username, "123")
+    user = await repository.register_user("ywu", "123")
 
     # When
-    refresh_tokens = await repository.find_tokens(username)
+    refresh_tokens = await repository.find_tokens(user.uid)
 
     # Then
     assert not refresh_tokens
@@ -197,12 +192,12 @@ async def test_revoke_tokens(repository: Repository) -> None:
     for token in tokens:
         issued_at = datetime.now()
         await repository.create_token(
-            username,
+            user.uid,
             token,
             issued_at=issued_at,
             expire_at=issued_at + timedelta(minutes=30),
         )
-    refresh_tokens = await repository.find_tokens(username)
+    refresh_tokens = await repository.find_tokens(user.uid)
 
     # Then
     assert len(refresh_tokens) == len(tokens)
@@ -211,8 +206,8 @@ async def test_revoke_tokens(repository: Repository) -> None:
         assert not refresh_token.revoked
 
     # When
-    await repository.revoke_tokens(username)
-    refresh_tokens = await repository.find_tokens(username)
+    await repository.revoke_tokens(user.uid)
+    refresh_tokens = await repository.find_tokens(user.uid)
 
     # Then
     assert len(refresh_tokens) == len(tokens)
@@ -223,21 +218,20 @@ async def test_revoke_tokens(repository: Repository) -> None:
 
 async def test_purge_tokens(repository: Repository) -> None:
     # Given
-    username = "ywu"
-    await repository.register_user(username, "123")
+    user = await repository.register_user("ywu", "123")
 
     tokens = ["xyz1", "xyz2", "xyz3"]
     for token in tokens:
         issued_at = datetime.now()
         await repository.create_token(
-            username,
+            user.uid,
             token,
             issued_at=issued_at,
             expire_at=issued_at + timedelta(minutes=30),
         )
 
     # When
-    refresh_tokens = await repository.find_tokens(username)
+    refresh_tokens = await repository.find_tokens(user.uid)
 
     # Then
     assert len(refresh_tokens) == len(tokens)
@@ -245,7 +239,7 @@ async def test_purge_tokens(repository: Repository) -> None:
     # When
     *_, refresh_token = refresh_tokens
     await repository.purge_tokens(1, refresh_token.expire_at + timedelta(days=2))
-    refresh_tokens = await repository.find_tokens(username)
+    refresh_tokens = await repository.find_tokens(user.uid)
 
     # Then
     assert not refresh_tokens

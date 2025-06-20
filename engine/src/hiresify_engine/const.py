@@ -12,6 +12,15 @@
 # The database URL
 DATABASE_URL = "DATABASE_URL"
 
+# The JWT secret key
+JWT_SECRET_KEY = "JWT_SECRET_KEY"
+
+# The JWT encoding algorithm
+JWT_ALGORITHM = "JWT_ALGORITHM"
+
+# The JWT TTL
+JWT_TTL = "JWT_TTL"
+
 # The Redis entry TTL
 REDIS_TTL = "REDIS_TTL"
 

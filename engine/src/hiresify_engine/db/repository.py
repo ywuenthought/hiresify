@@ -12,7 +12,7 @@ from collections import abc
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
-from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
@@ -75,10 +75,10 @@ class Repository:
             stmt = select(User).where(where_clause)
             result = await session.execute(stmt)
 
-            try:
-                return result.scalar_one()
-            except NoResultFound as e:
-                raise EntityNotFoundError(User, username=username) from e
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, username=username)
+
+            return user
 
     async def register_user(self, username: str, password: str) -> User:
         """Register a user given a user name and a hashed password."""
@@ -99,87 +99,90 @@ class Repository:
         where_clause = User.username == username
 
         async with self.session() as session:
-            async with session.begin():
-                stmt = select(User).where(where_clause)
-                result = await session.execute(stmt)
+            stmt = select(User).where(where_clause)
+            result = await session.execute(stmt)
+            await session.commit()
 
-                try:
-                    user = result.scalar_one()
-                    user.password = password
-                except NoResultFound as e:
-                    raise EntityNotFoundError(User, username=username) from e
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, username=username)
+
+            async with session.begin():
+                user.password = password
 
     async def delete_user(self, username: str) -> None:
         """Delete a user by the given user name."""
         where_clause = User.username == username
 
         async with self.session() as session:
-            async with session.begin():
-                stmt = select(User).where(where_clause)
-                result = await session.execute(stmt)
+            stmt = select(User).where(where_clause)
+            result = await session.execute(stmt)
+            await session.commit()
 
-                try:
-                    user = result.scalar_one()
-                    await session.delete(user)
-                except NoResultFound as e:
-                    raise EntityNotFoundError(User, username=username) from e
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, username=username)
+
+            async with session.begin():
+                await session.delete(user)
 
     ###############
     # refresh token
     ###############
 
     async def find_token(self, token: str) -> RefreshToken:
-        """Find the refresh token with the given hashed token."""
+        """Find the refresh token with the given token string."""
         where_clause = RefreshToken.token == token
 
         async with self.session() as session:
             stmt = select(RefreshToken).where(where_clause)
             result = await session.execute(stmt)
 
-            try:
-                return result.scalar_one()
-            except NoResultFound as e:
-                raise EntityNotFoundError(
-                    # Do not log the entire token for security.
-                    RefreshToken, token=abbreviate_token(token),
-                ) from e
+            if not (refresh_token := result.scalar_one_or_none()):
+                raise EntityNotFoundError(RefreshToken, token=abbreviate_token(token))
 
-    async def find_tokens(self, username: str) -> list[RefreshToken]:
-        """Find all the refresh tokens for a user with the given user name."""
+            return refresh_token
+
+    async def find_tokens(self, user_uid: str) -> list[RefreshToken]:
+        """Find all the refresh tokens for a user with the given user UID."""
         option = selectinload(User.refresh_tokens)
-        where_clause = User.username == username
+        where_clause = User.uid == user_uid
 
         async with self.session() as session:
             stmt = select(User).options(option).where(where_clause)
             result = await session.execute(stmt)
 
-            try:
-                user = result.scalar_one()
-                return user.refresh_tokens
-            except NoResultFound as e:
-                raise EntityNotFoundError(User, username=username) from e
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
+            return user.refresh_tokens
 
     async def create_token(
         self,
-        username: str,
+        user_uid: str,
         token: str,
         *,
         issued_at: datetime,
         expire_at: datetime,
         **params: ty.Any,
     ) -> RefreshToken:
-        """Create a refresh token for a user with the given user name."""
-        user = await self.find_user(username)
-
-        refresh_token = RefreshToken(
-            token=token,
-            issued_at=issued_at,
-            expire_at=expire_at,
-            user_id=user.id,
-            **params,
-        )
+        """Create a refresh token for a user with the given user UID."""
+        where_clause = User.uid == user_uid
 
         async with self.session() as session:
+            stmt = select(User).where(where_clause)
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
+            refresh_token = RefreshToken(
+                token=token,
+                issued_at=issued_at,
+                expire_at=expire_at,
+                user_id=user.id,
+                **params,
+            )
+
             try:
                 async with session.begin():
                     session.add(refresh_token)
@@ -192,49 +195,45 @@ class Repository:
             return refresh_token
 
     async def revoke_token(self, token: str) -> None:
-        """Revoke a refresh token given its hashed token."""
+        """Revoke a refresh token given its token string."""
         where_clause = RefreshToken.token == token
 
         async with self.session() as session:
+            stmt = select(RefreshToken).where(where_clause)
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (refresh_token := result.scalar_one_or_none()):
+                raise EntityNotFoundError(RefreshToken, token=abbreviate_token(token))
+
             async with session.begin():
-                stmt = select(RefreshToken).where(where_clause)
-                result = await session.execute(stmt)
+                refresh_token.revoked = True
 
-                try:
-                    refresh_token = result.scalar_one()
-                    refresh_token.revoked = True
-                except NoResultFound as e:
-                    raise EntityNotFoundError(
-                        RefreshToken, token=abbreviate_token(token),
-                    ) from e
-
-    async def revoke_tokens(self, username: str) -> int:
-        """Revoke all the refresh tokens for a user with the given user name."""
+    async def revoke_tokens(self, user_uid: str) -> int:
+        """Revoke all the refresh tokens for a user with the given user UID."""
         options = [
             selectinload(User.refresh_tokens),
             with_loader_criteria(RefreshToken, RefreshToken.revoked.is_(False)),
         ]
 
-        where_clause = User.username == username
+        where_clause = User.uid == user_uid
 
         async with self.session() as session:
+            stmt = select(User).options(*options).where(where_clause)
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
             async with session.begin():
-                stmt = select(User).options(*options).where(where_clause)
-                result = await session.execute(stmt)
+                if not (refresh_tokens := user.refresh_tokens):
+                    return 0
 
-                try:
-                    user = result.scalar_one()
+                for refresh_token in refresh_tokens:
+                    refresh_token.revoked = True
 
-                    if not (refresh_tokens := user.refresh_tokens):
-                        return 0
-
-                    for refresh_token in refresh_tokens:
-                        refresh_token.revoked = True
-
-                    return len(refresh_tokens)
-
-                except NoResultFound as e:
-                    raise EntityNotFoundError(User, username=username) from e
+                return len(refresh_tokens)
 
     async def purge_tokens(
         self, retention_days: int, now: datetime | None = None,

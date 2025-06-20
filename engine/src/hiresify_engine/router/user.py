@@ -3,13 +3,13 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-"""Define the backend endpoints."""
+"""Define the backend user-related endpoints."""
 
 import json
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 
 from hiresify_engine import const
@@ -35,34 +35,26 @@ async def register_user(user: UserSchema, repo: RepositoryDep) -> None:
     try:
         await repo.register_user(user.username, hashed_password)
     except EntityConflictError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"User with username={user.username} already exists.",
-        ) from e
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT) from e
 
 
 @router.get("/authorize")
 async def authorize_user(
-    client_id: str,
-    code_challenge: str,
-    code_challenge_method: str,
-    redirect_uri: str,
+    client_id: str = Query(..., max_length=32, min_length=32),
+    code_challenge: str = Query(..., max_length=43, min_length=43),
+    code_challenge_method: str = Query(..., max_length=10, min_length=4),
+    redirect_uri: str = Query(..., max_length=2048, pattern="^https://"),
+    response_type: str = Query(..., max_length=20, min_length=4),
+    state: str | None = Query(None, max_length=32, min_length=32),
+    *,
     redis: RedisDep,
     request: Request,
-    response_type: str,
-    state: str | None = None,
 ) -> RedirectResponse:
     """Authorize a verified user to log in the app."""
     if response_type != "code":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
             detail='Only response_type="code" is supported.',
-        )
-
-    if code_challenge_method.lower() != "s256":
-        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Only code_challenge_method="s256" is supported.',
         )
 
     if not (session_id := request.cookies.get("session_id")) or not (
@@ -80,7 +72,8 @@ async def authorize_user(
     code_meta = dict(
         client_id=client_id,
         code_challenge=code_challenge,
-        redirect_uri=str,
+        code_challenge_method=code_challenge_method,
+        redirect_uri=redirect_uri,
         user_uid=user_uid,
     )
     # Store the authorization code and its metadata for 5 minutes.
@@ -92,7 +85,11 @@ async def authorize_user(
 
 @router.post("/login")
 async def login_user(
-    user: UserSchema, redis: RedisDep, repo: RepositoryDep, request_id: str,
+    user: UserSchema,
+    request_id: str = Query(..., max_length=32, min_length=32),
+    *,
+    redis: RedisDep,
+    repo: RepositoryDep,
 ) -> RedirectResponse:
     """Verify a user's credentials and set up a login session."""
     try:
@@ -102,14 +99,14 @@ async def login_user(
 
     if not verify_password(user.username, db_user.password):
         raise HTTPException(
+            detail=f"The input password for user {db_user.uid} is incorrect.",
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"The password for user {db_user.uid} is incorrect.",
         )
 
     if not (auth_url := await redis.get(f"request:{request_id}")):
         raise HTTPException(
-            status_code=status.HTTP_408_REQUEST_TIMEOUT,
-            detail="The authentication request timed out.",
+            detail=f"{request_id=} is invalid or timed out.",
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
 
     session_id = uuid4().hex

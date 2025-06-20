@@ -48,7 +48,7 @@ class RefreshToken(Base):
     #: The UID of a refresh token, used externally.
     uid: Mapped[str] = mapped_column(String(32), default=lambda: uuid4().hex)
 
-    #: The hashed refresh token.
+    #: A string representation of the refresh token.
     token: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
 
     #: The date and time when the token was issued.
