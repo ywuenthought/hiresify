@@ -21,11 +21,13 @@ from .dependency import RedisDep, RepositoryDep
 from .model import CodeMetadata
 from .util import is_pkce_valid
 
+JWT_ACCESS_TTL = get_envvar(const.JWT_ACCESS_TTL, int, 900)
+
 JWT_ALGORITHM = get_envvar(const.JWT_ALGORITHM, str, "HS256")
 
-JWT_SECRET_KEY = get_envvar(const.JWT_SECRET_KEY, str, "")
+JWT_REFRESH_TTL = get_envvar(const.JWT_REFRESH_TTL, int, 30)
 
-JWT_TTL = get_envvar(const.JWT_TTL, int, 1800)
+JWT_SECRET_KEY = get_envvar(const.JWT_SECRET_KEY, str, "")
 
 router = APIRouter(prefix="/token")
 
@@ -75,7 +77,7 @@ async def issue_token(
         )
 
     issued_at = datetime.now(UTC)
-    expire_at = issued_at + timedelta(days=30)
+    expire_at = issued_at + timedelta(seconds=JWT_ACCESS_TTL)
 
     access_token = jwt.encode(
         dict(
@@ -93,7 +95,7 @@ async def issue_token(
             code_meta.user_uid,
             refresh_token := uuid4().hex,
             issued_at=issued_at,
-            expire_at=expire_at,
+            expire_at=issued_at + timedelta(days=JWT_REFRESH_TTL),
             device=device,
             ip=ip,
             platform=platform,
@@ -107,7 +109,45 @@ async def issue_token(
 
     return dict(
         access_token=access_token,
-        expires_in=JWT_TTL,
+        expires_in=JWT_ACCESS_TTL,
+        refresh_token=refresh_token,
+        scope="read write",
+        token_type="bearer",
+    )
+
+
+@router.post("/refresh", status_code=status.HTTP_201_CREATED)
+async def refresh_token(
+    token: str = Form(..., max_length=32, min_length=32),
+    *,
+    repo: RepositoryDep,
+) -> dict[str, ty.Any]:
+    """Refresh a user's access token if the given refresh token is active."""
+    refresh_token = await repo.find_token(token, eager=True)
+
+    if refresh_token.revoked or refresh_token.expire_at >= datetime.now(UTC):
+        raise HTTPException(
+            detail=f"{token=} was revoked or timed out.",
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
+        )
+
+    issued_at = datetime.now(UTC)
+    expire_at = issued_at + timedelta(seconds=JWT_ACCESS_TTL)
+
+    access_token = jwt.encode(
+        dict(
+            exp=int(expire_at.timestamp()),
+            iat=int(issued_at.timestamp()),
+            scope="read write",
+            sub=refresh_token.user.uid,
+        ),
+        JWT_SECRET_KEY,
+        algorithm=JWT_ALGORITHM,
+    )
+
+    return dict(
+        access_token=access_token,
+        expires_in=JWT_ACCESS_TTL,
         refresh_token=refresh_token,
         scope="read write",
         token_type="bearer",

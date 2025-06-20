@@ -67,12 +67,13 @@ class Repository:
     # user management
     #################
 
-    async def find_user(self, username: str) -> User:
+    async def find_user(self, username: str, *, eager: bool = False) -> User:
         """Find the user with the given user name."""
+        options = [selectinload(User.refresh_tokens)] if eager else []
         where_clause = User.username == username
+        stmt = select(User).options(*options).where(where_clause)
 
         async with self.session() as session:
-            stmt = select(User).where(where_clause)
             result = await session.execute(stmt)
 
             if not (user := result.scalar_one_or_none()):
@@ -97,9 +98,9 @@ class Repository:
     async def update_password(self, username: str, password: str) -> None:
         """Update a user's password given the user name and the new hashed password."""
         where_clause = User.username == username
+        stmt = select(User).where(where_clause)
 
         async with self.session() as session:
-            stmt = select(User).where(where_clause)
             result = await session.execute(stmt)
             await session.commit()
 
@@ -112,9 +113,9 @@ class Repository:
     async def delete_user(self, username: str) -> None:
         """Delete a user by the given user name."""
         where_clause = User.username == username
+        stmt = select(User).where(where_clause)
 
         async with self.session() as session:
-            stmt = select(User).where(where_clause)
             result = await session.execute(stmt)
             await session.commit()
 
@@ -128,12 +129,13 @@ class Repository:
     # refresh token
     ###############
 
-    async def find_token(self, token: str) -> RefreshToken:
+    async def find_token(self, token: str, *, eager: bool = False) -> RefreshToken:
         """Find the refresh token with the given token string."""
+        options = [selectinload(RefreshToken.user)] if eager else []
         where_clause = RefreshToken.token == token
+        stmt = select(RefreshToken).options(*options).where(where_clause)
 
         async with self.session() as session:
-            stmt = select(RefreshToken).where(where_clause)
             result = await session.execute(stmt)
 
             if not (refresh_token := result.scalar_one_or_none()):
@@ -145,9 +147,9 @@ class Repository:
         """Find all the refresh tokens for a user with the given user UID."""
         option = selectinload(User.refresh_tokens)
         where_clause = User.uid == user_uid
+        stmt = select(User).options(option).where(where_clause)
 
         async with self.session() as session:
-            stmt = select(User).options(option).where(where_clause)
             result = await session.execute(stmt)
 
             if not (user := result.scalar_one_or_none()):
@@ -166,9 +168,9 @@ class Repository:
     ) -> RefreshToken:
         """Create a refresh token for a user with the given user UID."""
         where_clause = User.uid == user_uid
+        stmt = select(User).where(where_clause)
 
         async with self.session() as session:
-            stmt = select(User).where(where_clause)
             result = await session.execute(stmt)
             await session.commit()
 
@@ -197,9 +199,9 @@ class Repository:
     async def revoke_token(self, token: str) -> None:
         """Revoke a refresh token given its token string."""
         where_clause = RefreshToken.token == token
+        stmt = select(RefreshToken).where(where_clause)
 
         async with self.session() as session:
-            stmt = select(RefreshToken).where(where_clause)
             result = await session.execute(stmt)
             await session.commit()
 
@@ -217,9 +219,9 @@ class Repository:
         ]
 
         where_clause = User.uid == user_uid
+        stmt = select(User).options(*options).where(where_clause)
 
         async with self.session() as session:
-            stmt = select(User).options(*options).where(where_clause)
             result = await session.execute(stmt)
             await session.commit()
 
@@ -241,10 +243,10 @@ class Repository:
         """Purge all the refresh tokens expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
         where_clause = RefreshToken.expire_at < cutoff
+        stmt = delete(RefreshToken).where(where_clause)
 
         async with self.session() as session:
             async with session.begin():
-                stmt = delete(RefreshToken).where(where_clause)
                 result = await session.execute(stmt)
 
                 return result.rowcount
