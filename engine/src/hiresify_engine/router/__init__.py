@@ -3,6 +3,10 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
+from .token import router as token_router
 from .user import router as user_router
 
-routers = [user_router]
+routers = [
+    token_router,
+    user_router,
+]
