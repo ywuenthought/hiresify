@@ -15,12 +15,9 @@ from fastapi import APIRouter, Form, HTTPException, status
 from hiresify_engine import const
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 from hiresify_engine.tool.jwt import TokenResponse
-from hiresify_engine.util import get_envvar
 
-from .dependency import CacheStoreDep, JWTManagerDep, RepositoryDep
+from .dependency import AppEnvironDep, CacheStoreDep, JWTManagerDep, RepositoryDep
 from .util import is_pkce_valid
-
-JWT_REFRESH_TTL = get_envvar(const.JWT_REFRESH_TTL, int, 30)
 
 router = APIRouter(prefix="/token")
 
@@ -60,6 +57,7 @@ async def issue_token(
     platform: str | None = Form(None, max_length=32),
     *,
     cache: CacheStoreDep,
+    env: AppEnvironDep,
     jwt_manager: JWTManagerDep,
     repo: RepositoryDep,
 ) -> TokenResponse:
@@ -96,7 +94,7 @@ async def issue_token(
 
     refresh_token = uuid4().hex
     issued_at = datetime.now(UTC)
-    expire_at = issued_at + timedelta(days=JWT_REFRESH_TTL)
+    expire_at = issued_at + timedelta(days=env[const.REFRESH_TTL])
 
     try:
         await repo.create_token(

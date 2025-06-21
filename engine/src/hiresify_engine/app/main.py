@@ -18,8 +18,6 @@ from hiresify_engine.router import routers
 from hiresify_engine.tool import JWTManager, PWDManager
 from hiresify_engine.util import get_envvar
 
-JWT_ACCESS_TTL = get_envvar(const.JWT_ACCESS_TTL, int, 900)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
@@ -36,10 +34,19 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
         )
 
         # Initialize the JWT access token manager.
-        app.state.jwt_manager = JWTManager(ttl=JWT_ACCESS_TTL)
+        app.state.jwt_manager = JWTManager(
+            ttl=get_envvar(const.JWT_ACCESS_TTL, int, 900),
+        )
 
         # Initialize the user password manager.
         app.state.pwd_manager = PWDManager()
+
+        # Initialize the environment variables.
+        app.state.env = {
+            const.CACHE_TTL: get_envvar(const.CACHE_TTL, int, 300),
+            const.REFRESH_TTL: get_envvar(const.REFRESH_TTL, int, 30),
+            const.SESSION_TTL: get_envvar(const.SESSION_TTL, int, 1800),
+        }
 
         yield
 

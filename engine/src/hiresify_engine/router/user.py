@@ -14,14 +14,9 @@ from fastapi.responses import RedirectResponse
 
 from hiresify_engine import const
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
-from hiresify_engine.util import get_envvar
 
-from .dependency import CacheStoreDep, PWDManagerDep, RepositoryDep
+from .dependency import AppEnvironDep, CacheStoreDep, PWDManagerDep, RepositoryDep
 from .schema import UserSchema
-
-CACHE_TTL = get_envvar(const.CACHE_TTL, int, 300)
-
-SESSION_TTL = get_envvar(const.SESSION_TTL, int, 1800)
 
 router = APIRouter(prefix="/user")
 
@@ -49,6 +44,7 @@ async def authorize_user(
     state: str | None = Query(None, max_length=32, min_length=32),
     *,
     cache: CacheStoreDep,
+    env: AppEnvironDep,
     request: Request,
 ) -> RedirectResponse:
     """Authorize a verified user to log in the app."""
@@ -58,6 +54,8 @@ async def authorize_user(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+    cache_ttl = env[const.CACHE_TTL]
+
     if not (session_id := request.cookies.get("session_id")) or not (
         user_uid := await cache.get(f"session:{session_id}")
     ):
@@ -65,7 +63,7 @@ async def authorize_user(
         url = str(request.url)
 
         # Store the original URL for 5 minutes.
-        await cache.setex(f"request:{request_id}", CACHE_TTL, url)
+        await cache.setex(f"request:{request_id}", cache_ttl, url)
 
         return RedirectResponse(url=f"/user/login?request_id={request_id}")
 
@@ -78,7 +76,7 @@ async def authorize_user(
         user_uid=user_uid,
     )
     # Store the authorization code and its metadata for 5 minutes.
-    await cache.setex(f"code:{code}", CACHE_TTL, json.dumps(code_meta))
+    await cache.setex(f"code:{code}", cache_ttl, json.dumps(code_meta))
 
     redirect_url = f"{redirect_uri}?code={code}" + (f"&state={state}" if state else "")
     return RedirectResponse(url=redirect_url)
@@ -90,6 +88,7 @@ async def login_user(
     request_id: str = Query(..., max_length=32, min_length=32),
     *,
     cache: CacheStoreDep,
+    env: AppEnvironDep,
     pwd_manager: PWDManagerDep,
     repo: RepositoryDep,
 ) -> RedirectResponse:
@@ -112,14 +111,15 @@ async def login_user(
         )
 
     session_id = uuid4().hex
-    await cache.setex(f"session:{session_id}", SESSION_TTL, db_user.uid)
+    session_ttl = env[const.SESSION_TTL]
+    await cache.setex(f"session:{session_id}", session_ttl, db_user.uid)
 
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=auth_url)
     response.set_cookie(
-        expires=datetime.now(UTC) + timedelta(seconds=SESSION_TTL),
+        expires=datetime.now(UTC) + timedelta(seconds=session_ttl),
         httponly=True,
         key="session_id",
-        max_age=SESSION_TTL,
+        max_age=session_ttl,
         samesite="lax",
         secure=True,
         value=session_id,
