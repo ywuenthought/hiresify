@@ -9,14 +9,14 @@
 # envvar keys
 #############
 
+# The access token TTL (sec).
+ACCESS_TTL = "ACCESS_TTL"
+
 # The cache entry TTL (sec).
 CACHE_TTL = "CACHE_TTL"
 
 # The database URL.
 DATABASE_URL = "DATABASE_URL"
-
-# The JWT access token TTL (sec).
-JWT_ACCESS_TTL = "JWT_ACCESS_TTL"
 
 # The refresh token TTL (day).
 REFRESH_TTL = "REFRESH_TTL"

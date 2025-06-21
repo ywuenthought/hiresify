@@ -9,7 +9,7 @@ from passlib.context import CryptContext
 
 
 class PasswordManager:
-    """A manager class for hashing and verifying a user's password."""
+    """A wrapper class for managing user passwords."""
 
     def __init__(self, *schemes: str) -> None:
         """Initialize a new instance of PasswordManager."""

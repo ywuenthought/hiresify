@@ -10,12 +10,11 @@ import typing as ty
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from redis.asyncio import Redis
 
 from hiresify_engine import const
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.router import routers
-from hiresify_engine.tool import JWTManager, PWDManager
+from hiresify_engine.tool import CCHManager, JWTManager, PWDManager
 from hiresify_engine.util import get_envvar
 
 
@@ -28,30 +27,28 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
         app.state.repo = repo = Repository(db_url)
         await repo.init_schema()
 
-        # Initialize the in-memory database client.
-        app.state.cache = cache = Redis(
-            host="localhost", port=6379, decode_responses=True,
+        # Initialize the cache manager.
+        app.state.cch = cache = CCHManager(
+            get_envvar(const.CACHE_TTL, int, 300),
+            session_ttl := get_envvar(const.SESSION_TTL, int, 1800),
         )
 
         # Initialize the JWT access token manager.
-        app.state.jwt_manager = JWTManager(
-            ttl=get_envvar(const.JWT_ACCESS_TTL, int, 900),
-        )
+        app.state.jwt = JWTManager(get_envvar(const.ACCESS_TTL, int, 900))
 
         # Initialize the user password manager.
-        app.state.pwd_manager = PWDManager()
+        app.state.pwd = PWDManager()
 
         # Initialize the environment variables.
         app.state.env = {
-            const.CACHE_TTL: get_envvar(const.CACHE_TTL, int, 300),
             const.REFRESH_TTL: get_envvar(const.REFRESH_TTL, int, 30),
-            const.SESSION_TTL: get_envvar(const.SESSION_TTL, int, 1800),
+            const.SESSION_TTL: session_ttl,
         }
 
         yield
 
         await repo.dispose()
-        await cache.aclose()
+        await cache.dispose()
 
 
 app = FastAPI(lifespan=lifespan)

@@ -8,10 +8,9 @@
 import typing as ty
 
 from fastapi import Depends, FastAPI, Request
-from redis.asyncio import Redis
 
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.tool import JWTManager, PWDManager
+from hiresify_engine.tool import CCHManager, JWTManager, PWDManager
 
 T = ty.TypeVar("T")
 
@@ -25,7 +24,7 @@ def from_state(attr: str, _type: type[T]) -> ty.Callable[[Request], T]:
 
 
 AppEnvironDep = ty.Annotated[dict, Depends(from_state("env", dict))]
-CacheStoreDep = ty.Annotated[Redis, Depends(from_state("redis", Redis))]
-JWTManagerDep = ty.Annotated[JWTManager, Depends(from_state("jwt_manager", JWTManager))]
-PWDManagerDep = ty.Annotated[PWDManager, Depends(from_state("pwd_manager", PWDManager))]
+CCHManagerDep = ty.Annotated[CCHManager, Depends(from_state("cch", CCHManager))]
+JWTManagerDep = ty.Annotated[JWTManager, Depends(from_state("jwt", JWTManager))]
+PWDManagerDep = ty.Annotated[PWDManager, Depends(from_state("pwd", PWDManager))]
 RepositoryDep = ty.Annotated[Repository, Depends(from_state("repo", Repository))]

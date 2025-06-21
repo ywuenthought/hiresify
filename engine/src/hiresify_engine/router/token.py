@@ -5,8 +5,6 @@
 
 """Define the backend token-related endpoints."""
 
-import json
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -16,30 +14,10 @@ from hiresify_engine import const
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 from hiresify_engine.tool.jwt import TokenResponse
 
-from .dependency import AppEnvironDep, CacheStoreDep, JWTManagerDep, RepositoryDep
+from .dependency import AppEnvironDep, CCHManagerDep, JWTManagerDep, RepositoryDep
 from .util import is_pkce_valid
 
 router = APIRouter(prefix="/token")
-
-
-@dataclass(frozen=True)
-class CodeMetadata:
-    """Wrap the metadata associated with an authentication code."""
-
-    #: The ID of the client.
-    client_id: str
-
-    #: The code challenge sent by the client.
-    code_challenge: str
-
-    #: The method to be used against the code challenge.
-    code_challenge_method: str
-
-    #: The redirect URI.
-    redirect_uri: str
-
-    #: The UID of the user to be authenticated.
-    user_uid: str
 
 
 @router.post(
@@ -56,27 +34,25 @@ async def issue_token(
     ip: str | None = Form(None, max_length=45),
     platform: str | None = Form(None, max_length=32),
     *,
-    cache: CacheStoreDep,
+    cch: CCHManagerDep,
     env: AppEnvironDep,
-    jwt_manager: JWTManagerDep,
+    jwt: JWTManagerDep,
     repo: RepositoryDep,
 ) -> TokenResponse:
     """Issue an access token to a user identified by the given metadata."""
-    if not (raw := await cache.get(f"code:{code}")):
+    if not (meta := await cch.get_codemeta(code)):
         raise HTTPException(
             detail=f"{code=} is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    code_meta = CodeMetadata(**json.loads(raw))
-
-    if client_id != code_meta.client_id:
+    if client_id != meta.client_id:
         raise HTTPException(
             detail=f"{client_id=} is unauthorized.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if redirect_uri != code_meta.redirect_uri:
+    if redirect_uri != meta.redirect_uri:
         raise HTTPException(
             detail=f"{redirect_uri=} is invalid.",
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -84,8 +60,8 @@ async def issue_token(
 
     if not is_pkce_valid(
         code_verifier,
-        code_meta.code_challenge,
-        method=code_meta.code_challenge_method,
+        meta.code_challenge,
+        method=meta.code_challenge_method,
     ):
         raise HTTPException(
             detail=f"{code_verifier=} is invalid.",
@@ -98,7 +74,7 @@ async def issue_token(
 
     try:
         await repo.create_token(
-            code_meta.user_uid,
+            meta.user_uid,
             refresh_token,
             issued_at=issued_at,
             expire_at=expire_at,
@@ -111,8 +87,8 @@ async def issue_token(
     except EntityConflictError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT) from e
 
-    await cache.delete(f"code:{code}")
-    return jwt_manager.generate(code_meta.user_uid, refresh_token)
+    await cch.delete_code(code)
+    return jwt.generate(meta.user_uid, refresh_token)
 
 
 @router.post(
@@ -123,7 +99,7 @@ async def issue_token(
 async def refresh_token(
     token: str = Form(..., max_length=32, min_length=32),
     *,
-    jwt_manager: JWTManagerDep,
+    jwt: JWTManagerDep,
     repo: RepositoryDep,
 ) -> TokenResponse:
     """Refresh a user's access token if the given refresh token is active."""
@@ -135,5 +111,5 @@ async def refresh_token(
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
-    user_id = refresh_token.user.uid
-    return jwt_manager.generate(user_id, token)
+    user_uid = refresh_token.user.uid
+    return jwt.generate(user_uid, token)

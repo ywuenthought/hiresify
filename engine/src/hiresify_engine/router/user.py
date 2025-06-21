@@ -5,31 +5,32 @@
 
 """Define the backend user-related endpoints."""
 
-import json
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 
 from hiresify_engine import const
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 
-from .dependency import AppEnvironDep, CacheStoreDep, PWDManagerDep, RepositoryDep
-from .schema import UserSchema
+from .dependency import AppEnvironDep, CCHManagerDep, PWDManagerDep, RepositoryDep
 
 router = APIRouter(prefix="/user")
 
 
 @router.post("")
 async def register_user(
-    user: UserSchema, *, pwd_manager: PWDManagerDep, repo: RepositoryDep,
+    username: str = Form(..., max_length=30),
+    password: str = Form(..., max_length=128),
+    *,
+    pwd_manager: PWDManagerDep,
+    repo: RepositoryDep,
 ) -> None:
     """Register a user using the given user name."""
-    hashed_password = pwd_manager.hash(user.password)
+    hashed_password = pwd_manager.hash(password)
 
     try:
-        await repo.register_user(user.username, hashed_password)
+        await repo.register_user(username, hashed_password)
     except EntityConflictError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT) from e
 
@@ -43,8 +44,7 @@ async def authorize_user(
     response_type: str = Query(..., max_length=20, min_length=4),
     state: str | None = Query(None, max_length=32, min_length=32),
     *,
-    cache: CacheStoreDep,
-    env: AppEnvironDep,
+    cch: CCHManagerDep,
     request: Request,
 ) -> RedirectResponse:
     """Authorize a verified user to log in the app."""
@@ -54,67 +54,59 @@ async def authorize_user(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    cache_ttl = env[const.CACHE_TTL]
-
-    if not (session_id := request.cookies.get("session_id")) or not (
-        user_uid := await cache.get(f"session:{session_id}")
-    ):
-        request_id = uuid4().hex
-        url = str(request.url)
-
-        # Store the original URL for 5 minutes.
-        await cache.setex(f"request:{request_id}", cache_ttl, url)
-
-        return RedirectResponse(url=f"/user/login?request_id={request_id}")
-
-    code = uuid4().hex
-    code_meta = dict(
+    session_id = request.cookies.get("session_id")
+    code = await cch.generate_code(
+        session_id,
         client_id=client_id,
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
         redirect_uri=redirect_uri,
-        user_uid=user_uid,
-    )
-    # Store the authorization code and its metadata for 5 minutes.
-    await cache.setex(f"code:{code}", cache_ttl, json.dumps(code_meta))
+        state=state,
+    ) if session_id else None
 
-    redirect_url = f"{redirect_uri}?code={code}" + (f"&state={state}" if state else "")
-    return RedirectResponse(url=redirect_url)
+    if code:
+        url = f"{redirect_uri}?code={code}"
+    else:
+        request_id = await cch.cache_url(str(request.url))
+        url = f"/user/login?request_id={request_id}"
+
+    return RedirectResponse(url=url)
 
 
 @router.post("/login")
 async def login_user(
-    user: UserSchema,
-    request_id: str = Query(..., max_length=32, min_length=32),
+    username: str = Form(..., max_length=30),
+    password: str = Form(..., max_length=128),
+    request_id: str = Form(..., max_length=32, min_length=32),
     *,
-    cache: CacheStoreDep,
+    cch: CCHManagerDep,
     env: AppEnvironDep,
-    pwd_manager: PWDManagerDep,
+    pwd: PWDManagerDep,
     repo: RepositoryDep,
 ) -> RedirectResponse:
     """Verify a user's credentials and set up a login session."""
     try:
-        db_user = await repo.find_user(user.username)
+        db_user = await repo.find_user(username)
     except EntityNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from e
 
-    if not pwd_manager.verify(user.username, db_user.password):
+    if not pwd.verify(password, db_user.password):
         raise HTTPException(
             detail=f"The input password for user {db_user.uid} is incorrect.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if not (auth_url := await cache.get(f"request:{request_id}")):
+    if not (url := await cch.get_url(request_id)):
         raise HTTPException(
             detail=f"{request_id=} is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    session_id = uuid4().hex
-    session_ttl = env[const.SESSION_TTL]
-    await cache.setex(f"session:{session_id}", session_ttl, db_user.uid)
+    response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=url)
 
-    response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=auth_url)
+    session_id = await cch.generate_session(db_user.uid)
+    session_ttl: int = env[const.SESSION_TTL]
+
     response.set_cookie(
         expires=datetime.now(UTC) + timedelta(seconds=session_ttl),
         httponly=True,

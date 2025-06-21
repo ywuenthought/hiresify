@@ -33,7 +33,7 @@ class TokenResponse:
 
 
 class JWTTokenManager:
-    """A manager class for generating and verifying an access token."""
+    """A wrapper class for managing access tokens."""
 
     def __init__(self, ttl: int, algorithm: str = "HS256") -> None:
         """Initialize a new instance of TokenManager."""
@@ -42,8 +42,8 @@ class JWTTokenManager:
 
         self._secret_key = token_urlsafe(32)
 
-    def generate(self, user_id: str, refresh_token: str) -> TokenResponse:
-        """Generate a fresh instance of TokenResponse."""
+    def generate(self, user_uid: str, refresh_token: str) -> TokenResponse:
+        """Generate a token response for the user UID and refresh token."""
         issued_at = datetime.now(UTC)
         expire_at = issued_at + timedelta(seconds=self._ttl)
 
@@ -53,7 +53,7 @@ class JWTTokenManager:
                     exp=int(expire_at.timestamp()),
                     iat=int(issued_at.timestamp()),
                     scope="read write",
-                    sub=user_id,
+                    sub=user_uid,
                 ),
                 self._secret_key,
                 algorithm=self._algorithm,
