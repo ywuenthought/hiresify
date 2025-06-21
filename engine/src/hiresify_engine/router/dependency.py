@@ -23,7 +23,6 @@ def from_state(attr: str, _type: type[T]) -> ty.Callable[[Request], T]:
     return dependency
 
 
-AppEnvironDep = ty.Annotated[dict, Depends(from_state("env", dict))]
 CCHManagerDep = ty.Annotated[CCHManager, Depends(from_state("cch", CCHManager))]
 JWTManagerDep = ty.Annotated[JWTManager, Depends(from_state("jwt", JWTManager))]
 PWDManagerDep = ty.Annotated[PWDManager, Depends(from_state("pwd", PWDManager))]

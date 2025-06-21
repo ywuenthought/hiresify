@@ -24,13 +24,15 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     with tempfile.NamedTemporaryFile(suffix=".db") as temp_db:
         # Initialize the database repository.
         db_url = f"sqlite+aiosqlite:///{temp_db.name}"
-        app.state.repo = repo = Repository(db_url)
+        app.state.repo = repo = Repository(
+            db_url, get_envvar(const.REFRESH_TTL, int, 30),
+        )
         await repo.init_schema()
 
         # Initialize the cache manager.
         app.state.cch = cache = CCHManager(
-            get_envvar(const.CACHE_TTL, int, 300),
-            session_ttl := get_envvar(const.SESSION_TTL, int, 1800),
+            get_envvar(const.REGULAR_TTL, int, 300),
+            get_envvar(const.SESSION_TTL, int, 1800),
         )
 
         # Initialize the JWT access token manager.
@@ -38,12 +40,6 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
 
         # Initialize the user password manager.
         app.state.pwd = PWDManager()
-
-        # Initialize the environment variables.
-        app.state.env = {
-            const.REFRESH_TTL: get_envvar(const.REFRESH_TTL, int, 30),
-            const.SESSION_TTL: session_ttl,
-        }
 
         yield
 

@@ -16,7 +16,7 @@ async def repository() -> ty.AsyncGenerator[Repository, None]:
     """Create a temporary file-based repository for testing."""
     with tempfile.NamedTemporaryFile(suffix=".db") as temp_db:
         db_url = f"sqlite+aiosqlite:///{temp_db.name}"
-        repository = Repository(db_url)
+        repository = Repository(db_url, 30)
         await repository.init_schema()
         yield repository
         await repository.dispose()

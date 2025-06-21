@@ -24,7 +24,9 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     #: The UID of a user, used externally.
-    uid: Mapped[str] = mapped_column(String(32), default=lambda: uuid4().hex)
+    uid: Mapped[str] = mapped_column(
+        String(32), default=lambda: uuid4().hex, unique=True,
+    )
 
     #: The unique user name of a user.
     username: Mapped[str] = mapped_column(String(30), nullable=False, unique=True)
@@ -46,7 +48,9 @@ class RefreshToken(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     #: The UID of a refresh token, used externally.
-    uid: Mapped[str] = mapped_column(String(32), default=lambda: uuid4().hex)
+    uid: Mapped[str] = mapped_column(
+        String(32), default=lambda: uuid4().hex, unique=True,
+    )
 
     #: A string representation of the refresh token.
     token: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)

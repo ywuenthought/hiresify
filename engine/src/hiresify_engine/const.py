@@ -12,14 +12,14 @@
 # The access token TTL (sec).
 ACCESS_TTL = "ACCESS_TTL"
 
-# The cache entry TTL (sec).
-CACHE_TTL = "CACHE_TTL"
-
 # The database URL.
 DATABASE_URL = "DATABASE_URL"
 
 # The refresh token TTL (day).
 REFRESH_TTL = "REFRESH_TTL"
+
+# The regular cache entry TTL (sec).
+REGULAR_TTL = "REGULAR_TTL"
 
 # The HTTP session TTL (sec).
 SESSION_TTL = "SESSION_TTL"

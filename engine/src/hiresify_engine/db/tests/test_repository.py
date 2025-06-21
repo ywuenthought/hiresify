@@ -3,13 +3,12 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
 from ..exception import EntityConflictError, EntityNotFoundError
 from ..repository import Repository
-from ..util import abbreviate_token
 
 #################
 # user management
@@ -101,57 +100,23 @@ async def test_delete_user(repository: Repository) -> None:
 
 async def test_create_token(repository: Repository) -> None:
     # Given
-    token = "xyz"
-
-    # When/Then
-    with pytest.raises(
-        EntityNotFoundError,
-        check=lambda e: str(e) == (
-            f"RefreshToken with token={abbreviate_token(token)} was not found."
-        ),
-    ):
-        refresh_token = await repository.find_token(token)
-
-    # Given
-    issued_at = datetime.now()
-    expire_at = issued_at + timedelta(minutes=30)
     user = await repository.register_user("ywu", "123")
 
     # When
-    await repository.create_token(
-        user.uid, token, issued_at=issued_at, expire_at=expire_at,
-    )
+    token = await repository.create_token(user.uid)
     refresh_token = await repository.find_token(token)
 
     # Then
-    assert refresh_token.token == token
-    assert refresh_token.issued_at == issued_at
-    assert refresh_token.expire_at == expire_at
+    assert refresh_token.expire_at > refresh_token.issued_at
     assert not refresh_token.revoked
 
 
 async def test_revoke_token(repository: Repository) -> None:
     # Given
-    token = "xyz"
-
-    # When/Then
-    with pytest.raises(
-        EntityNotFoundError,
-        check=lambda e: str(e) == (
-            f"RefreshToken with token={abbreviate_token(token)} was not found."
-        ),
-    ):
-        await repository.revoke_token(token)
-
-    # Given
-    issued_at = datetime.now()
-    expire_at = issued_at + timedelta(minutes=30)
     user = await repository.register_user("ywu", "123")
 
     # When
-    await repository.create_token(
-        user.uid, token, issued_at=issued_at, expire_at=expire_at,
-    )
+    token = await repository.create_token(user.uid)
     refresh_token = await repository.find_token(token)
 
     # Then
@@ -167,16 +132,6 @@ async def test_revoke_token(repository: Repository) -> None:
 
 async def test_revoke_tokens(repository: Repository) -> None:
     # Given
-    user_uid = "uid"
-
-    # When/Then
-    with pytest.raises(
-        EntityNotFoundError,
-        check=lambda e: str(e) == f"User with uid={user_uid} was not found.",
-    ):
-        await repository.revoke_tokens(user_uid)
-
-    # Given
     user = await repository.register_user("ywu", "123")
 
     # When
@@ -186,17 +141,9 @@ async def test_revoke_tokens(repository: Repository) -> None:
     assert not refresh_tokens
 
     # Given
-    tokens = ["xyz1", "xyz2", "xyz3"]
+    tokens = [await repository.create_token(user.uid) for _ in range(3)]
 
     # When
-    for token in tokens:
-        issued_at = datetime.now()
-        await repository.create_token(
-            user.uid,
-            token,
-            issued_at=issued_at,
-            expire_at=issued_at + timedelta(minutes=30),
-        )
     refresh_tokens = await repository.find_tokens(user.uid)
 
     # Then
@@ -219,16 +166,7 @@ async def test_revoke_tokens(repository: Repository) -> None:
 async def test_purge_tokens(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
-
-    tokens = ["xyz1", "xyz2", "xyz3"]
-    for token in tokens:
-        issued_at = datetime.now()
-        await repository.create_token(
-            user.uid,
-            token,
-            issued_at=issued_at,
-            expire_at=issued_at + timedelta(minutes=30),
-        )
+    tokens = [await repository.create_token(user.uid) for _ in range(3)]
 
     # When
     refresh_tokens = await repository.find_tokens(user.uid)

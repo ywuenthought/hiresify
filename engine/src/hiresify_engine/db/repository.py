@@ -10,6 +10,7 @@ import json
 import typing as ty
 from collections import abc
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
@@ -26,8 +27,9 @@ from .util import abbreviate_token
 class Repository:
     """A wrapper class providing APIs to manage the database."""
 
-    def __init__(self, url: str, **configs: ty.Any) -> None:
+    def __init__(self, url: str, refresh_ttl: int, **configs: ty.Any) -> None:
         """Initialize a new instance of Repository."""
+        self._refresh_ttl = refresh_ttl
         self._engine = create_async_engine(url, **configs)
         self._create_session = async_sessionmaker(
             bind=self._engine, expire_on_commit=False,
@@ -157,18 +159,13 @@ class Repository:
 
             return user.refresh_tokens
 
-    async def create_token(
-        self,
-        user_uid: str,
-        token: str,
-        *,
-        issued_at: datetime,
-        expire_at: datetime,
-        **params: ty.Any,
-    ) -> RefreshToken:
+    async def create_token(self, user_uid: str, **metadata: ty.Any) -> str:
         """Create a refresh token for a user with the given user UID."""
         where_clause = User.uid == user_uid
         stmt = select(User).where(where_clause)
+
+        issued_at = datetime.now(UTC)
+        expire_at = issued_at + timedelta(days=self._refresh_ttl)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -178,11 +175,11 @@ class Repository:
                 raise EntityNotFoundError(User, uid=user_uid)
 
             refresh_token = RefreshToken(
-                token=token,
+                token=(token := uuid4().hex),
                 issued_at=issued_at,
                 expire_at=expire_at,
                 user_id=user.id,
-                **params,
+                **metadata,
             )
 
             try:
@@ -194,7 +191,7 @@ class Repository:
                 ) from e
 
             await session.refresh(refresh_token)
-            return refresh_token
+            return token
 
     async def revoke_token(self, token: str) -> None:
         """Revoke a refresh token given its token string."""
