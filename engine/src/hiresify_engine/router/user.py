@@ -5,15 +5,12 @@
 
 """Define the backend user-related endpoints."""
 
-from datetime import UTC, datetime, timedelta
-
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 
-from hiresify_engine import const
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 
-from .dependency import AppEnvironDep, CCHManagerDep, PWDManagerDep, RepositoryDep
+from .dependency import CCHManagerDep, PWDManagerDep, RepositoryDep
 
 router = APIRouter(prefix="/user")
 
@@ -80,7 +77,6 @@ async def login_user(
     request_id: str = Form(..., max_length=32, min_length=32),
     *,
     cch: CCHManagerDep,
-    env: AppEnvironDep,
     pwd: PWDManagerDep,
     repo: RepositoryDep,
 ) -> RedirectResponse:
@@ -104,17 +100,7 @@ async def login_user(
 
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=url)
 
-    session_id = await cch.generate_session(db_user.uid)
-    session_ttl: int = env[const.SESSION_TTL]
-
-    response.set_cookie(
-        expires=datetime.now(UTC) + timedelta(seconds=session_ttl),
-        httponly=True,
-        key="session_id",
-        max_age=session_ttl,
-        samesite="lax",
-        secure=True,
-        value=session_id,
-    )
+    session = await cch.generate_session(db_user.uid)
+    session.set_on(response)
 
     return response

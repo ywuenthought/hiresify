@@ -6,9 +6,12 @@
 """Export the cache store manager for user authentication."""
 
 import json
+import typing as ty
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from fastapi import Response
 from redis.asyncio import Redis
 
 
@@ -33,6 +36,46 @@ class _CodeMetadata:
 
     #: A token sent by the client to avoid CSRF attacks.
     state: str | None = None
+
+
+@dataclass(frozen=True)
+class _SessionCookie:
+    """Wrap the metadata associated with a user session."""
+
+    #: When the session expires.
+    expires: datetime
+
+    #: The duration when the session is valid.
+    max_age: int
+
+    #: The actual value stored in the cookie.
+    # This is the session ID by default.
+    value: str
+
+    #: Whether only sent via HTTP requests.
+    httponly: bool = True
+
+    #: The cookie name.
+    key: str = "session_id"
+
+    #: Whether the cookie is sent with cross-site requests.
+    # "lax" allows sending cookies on top-level navigation GET requests.
+    samesite: ty.Literal["lax", "strict", "none"] | None = "lax"
+
+    #: Whether only sent over HTTPS connections.
+    secure: bool = True
+
+    def set_on(self, response: Response) -> None:
+        """Set this cookie on the given response."""
+        response.set_cookie(
+            expires=self.expires,
+            httponly=self.httponly,
+            key=self.key,
+            max_age=self.max_age,
+            samesite=self.samesite,
+            secure=self.secure,
+            value=self.value,
+        )
 
 
 class CCHStoreManager:
@@ -102,12 +145,16 @@ class CCHStoreManager:
     # user session
     ##############
 
-    async def generate_session(self, user_uid: str) -> str:
-        """Generate a session for a user with the given user UID."""
+    async def generate_session(self, user_uid: str) -> _SessionCookie:
+        """Generate a session cookie for a user with the given user UID."""
         session_id = uuid4().hex
         await self._store.setex(f"session:{session_id}", self._session_ttl, user_uid)
 
-        return session_id
+        return _SessionCookie(
+            expires=datetime.now(UTC) + timedelta(seconds=self._session_ttl),
+            max_age=self._session_ttl,
+            value=session_id,
+        )
 
     #############
     # request URL

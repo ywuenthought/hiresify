@@ -21,5 +21,5 @@ DATABASE_URL = "DATABASE_URL"
 # The refresh token TTL (day).
 REFRESH_TTL = "REFRESH_TTL"
 
-# The HTTPS session TTL (sec).
+# The HTTP session TTL (sec).
 SESSION_TTL = "SESSION_TTL"
