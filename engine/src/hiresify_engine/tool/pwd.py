@@ -13,12 +13,13 @@ class PasswordManager:
 
     def __init__(self, *schemes: str) -> None:
         """Initialize a new instance of PasswordManager."""
+        schemes = schemes if schemes else ("bcrypt", "argon2")
         self._context = CryptContext(schemes=schemes, deprecated="auto")
 
     def hash(self, password: str) -> str:
         """Hash the given password using the current preferred scheme."""
         return self._context.hash(password)
 
-    def verify_password(self, plain: str, hashed: str) -> bool:
+    def verify(self, plain: str, hashed: str) -> bool:
         """Verify the given password with its hashed version."""
         return self._context.verify(plain, hashed)

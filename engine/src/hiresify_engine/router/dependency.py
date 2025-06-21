@@ -11,21 +11,20 @@ from fastapi import Depends, FastAPI, Request
 from redis.asyncio import Redis
 
 from hiresify_engine.db.repository import Repository
+from hiresify_engine.tool import JWTManager, PWDManager
+
+T = ty.TypeVar("T")
 
 
-async def get_repository(request: Request) -> Repository:
-    """Retrieve the repository object from the state."""
-    app: FastAPI = request.app
-    repo: Repository = app.state.repo
-    return repo
+def from_state(attr: str, _type: type[T]) -> ty.Callable[[Request], T]:
+    """Create a dependency to fetch an object from app.state."""
+    def dependency(request: Request) -> T:
+        app: FastAPI = request.app
+        return ty.cast(T, getattr(app.state, attr))
+    return dependency
 
 
-async def get_redis(request: Request) -> Redis:
-    """Retrieve the in-memory database client from the state."""
-    app: FastAPI = request.app
-    redis: Redis = app.state.redis
-    return redis
-
-
-RepositoryDep = ty.Annotated[Repository, Depends(get_repository)]
-RedisDep = ty.Annotated[Redis, Depends(get_redis)]
+CacheStoreDep = ty.Annotated[Redis, Depends(from_state("redis", Redis))]
+JWTManagerDep = ty.Annotated[JWTManager, Depends(from_state("jwt_manager", JWTManager))]
+PWDManagerDep = ty.Annotated[PWDManager, Depends(from_state("pwd_manager", PWDManager))]
+RepositoryDep = ty.Annotated[Repository, Depends(from_state("repo", Repository))]

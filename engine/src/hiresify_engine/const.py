@@ -9,23 +9,17 @@
 # envvar keys
 #############
 
+# The cache entry TTL
+CACHE_TTL = "CACHE_TTL"
+
 # The database URL
 DATABASE_URL = "DATABASE_URL"
 
 # The JWT access token TTL
 JWT_ACCESS_TTL = "JWT_TTL"
 
-# The JWT encoding algorithm
-JWT_ALGORITHM = "JWT_ALGORITHM"
-
 # The JWT refresh token TTL
 JWT_REFRESH_TTL = "JWT_TTL"
-
-# The JWT secret key
-JWT_SECRET_KEY = "JWT_SECRET_KEY"
-
-# The Redis entry TTL
-REDIS_TTL = "REDIS_TTL"
 
 # The HTTPS session TTL
 SESSION_TTL = "SESSION_TTL"

@@ -6,33 +6,30 @@
 """Define the backend token-related endpoints."""
 
 import json
-import typing as ty
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, Form, HTTPException, status
-from jose import jwt
 
 from hiresify_engine import const
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
+from hiresify_engine.tool.jwt import TokenResponse
 from hiresify_engine.util import get_envvar
 
-from .dependency import RedisDep, RepositoryDep
+from .dependency import CacheStoreDep, JWTManagerDep, RepositoryDep
 from .model import CodeMetadata
 from .util import is_pkce_valid
 
-JWT_ACCESS_TTL = get_envvar(const.JWT_ACCESS_TTL, int, 900)
-
-JWT_ALGORITHM = get_envvar(const.JWT_ALGORITHM, str, "HS256")
-
 JWT_REFRESH_TTL = get_envvar(const.JWT_REFRESH_TTL, int, 30)
-
-JWT_SECRET_KEY = get_envvar(const.JWT_SECRET_KEY, str, "")
 
 router = APIRouter(prefix="/token")
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/issue",
+    response_model=TokenResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def issue_token(
     client_id: str = Form(..., max_length=32, min_length=32),
     code: str = Form(..., max_length=32, min_length=32),
@@ -42,11 +39,12 @@ async def issue_token(
     ip: str | None = Form(None, max_length=45),
     platform: str | None = Form(None, max_length=32),
     *,
-    redis: RedisDep,
+    cache: CacheStoreDep,
+    jwt_manager: JWTManagerDep,
     repo: RepositoryDep,
-) -> dict[str, ty.Any]:
+) -> TokenResponse:
     """Issue an access token to a user identified by the given metadata."""
-    if not (raw := await redis.get(f"code:{code}")):
+    if not (raw := await cache.get(f"code:{code}")):
         raise HTTPException(
             detail=f"{code=} is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -76,26 +74,16 @@ async def issue_token(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+    refresh_token = uuid4().hex
     issued_at = datetime.now(UTC)
-    expire_at = issued_at + timedelta(seconds=JWT_ACCESS_TTL)
-
-    access_token = jwt.encode(
-        dict(
-            exp=int(expire_at.timestamp()),
-            iat=int(issued_at.timestamp()),
-            scope="read write",
-            sub=code_meta.user_uid,
-        ),
-        JWT_SECRET_KEY,
-        algorithm=JWT_ALGORITHM,
-    )
+    expire_at = issued_at + timedelta(days=JWT_REFRESH_TTL)
 
     try:
         await repo.create_token(
             code_meta.user_uid,
-            refresh_token := uuid4().hex,
+            refresh_token,
             issued_at=issued_at,
-            expire_at=issued_at + timedelta(days=JWT_REFRESH_TTL),
+            expire_at=expire_at,
             device=device,
             ip=ip,
             platform=platform,
@@ -105,23 +93,21 @@ async def issue_token(
     except EntityConflictError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT) from e
 
-    await redis.delete(f"code:{code}")
-
-    return dict(
-        access_token=access_token,
-        expires_in=JWT_ACCESS_TTL,
-        refresh_token=refresh_token,
-        scope="read write",
-        token_type="bearer",
-    )
+    await cache.delete(f"code:{code}")
+    return jwt_manager.generate(code_meta.user_uid, refresh_token)
 
 
-@router.post("/refresh", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def refresh_token(
     token: str = Form(..., max_length=32, min_length=32),
     *,
+    jwt_manager: JWTManagerDep,
     repo: RepositoryDep,
-) -> dict[str, ty.Any]:
+) -> TokenResponse:
     """Refresh a user's access token if the given refresh token is active."""
     refresh_token = await repo.find_token(token, eager=True)
 
@@ -131,24 +117,5 @@ async def refresh_token(
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
-    issued_at = datetime.now(UTC)
-    expire_at = issued_at + timedelta(seconds=JWT_ACCESS_TTL)
-
-    access_token = jwt.encode(
-        dict(
-            exp=int(expire_at.timestamp()),
-            iat=int(issued_at.timestamp()),
-            scope="read write",
-            sub=refresh_token.user.uid,
-        ),
-        JWT_SECRET_KEY,
-        algorithm=JWT_ALGORITHM,
-    )
-
-    return dict(
-        access_token=access_token,
-        expires_in=JWT_ACCESS_TTL,
-        refresh_token=refresh_token,
-        scope="read write",
-        token_type="bearer",
-    )
+    user_id = refresh_token.user.uid
+    return jwt_manager.generate(user_id, token)

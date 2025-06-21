@@ -9,9 +9,30 @@ from datetime import UTC, datetime, timedelta
 from secrets import token_urlsafe
 
 from jose import jwt
+from pydantic.dataclasses import dataclass
 
 
-class TokenManager:
+@dataclass(frozen=True)
+class TokenResponse:
+    """The response schema for issuing an access token."""
+
+    #: The encoded access token.
+    access_token: str
+
+    #: When the access token expires.
+    expires_in: int
+
+    #: The refresh token.
+    refresh_token: str
+
+    #: The permissions granted by this token.
+    scope: str = "read write"
+
+    #: The type of this token.
+    token_type: str = "bearer"
+
+
+class JWTTokenManager:
     """A manager class for generating and verifying an access token."""
 
     def __init__(self, ttl: int, algorithm: str = "HS256") -> None:
@@ -21,20 +42,24 @@ class TokenManager:
 
         self._secret_key = token_urlsafe(32)
 
-    def generate(self, user_id: str) -> str:
-        """Generate an access token for a user with the given user ID."""
+    def generate(self, user_id: str, refresh_token: str) -> TokenResponse:
+        """Generate a fresh instance of TokenResponse."""
         issued_at = datetime.now(UTC)
         expire_at = issued_at + timedelta(seconds=self._ttl)
 
-        return jwt.encode(
-            dict(
-                exp=int(expire_at.timestamp()),
-                iat=int(issued_at.timestamp()),
-                scope="read write",
-                sub=user_id,
+        return TokenResponse(
+            access_token=jwt.encode(
+                dict(
+                    exp=int(expire_at.timestamp()),
+                    iat=int(issued_at.timestamp()),
+                    scope="read write",
+                    sub=user_id,
+                ),
+                self._secret_key,
+                algorithm=self._algorithm,
             ),
-            self._secret_key,
-            algorithm=self._algorithm,
+            expires_in=self._ttl,
+            refresh_token=refresh_token,
         )
 
     def verify(self, token: str) -> bool:
