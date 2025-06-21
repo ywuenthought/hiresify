@@ -6,6 +6,7 @@
 """Define the backend token-related endpoints."""
 
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -17,12 +18,31 @@ from hiresify_engine.tool.jwt import TokenResponse
 from hiresify_engine.util import get_envvar
 
 from .dependency import CacheStoreDep, JWTManagerDep, RepositoryDep
-from .model import CodeMetadata
 from .util import is_pkce_valid
 
 JWT_REFRESH_TTL = get_envvar(const.JWT_REFRESH_TTL, int, 30)
 
 router = APIRouter(prefix="/token")
+
+
+@dataclass(frozen=True)
+class CodeMetadata:
+    """Wrap the metadata associated with an authentication code."""
+
+    #: The ID of the client.
+    client_id: str
+
+    #: The code challenge sent by the client.
+    code_challenge: str
+
+    #: The method to be used against the code challenge.
+    code_challenge_method: str
+
+    #: The redirect URI.
+    redirect_uri: str
+
+    #: The UID of the user to be authenticated.
+    user_uid: str
 
 
 @router.post(
