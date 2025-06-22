@@ -6,11 +6,15 @@
 """Define the backend user-related endpoints."""
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
 
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
+from hiresify_engine.templates import LOGIN_HTML
 
 from .dependency import CCHManagerDep, PWDManagerDep, RepositoryDep
+
+_templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 
 router = APIRouter(prefix="/user")
 
@@ -70,12 +74,34 @@ async def authorize_user(
     return RedirectResponse(url=url)
 
 
+@router.get("/login")
+async def login_user_page(
+    request_id: str = Query(..., max_length=32, min_length=32),
+    *,
+    cch: CCHManagerDep,
+    request: Request,
+) -> HTMLResponse:
+    """Render the login form with CSRF protection and anonymous session."""
+    session = await cch.generate_session()
+
+    response = _templates.TemplateResponse(
+        LOGIN_HTML.name, dict(
+            request=request,
+            request_id=request_id,
+            csrf_token=session.csrf_token,
+        ),
+    )
+
+    session.set_cookie_on(response)
+    return response
+
+
 @router.post("/login")
 async def login_user(
     username: str = Form(..., max_length=30),
     password: str = Form(..., max_length=128),
-    request_id: str = Form(..., max_length=32, min_length=32),
     csrf_token: str = Form(..., max_length=32, min_length=32),
+    request_id: str = Query(..., max_length=32, min_length=32),
     *,
     cch: CCHManagerDep,
     pwd: PWDManagerDep,
