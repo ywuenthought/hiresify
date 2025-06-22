@@ -7,7 +7,7 @@
 
 import json
 import typing as ty
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -39,8 +39,8 @@ class _CodeMetadata:
 
 
 @dataclass(frozen=True)
-class _SessionCookie:
-    """Wrap the metadata associated with a user session."""
+class _SessionMetadata:
+    """Wrap the metadata associated with a user's session."""
 
     #: When the session expires.
     expires: datetime
@@ -51,6 +51,9 @@ class _SessionCookie:
     #: The actual value stored in the cookie.
     # This is the session ID by default.
     value: str
+
+    #: The protective token used against CSRF attacks.
+    csrf_token: str = field(default_factory=lambda: uuid4().hex)
 
     #: Whether only sent via HTTP requests.
     httponly: bool = True
@@ -65,8 +68,12 @@ class _SessionCookie:
     #: Whether only sent over HTTPS connections.
     secure: bool = True
 
-    def set_on(self, response: Response) -> None:
-        """Set this cookie on the given response."""
+    #: The user UID linked to this session.
+    # The session is anonymous with user_uid=None.
+    user_uid: str | None = None
+
+    def set_cookie_on(self, response: Response) -> None:
+        """Set a cookie on the given response using the metadata."""
         response.set_cookie(
             expires=self.expires,
             httponly=self.httponly,
@@ -113,7 +120,7 @@ class CCHStoreManager:
         state: str | None = None,
     ) -> str | None:
         """Generate an authentication code for a user login session."""
-        if not (user_uid := await self._store.get(f"session:{session_id}")):
+        if not (session := await self.get_session(session_id)) or not session.user_uid:
             return None
 
         code = uuid4().hex
@@ -122,7 +129,7 @@ class CCHStoreManager:
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
             redirect_uri=redirect_uri,
-            user_uid=user_uid,
+            user_uid=session.user_uid,
             state=state,
         )
 
@@ -145,16 +152,30 @@ class CCHStoreManager:
     # user session
     ##############
 
-    async def generate_session(self, user_uid: str) -> _SessionCookie:
+    async def generate_session(self, user_uid: str | None = None) -> _SessionMetadata:
         """Generate a session cookie for a user with the given user UID."""
-        session_id = uuid4().hex
-        await self._store.setex(f"session:{session_id}", self._session_ttl, user_uid)
-
-        return _SessionCookie(
+        session = _SessionMetadata(
             expires=datetime.now(UTC) + timedelta(seconds=self._session_ttl),
             max_age=self._session_ttl,
-            value=session_id,
+            value=(session_id := uuid4().hex),
+            user_uid=user_uid,
         )
+
+        serialized = json.dumps(asdict(session))
+        await self._store.setex(f"session:{session_id}", self._session_ttl, serialized)
+
+        return session
+
+    async def get_session(self, session_id: str) -> _SessionMetadata | None:
+        """Get the session metadata given the corresponding session ID."""
+        if not (raw := await self._store.get(f"session:{session_id}")):
+            return None
+
+        return _SessionMetadata(**json.loads(raw))
+
+    async def delete_session(self, session_id: str) -> None:
+        """Delete the session from the cache store given the session ID."""
+        await self._store.delete(f"session:{session_id}")
 
     #############
     # request URL

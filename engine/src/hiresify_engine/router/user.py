@@ -101,6 +101,6 @@ async def login_user(
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=url)
 
     session = await cch.generate_session(db_user.uid)
-    session.set_on(response)
+    session.set_cookie_on(response)
 
     return response
