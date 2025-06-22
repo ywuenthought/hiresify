@@ -3,10 +3,11 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-import tempfile
 import typing as ty
 
 import pytest
+
+from hiresify_engine.testing import test_repository
 
 from ..repository import Repository
 
@@ -14,12 +15,8 @@ from ..repository import Repository
 @pytest.fixture(scope="session")
 async def repository() -> ty.AsyncGenerator[Repository, None]:
     """Create a temporary file-based repository for testing."""
-    with tempfile.NamedTemporaryFile(suffix=".db") as temp_db:
-        db_url = f"sqlite+aiosqlite:///{temp_db.name}"
-        repository = Repository(db_url, 30)
-        await repository.init_schema()
+    async with test_repository(30) as repository:
         yield repository
-        await repository.dispose()
 
 
 @pytest.fixture(scope="function", autouse=True)

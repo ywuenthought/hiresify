@@ -5,15 +5,14 @@
 
 """Provide the application entry point."""
 
-import tempfile
 import typing as ty
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from hiresify_engine import const
-from hiresify_engine.db.repository import Repository
 from hiresify_engine.router import routers
+from hiresify_engine.testing import test_repository
 from hiresify_engine.tool import CCHManager, JWTManager, PWDManager
 from hiresify_engine.util import get_envvar
 
@@ -21,13 +20,8 @@ from hiresify_engine.util import get_envvar
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     """Wrap the lifespan events for the application."""
-    with tempfile.NamedTemporaryFile(suffix=".db") as temp_db:
-        # Initialize the database repository.
-        db_url = f"sqlite+aiosqlite:///{temp_db.name}"
-        app.state.repo = repo = Repository(
-            db_url, get_envvar(const.REFRESH_TTL, int, 30),
-        )
-        await repo.init_schema()
+    async with test_repository(get_envvar(const.REFRESH_TTL, int, 30)) as repo:
+        app.state.repo = repo
 
         # Initialize the cache manager.
         app.state.cch = cache = CCHManager(
@@ -43,7 +37,6 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
 
         yield
 
-        await repo.dispose()
         await cache.dispose()
 
 
