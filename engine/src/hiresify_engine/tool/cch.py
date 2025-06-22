@@ -6,7 +6,6 @@
 """Export the cache store manager for user authentication."""
 
 import json
-import typing as ty
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -34,54 +33,59 @@ class _CodeMetadata:
     #: The UID of the user to be authenticated.
     user_uid: str
 
-    #: A token sent by the client to avoid CSRF attacks.
-    state: str | None = None
-
 
 @dataclass(frozen=True)
 class _SessionMetadata:
     """Wrap the metadata associated with a user's session."""
 
-    #: When the session expires.
-    expires: datetime
-
-    #: The duration when the session is valid.
-    max_age: int
-
-    #: The actual value stored in the cookie.
-    # This is the session ID by default.
-    value: str
-
-    #: The protective token used against CSRF attacks.
-    csrf_token: str = field(default_factory=lambda: uuid4().hex)
-
-    #: Whether only sent via HTTP requests.
-    httponly: bool = True
-
-    #: The cookie name.
-    key: str = "session_id"
-
-    #: Whether the cookie is sent with cross-site requests.
-    # "lax" allows sending cookies on top-level navigation GET requests.
-    samesite: ty.Literal["lax", "strict", "none"] | None = "lax"
-
-    #: Whether only sent over HTTPS connections.
-    secure: bool = True
-
     #: The user UID linked to this session.
-    # The session is anonymous with user_uid=None.
-    user_uid: str | None = None
+    user_uid: str
+
+    #: When the session was issued.
+    issued_at: datetime
+
+    #: When the session expires.
+    expire_at: datetime
+
+    #: The session ID that defaults to a random UUID.
+    id: str = field(default_factory=lambda: uuid4().hex)
+
+    @classmethod
+    def from_serialized(cls, serialized: str) -> "_SessionMetadata":
+        """Instantiate this class using the given serialized data."""
+        raw = json.loads(serialized)
+
+        for key in ("issued_at", "expire_at"):
+            raw[key] = datetime.fromisoformat(raw[key])
+
+        return cls(**raw)
+
+    def serialize(self) -> str:
+        """Serialize this object into a string."""
+        raw = asdict(self)
+
+        for key in ("issued_at", "expire_at"):
+            raw[key] = raw[key].isoformat()
+
+        return json.dumps(raw)
 
     def set_cookie_on(self, response: Response) -> None:
         """Set a cookie on the given response using the metadata."""
+        elapsed = self.expire_at - self.issued_at
+        max_age = int(elapsed.total_seconds())
+
         response.set_cookie(
-            expires=self.expires,
-            httponly=self.httponly,
-            key=self.key,
-            max_age=self.max_age,
-            samesite=self.samesite,
-            secure=self.secure,
-            value=self.value,
+            expires=self.expire_at,
+            value=self.id,
+            max_age=max_age,
+            # Only send over HTTP requests, avoiding XSS attacks.
+            httponly=True,
+            # The hardcoded cookie name.
+            key="session_id",
+            # Forbidden cross-site requests.
+            samesite="strict",
+            # Only send over HTTPS connections.
+            secure=True,
         )
 
 
@@ -109,42 +113,37 @@ class CCHStoreManager:
     # auth code
     ###########
 
-    async def generate_code(
+    async def set_code(
         self,
-        session_id: str,
+        user_uid: str,
         *,
         client_id: str,
         code_challenge: str,
         code_challenge_method: str,
         redirect_uri: str,
-        state: str | None = None,
     ) -> str | None:
-        """Generate an authentication code for a user login session."""
-        if not (session := await self.get_session(session_id)) or not session.user_uid:
-            return None
-
-        code = uuid4().hex
+        """Set an authentication code for the given user UID."""
         code_meta = dict(
             client_id=client_id,
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
             redirect_uri=redirect_uri,
-            user_uid=session.user_uid,
-            state=state,
+            user_uid=user_uid,
         )
 
+        code = uuid4().hex
         await self._store.setex(f"code:{code}", self._ttl, json.dumps(code_meta))
 
         return code
 
-    async def get_codemeta(self, code: str) -> _CodeMetadata | None:
-        """Get the metadata associated with the given authentication code."""
+    async def get_code(self, code: str) -> _CodeMetadata | None:
+        """Get the code metadata for with the given authentication code."""
         if not (raw := await self._store.get(f"code:{code}")):
             return None
 
         return _CodeMetadata(**json.loads(raw))
 
-    async def delete_code(self, code: str) -> None:
+    async def del_code(self, code: str) -> None:
         """Delete the given authentication code from the cache store."""
         await self._store.delete(f"code:{code}")
 
@@ -152,42 +151,46 @@ class CCHStoreManager:
     # user session
     ##############
 
-    async def generate_session(self, user_uid: str | None = None) -> _SessionMetadata:
-        """Generate a session cookie for a user with the given user UID."""
+    async def set_session(self, user_uid: str = "null") -> _SessionMetadata:
+        """Set a session for the given user UID.
+
+        If `user_uid` is None, the session will be anonymous.
+        """
+        issued_at = datetime.now(UTC)
+        expire_at = issued_at + timedelta(seconds=self._session_ttl)
+
         session = _SessionMetadata(
-            expires=datetime.now(UTC) + timedelta(seconds=self._session_ttl),
-            max_age=self._session_ttl,
-            value=(session_id := uuid4().hex),
             user_uid=user_uid,
+            issued_at=issued_at,
+            expire_at=expire_at,
         )
 
-        serialized = json.dumps(asdict(session))
-        await self._store.setex(f"session:{session_id}", self._session_ttl, serialized)
+        await self._store.setex(
+            f"session:{session.id}",
+            self._session_ttl,
+            session.serialize(),
+        )
 
         return session
 
     async def get_session(self, session_id: str) -> _SessionMetadata | None:
-        """Get the session metadata given the corresponding session ID."""
-        if not (raw := await self._store.get(f"session:{session_id}")):
+        """Get the session metadata for the given session ID."""
+        if not (serialized := await self._store.get(f"session:{session_id}")):
             return None
 
-        return _SessionMetadata(**json.loads(raw))
-
-    async def delete_session(self, session_id: str) -> None:
-        """Delete the session from the cache store given the session ID."""
-        await self._store.delete(f"session:{session_id}")
+        return _SessionMetadata.from_serialized(serialized)
 
     #############
     # request URL
     #############
 
-    async def cache_url(self, url: str) -> str:
-        """Cache a request URL by assigning it a request ID."""
+    async def set_url(self, url: str) -> str:
+        """Set a request ID for the given request URL."""
         request_id = uuid4().hex
         await self._store.setex(f"request:{request_id}", self._ttl, url)
 
         return request_id
 
     async def get_url(self, request_id: str) -> str | None:
-        """Get the request URL associated with the request ID."""
+        """Get the request URL for the given request ID."""
         return await self._store.get(f"request:{request_id}")

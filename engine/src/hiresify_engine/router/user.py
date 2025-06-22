@@ -43,7 +43,7 @@ async def authorize_user(
     code_challenge_method: str = Query(..., max_length=10, min_length=4),
     redirect_uri: str = Query(..., max_length=2048, pattern="^https://"),
     response_type: str = Query(..., max_length=20, min_length=4),
-    state: str | None = Query(None, max_length=32, min_length=32),
+    state: str = Query(..., max_length=32, min_length=32),
     *,
     cch: CCHManagerDep,
     request: Request,
@@ -56,19 +56,19 @@ async def authorize_user(
         )
 
     session_id = request.cookies.get("session_id")
-    code = await cch.generate_code(
-        session_id,
+    session = await cch.get_session(session_id) if session_id else None
+    code = await cch.set_code(
+        session.user_uid,
         client_id=client_id,
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
         redirect_uri=redirect_uri,
-        state=state,
-    ) if session_id else None
+    ) if session else None
 
     if code:
-        url = f"{redirect_uri}?code={code}"
+        url = f"{redirect_uri}?code={code}&state={state}"
     else:
-        request_id = await cch.cache_url(str(request.url))
+        request_id = await cch.set_url(str(request.url))
         url = f"/user/login?request_id={request_id}"
 
     return RedirectResponse(url=url)
@@ -81,18 +81,15 @@ async def login_user_page(
     cch: CCHManagerDep,
     request: Request,
 ) -> HTMLResponse:
-    """Render the login form with CSRF protection and anonymous session."""
-    session = await cch.generate_session()
-
+    """Render the login form with an anonymous session."""
     response = _templates.TemplateResponse(
-        LOGIN_HTML.name, dict(
-            request=request,
-            request_id=request_id,
-            csrf_token=session.csrf_token,
-        ),
+        LOGIN_HTML.name,
+        dict(request=request, request_id=request_id),
     )
 
+    session = await cch.set_session()
     session.set_cookie_on(response)
+
     return response
 
 
@@ -100,7 +97,6 @@ async def login_user_page(
 async def login_user(
     username: str = Form(..., max_length=30),
     password: str = Form(..., max_length=128),
-    csrf_token: str = Form(..., max_length=32, min_length=32),
     request_id: str = Query(..., max_length=32, min_length=32),
     *,
     cch: CCHManagerDep,
@@ -114,12 +110,6 @@ async def login_user(
     ):
         raise HTTPException(
             detail=f"{session_id=} is invalid or timed out.",
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-
-    if csrf_token != session.csrf_token:
-        raise HTTPException(
-            detail=f"{csrf_token=} is invalid",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -142,7 +132,7 @@ async def login_user(
 
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=url)
 
-    session = await cch.generate_session(db_user.uid)
+    session = await cch.set_session(db_user.uid)
     session.set_cookie_on(response)
 
     return response

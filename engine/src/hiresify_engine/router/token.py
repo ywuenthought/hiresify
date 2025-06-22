@@ -37,7 +37,7 @@ async def issue_token(
     repo: RepositoryDep,
 ) -> TokenResponse:
     """Issue an access token to a user identified by the given metadata."""
-    if not (meta := await cch.get_codemeta(code)):
+    if not (meta := await cch.get_code(code)):
         raise HTTPException(
             detail=f"{code=} is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -67,14 +67,17 @@ async def issue_token(
 
     try:
         refresh_token = await repo.create_token(
-            meta.user_uid, device=device, ip=ip, platform=platform,
+            meta.user_uid,
+            device=device,
+            ip=ip,
+            platform=platform,
         )
     except EntityNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from e
     except EntityConflictError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT) from e
 
-    await cch.delete_code(code)
+    await cch.del_code(code)
     return jwt.generate(meta.user_uid, refresh_token)
 
 
