@@ -5,21 +5,20 @@
 
 """Export the password manager for user authentication."""
 
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
 
 
 class PasswordManager:
     """A wrapper class for managing user passwords."""
 
-    def __init__(self, *schemes: str) -> None:
+    def __init__(self) -> None:
         """Initialize a new instance of PasswordManager."""
-        schemes = schemes if schemes else ("bcrypt", "argon2")
-        self._context = CryptContext(schemes=schemes, deprecated="auto")
+        self._hasher = PasswordHasher()
 
     def hash(self, password: str) -> str:
         """Hash the given password using the current preferred scheme."""
-        return self._context.hash(password)
+        return self._hasher.hash(password)
 
     def verify(self, plain: str, hashed: str) -> bool:
         """Verify the given password with its hashed version."""
-        return self._context.verify(plain, hashed)
+        return self._hasher.verify(hashed, plain)

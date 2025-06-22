@@ -19,21 +19,21 @@ _templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 router = APIRouter(prefix="/user")
 
 
-@router.post("")
+@router.post("/register")
 async def register_user(
     username: str = Form(..., max_length=30),
     password: str = Form(..., max_length=128),
     *,
-    pwd_manager: PWDManagerDep,
+    pwd: PWDManagerDep,
     repo: RepositoryDep,
 ) -> None:
     """Register a user using the given user name."""
-    hashed_password = pwd_manager.hash(password)
+    hashed_password = pwd.hash(password)
 
     try:
         await repo.register_user(username, hashed_password)
     except EntityConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT) from e
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
 
 
 @router.get("/authorize")
