@@ -75,12 +75,28 @@ async def login_user(
     username: str = Form(..., max_length=30),
     password: str = Form(..., max_length=128),
     request_id: str = Form(..., max_length=32, min_length=32),
+    csrf_token: str = Form(..., max_length=32, min_length=32),
     *,
     cch: CCHManagerDep,
     pwd: PWDManagerDep,
     repo: RepositoryDep,
+    request: Request,
 ) -> RedirectResponse:
     """Verify a user's credentials and set up a login session."""
+    if not (session_id := request.cookies.get("session_id")) or not (
+        session := await cch.get_session(session_id)
+    ):
+        raise HTTPException(
+            detail=f"{session_id=} is invalid or timed out.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if csrf_token != session.csrf_token:
+        raise HTTPException(
+            detail=f"{csrf_token=} is invalid",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
     try:
         db_user = await repo.find_user(username)
     except EntityNotFoundError as e:
