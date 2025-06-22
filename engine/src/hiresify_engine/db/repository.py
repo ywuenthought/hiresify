@@ -6,7 +6,6 @@
 """Export the repository layer around the database."""
 
 import contextlib
-import json
 import typing as ty
 from collections import abc
 from datetime import UTC, datetime, timedelta
@@ -16,8 +15,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload, with_loader_criteria
-
-from hiresify_engine.type import FilePath
 
 from .exception import EntityConflictError, EntityNotFoundError
 from .model import Base, RefreshToken, User
@@ -34,14 +31,6 @@ class Repository:
         self._create_session = async_sessionmaker(
             bind=self._engine, expire_on_commit=False,
         )
-
-    @classmethod
-    def from_config_file(cls, url: str, *, config_file: FilePath) -> "Repository":
-        """Create a Repository instance from a JSON configuration file."""
-        with open(config_file) as fp:
-            configs = json.load(fp)
-
-        return cls(url, **configs)
 
     @contextlib.asynccontextmanager
     async def session(self) -> abc.AsyncGenerator[AsyncSession, None]:
@@ -146,7 +135,7 @@ class Repository:
             return refresh_token
 
     async def find_tokens(self, user_uid: str) -> list[RefreshToken]:
-        """Find all the refresh tokens for a user with the given user UID."""
+        """Find all the refresh tokens for the given user UID."""
         option = selectinload(User.refresh_tokens)
         where_clause = User.uid == user_uid
         stmt = select(User).options(option).where(where_clause)
@@ -160,7 +149,7 @@ class Repository:
             return user.refresh_tokens
 
     async def create_token(self, user_uid: str, **metadata: ty.Any) -> str:
-        """Create a refresh token for a user with the given user UID."""
+        """Create a refresh token for the given user UID."""
         where_clause = User.uid == user_uid
         stmt = select(User).where(where_clause)
 
@@ -209,7 +198,7 @@ class Repository:
                 refresh_token.revoked = True
 
     async def revoke_tokens(self, user_uid: str) -> int:
-        """Revoke all the refresh tokens for a user with the given user UID."""
+        """Revoke all the refresh tokens for the given user UID."""
         options = [
             selectinload(User.refresh_tokens),
             with_loader_criteria(RefreshToken, RefreshToken.revoked.is_(False)),
