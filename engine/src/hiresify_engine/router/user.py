@@ -12,9 +12,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
+from hiresify_engine.dep import CCHManagerDep, PWDManagerDep, RepositoryDep
 from hiresify_engine.templates import LOGIN_HTML
-
-from .dependency import CCHManagerDep, PWDManagerDep, RepositoryDep
 
 _templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 

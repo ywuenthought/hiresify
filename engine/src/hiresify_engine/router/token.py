@@ -10,9 +10,13 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Form, HTTPException, status
 
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
+from hiresify_engine.dep import (
+    CCHManagerDep,
+    JWTManagerDep,
+    PKCEManagerDep,
+    RepositoryDep,
+)
 from hiresify_engine.tool.jwt import TokenResponse
-
-from .dependency import CCHManagerDep, JWTManagerDep, PKCEManagerDep, RepositoryDep
 
 router = APIRouter(prefix="/token")
 
