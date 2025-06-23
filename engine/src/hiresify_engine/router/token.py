@@ -26,7 +26,7 @@ router = APIRouter(prefix="/token")
 async def issue_token(
     client_id: str = Form(..., max_length=32, min_length=32),
     code: str = Form(..., max_length=32, min_length=32),
-    code_verifier: str = Form(..., max_length=32, min_length=32),
+    code_verifier: str = Form(..., max_length=43, min_length=128),
     redirect_uri: str = Form(..., max_length=128, pattern="^https://"),
     device: str | None = Form(None, max_length=128),
     ip: str | None = Form(None, max_length=45),

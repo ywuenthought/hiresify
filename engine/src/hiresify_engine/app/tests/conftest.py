@@ -14,9 +14,9 @@ from ..main import app
 
 @pytest.fixture(scope="session")
 async def client() -> ty.AsyncGenerator[AsyncClient, None]:
-    """Create an async client against the testing app."""
+    """Create an async client against the app in memory."""
     transport = ASGITransport(app=app)
-    base_url = "https://test"
+    base_url = "https://hiresify"
 
     async with LifespanManager(app=app):
         async with AsyncClient(transport=transport, base_url=base_url) as client:

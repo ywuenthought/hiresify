@@ -5,6 +5,8 @@
 
 """Define the backend user-related endpoints."""
 
+import typing as ty
+
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -42,19 +44,13 @@ async def authorize_user(
     code_challenge: str = Query(..., max_length=43, min_length=43),
     code_challenge_method: str = Query(..., max_length=10, min_length=4),
     redirect_uri: str = Query(..., max_length=2048, pattern="^https://"),
-    response_type: str = Query(..., max_length=20, min_length=4),
+    response_type: ty.Literal["code"] = Query(..., max_length=4, min_length=4),
     state: str = Query(..., max_length=32, min_length=32),
     *,
     cch: CCHManagerDep,
     request: Request,
 ) -> RedirectResponse:
     """Authorize a verified user to log in the app."""
-    if response_type != "code":
-        raise HTTPException(
-            detail='Only response_type="code" is supported.',
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-
     session_id = request.cookies.get("session_id")
     session = await cch.get_session(session_id) if session_id else None
     code = await cch.set_code(
