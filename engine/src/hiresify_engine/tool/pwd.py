@@ -6,6 +6,7 @@
 """Export the password manager for user authentication."""
 
 from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 
 
 class PasswordManager:
@@ -21,4 +22,9 @@ class PasswordManager:
 
     def verify(self, plain: str, hashed: str) -> bool:
         """Verify the given password with its hashed version."""
-        return self._hasher.verify(hashed, plain)
+        try:
+            self._hasher.verify(hashed, plain)
+        except VerifyMismatchError:
+            return False
+
+        return True

@@ -9,6 +9,8 @@ import pytest
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 
+from hiresify_engine.db.repository import Repository
+
 from ..main import app
 
 
@@ -21,3 +23,10 @@ async def client() -> ty.AsyncGenerator[AsyncClient, None]:
     async with LifespanManager(app=app):
         async with AsyncClient(transport=transport, base_url=base_url) as client:
             yield client
+
+
+@pytest.fixture(scope="function", autouse=True)
+async def purge_tables() -> None:
+    """Purge all the tables in-between tests."""
+    repo: Repository = app.state.repo
+    await repo.purge_tables()
