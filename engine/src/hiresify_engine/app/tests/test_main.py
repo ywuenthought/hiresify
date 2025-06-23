@@ -3,8 +3,6 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-import typing as ty
-from contextlib import contextmanager
 from secrets import token_urlsafe
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
@@ -83,27 +81,28 @@ async def test_authorize_user(client: AsyncClient) -> None:
     # Given
     cch: CCHManager = app.state.cch
     session = await cch.set_session()
-    with _set_cookies_on_client(client, "session_id", session.id):
-        # When
-        response = await client.get(endpoint, params=params)
+    client.cookies.set("session_id", session.id)
 
-        # Then
-        assert response.is_redirect
-        assert response.status_code == 307
+    # When
+    response = await client.get(endpoint, params=params)
 
-        redirect_url = response.headers.get("location")
-        assert redirect_url.startswith(redirect_uri)
+    # Then
+    assert response.is_redirect
+    assert response.status_code == 307
 
-        parsed_url = urlparse(redirect_url)
-        query_prms = parse_qs(parsed_url.query)
-        assert list(query_prms.keys()) == ["code", "state"]
+    redirect_url = response.headers.get("location")
+    assert redirect_url.startswith(redirect_uri)
+
+    parsed_url = urlparse(redirect_url)
+    query_prms = parse_qs(parsed_url.query)
+    assert list(query_prms.keys()) == ["code", "state"]
 
 
 async def test_login_user(client: AsyncClient) -> None:
     # Given
     endpoint = "/user/login"
 
-    username = "ywu"
+    username = "ewu"
     password = "123"
     request_id = uuid4().hex
 
@@ -124,66 +123,54 @@ async def test_login_user(client: AsyncClient) -> None:
 
     cch: CCHManager = app.state.cch
     session = await cch.set_session()
-    with _set_cookies_on_client(client, "session_id", session.id):
-        # When
-        response = await client.post(endpoint, data=data, params=params)
+    client.cookies.set("session_id", session.id)
 
-        # Then
-        assert response.status_code == 404
-        assert response.json() == expected_json
+    # When
+    response = await client.post(endpoint, data=data, params=params)
 
-        # Given
-        await client.post("/user/register", data=data)
+    # Then
+    assert response.status_code == 404
+    assert response.json() == expected_json
 
-        # The input password is incorrect.
-        data.update(password="456")
+    # Given
+    await client.post("/user/register", data=data)
 
-        expected_json.update(detail="The input password is incorrect.")
+    # The input password is incorrect.
+    data.update(password="456")
 
-        # When
-        response = await client.post(endpoint, data=data, params=params)
+    expected_json.update(detail="The input password is incorrect.")
 
-        # Then
-        assert response.status_code == 401
-        assert response.json() == expected_json
+    # When
+    response = await client.post(endpoint, data=data, params=params)
 
-        # Given
-        data.update(password=password)
-        await client.post("user/register", data=data)
+    # Then
+    assert response.status_code == 401
+    assert response.json() == expected_json
 
-        expected_json.update(detail=f"{request_id=} is invalid or timed out.")
+    # Given
+    data.update(password=password)
+    await client.post("user/register", data=data)
 
-        # When
-        response = await client.post(endpoint, data=data, params=params)
+    expected_json.update(detail=f"{request_id=} is invalid or timed out.")
 
-        # Then
-        assert response.status_code == 400
-        assert response.json() == expected_json
+    # When
+    response = await client.post(endpoint, data=data, params=params)
 
-        # Given
-        url = "https://hiresify/user/authorize"
-        params.update(request_id=await cch.set_url(url))
+    # Then
+    assert response.status_code == 400
+    assert response.json() == expected_json
 
-        # When
-        response = await client.post(endpoint, data=data, params=params)
+    # Given
+    url = "https://hiresify/user/authorize"
+    params.update(request_id=await cch.set_url(url))
 
-        # Then
-        assert response.is_redirect
-        assert response.status_code == 302
+    # When
+    response = await client.post(endpoint, data=data, params=params)
 
-        session_id = response.cookies.get("session_id")
-        assert session_id is not None
-        assert session_id != session.id
+    # Then
+    assert response.is_redirect
+    assert response.status_code == 302
 
-
-
-@contextmanager
-def _set_cookies_on_client(
-    client: AsyncClient, key: str, value: str,
-) -> ty.Generator[None, None, None]:
-    """Set a key and value pair in the given client's cookies."""
-    try:
-        client.cookies.set(key, value)
-        yield
-    finally:
-        client.cookies.delete(key)
+    session_id = response.cookies.get("session_id")
+    assert session_id is not None
+    assert session_id != session.id
