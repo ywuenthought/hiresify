@@ -5,6 +5,7 @@
 
 from .cch import CCHStoreManager as CCHManager
 from .jwt import JWTTokenManager as JWTManager
+from .pkce import PKCECodeManager as PKCEManager
 from .pwd import PasswordManager as PWDManager
 
-__all__ = ["CCHManager", "JWTManager", "PWDManager"]
+__all__ = ["CCHManager", "JWTManager", "PKCEManager", "PWDManager"]

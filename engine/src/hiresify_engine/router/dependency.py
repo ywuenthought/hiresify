@@ -10,7 +10,7 @@ import typing as ty
 from fastapi import Depends, FastAPI, Request
 
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.tool import CCHManager, JWTManager, PWDManager
+from hiresify_engine.tool import CCHManager, JWTManager, PKCEManager, PWDManager
 
 T = ty.TypeVar("T")
 
@@ -25,5 +25,6 @@ def from_state(attr: str, _type: type[T]) -> ty.Callable[[Request], T]:
 
 CCHManagerDep = ty.Annotated[CCHManager, Depends(from_state("cch", CCHManager))]
 JWTManagerDep = ty.Annotated[JWTManager, Depends(from_state("jwt", JWTManager))]
+PKCEManagerDep = ty.Annotated[PKCEManager, Depends(from_state("pkce", PKCEManager))]
 PWDManagerDep = ty.Annotated[PWDManager, Depends(from_state("pwd", PWDManager))]
 RepositoryDep = ty.Annotated[Repository, Depends(from_state("repo", Repository))]

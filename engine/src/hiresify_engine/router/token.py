@@ -12,8 +12,7 @@ from fastapi import APIRouter, Form, HTTPException, status
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 from hiresify_engine.tool.jwt import TokenResponse
 
-from .dependency import CCHManagerDep, JWTManagerDep, RepositoryDep
-from .util import is_pkce_valid
+from .dependency import CCHManagerDep, JWTManagerDep, PKCEManagerDep, RepositoryDep
 
 router = APIRouter(prefix="/token")
 
@@ -34,6 +33,7 @@ async def issue_token(
     *,
     cch: CCHManagerDep,
     jwt: JWTManagerDep,
+    pkce: PKCEManagerDep,
     repo: RepositoryDep,
 ) -> TokenResponse:
     """Issue an access token to a user identified by the given metadata."""
@@ -55,10 +55,10 @@ async def issue_token(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    if not is_pkce_valid(
+    if not pkce.verify(
         code_verifier,
         meta.code_challenge,
-        method=meta.code_challenge_method,
+        meta.code_challenge_method,
     ):
         raise HTTPException(
             detail=f"{code_verifier=} is invalid.",

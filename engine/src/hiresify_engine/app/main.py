@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from hiresify_engine import const
 from hiresify_engine.router import routers
 from hiresify_engine.testing import TestCCHStoreManager, test_repository
-from hiresify_engine.tool import JWTManager, PWDManager
+from hiresify_engine.tool import JWTManager, PKCEManager, PWDManager
 from hiresify_engine.util import get_envvar
 
 
@@ -22,6 +22,9 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     """Wrap the lifespan events for the application."""
     async with test_repository(get_envvar(const.REFRESH_TTL, int, 30)) as repo:
         app.state.repo = repo
+
+        # Initialize the PKCE code manager.
+        app.state.pkce = PKCEManager()
 
         # Initialize the cache manager.
         app.state.cch = cache = TestCCHStoreManager(

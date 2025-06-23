@@ -9,8 +9,7 @@ from uuid import uuid4
 
 from httpx import AsyncClient
 
-from hiresify_engine.router.util import compute_challenge_s256
-from hiresify_engine.tool import CCHManager
+from hiresify_engine.tool import CCHManager, PKCEManager
 
 from ..main import app
 
@@ -51,15 +50,18 @@ async def test_authorize_user(client: AsyncClient) -> None:
     endpoint = "/user/authorize"
 
     client_id = uuid4().hex
-    code_verifier = token_urlsafe(64)
-    code_challenge = compute_challenge_s256(code_verifier)
     redirect_uri = "https://localhost/callback"
     state = uuid4().hex
+
+    pkce: PKCEManager = app.state.pkce
+    code_verifier = token_urlsafe(64)
+    code_challenge_method = "s256"
+    code_challenge = pkce.compute(code_verifier, code_challenge_method)
 
     params = dict(
         client_id=client_id,
         code_challenge=code_challenge,
-        code_challenge_method="s256",
+        code_challenge_method=code_challenge_method,
         redirect_uri=redirect_uri,
         response_type="code",
         state=state,
