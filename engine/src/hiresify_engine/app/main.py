@@ -12,8 +12,8 @@ from fastapi import FastAPI
 
 from hiresify_engine import const
 from hiresify_engine.router import routers
-from hiresify_engine.testing import test_repository
-from hiresify_engine.tool import CCHManager, JWTManager, PWDManager
+from hiresify_engine.testing import TestCCHStoreManager, test_repository
+from hiresify_engine.tool import JWTManager, PWDManager
 from hiresify_engine.util import get_envvar
 
 
@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
         app.state.repo = repo
 
         # Initialize the cache manager.
-        app.state.cch = cache = CCHManager(
+        app.state.cch = cache = TestCCHStoreManager(
             get_envvar(const.REGULAR_TTL, int, 300),
             get_envvar(const.SESSION_TTL, int, 1800),
         )
