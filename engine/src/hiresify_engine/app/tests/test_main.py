@@ -9,7 +9,8 @@ from uuid import uuid4
 
 from httpx import AsyncClient
 
-from hiresify_engine.tool import CCHManager, PKCEManager
+from hiresify_engine.db.repository import Repository
+from hiresify_engine.tool import CCHManager, PKCEManager, PWDManager
 
 from ..main import app
 
@@ -32,17 +33,12 @@ async def test_register_user(client: AsyncClient) -> None:
     # Then
     assert response.status_code == 200
 
-    # Given
-    expected_json = dict(
-        detail=f"User with username={username} conflicts with an existing entity.",
-    )
-
     # When
     response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 409
-    assert response.json() == expected_json
+    assert response.json()["detail"] == "The input username already exists."
 
 
 async def test_authorize_user(client: AsyncClient) -> None:
@@ -53,12 +49,13 @@ async def test_authorize_user(client: AsyncClient) -> None:
     redirect_uri = "https://localhost/callback"
     state = uuid4().hex
 
-    pkce: PKCEManager = app.state.pkce
     code_verifier = token_urlsafe(64)
     code_challenge_method = "s256"
+
+    pkce: PKCEManager = app.state.pkce
     code_challenge = pkce.compute(code_verifier, code_challenge_method)
 
-    params = dict(
+    prms = dict(
         client_id=client_id,
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
@@ -68,16 +65,15 @@ async def test_authorize_user(client: AsyncClient) -> None:
     )
 
     # When
-    response = await client.get(endpoint, params=params)
+    response = await client.get(endpoint, params=prms)
 
     # Then
     assert response.status_code == 307
 
-    redirect_url: str = response.headers.get("location")
-    assert redirect_url.startswith("/user/login")
+    url: str = response.headers.get("location")
+    assert url.startswith("/user/login")
 
-    parsed_url = urlparse(redirect_url)
-    query_prms = parse_qs(parsed_url.query)
+    query_prms = _get_query_params(url)
     assert list(query_prms.keys()) == ["request_id"]
 
     # Given
@@ -86,17 +82,16 @@ async def test_authorize_user(client: AsyncClient) -> None:
     client.cookies.set("session_id", session.id)
 
     # When
-    response = await client.get(endpoint, params=params)
+    response = await client.get(endpoint, params=prms)
 
     # Then
     assert response.is_redirect
     assert response.status_code == 307
 
-    redirect_url = response.headers.get("location")
-    assert redirect_url.startswith(redirect_uri)
+    url = response.headers.get("location")
+    assert url.startswith(redirect_uri)
 
-    parsed_url = urlparse(redirect_url)
-    query_prms = parse_qs(parsed_url.query)
+    query_prms = _get_query_params(url)
     assert list(query_prms.keys()) == ["code", "state"]
 
 
@@ -109,65 +104,60 @@ async def test_login_user(client: AsyncClient) -> None:
     request_id = uuid4().hex
 
     data = dict(username=username, password=password)
-    params = dict(request_id=request_id)
-
-    expected_json = dict(detail="session_id=None is invalid or timed out.")
+    prms = dict(request_id=request_id)
 
     # When
-    response = await client.post(endpoint, data=data, params=params)
+    response = await client.post(endpoint, data=data, params=prms)
 
     # Then
     assert response.status_code == 400
-    assert response.json() == expected_json
+    assert response.json()["detail"] == "session_id=None is invalid or timed out."
 
     # Given
-    expected_json.update(detail=f"User with username={username} was not found.")
-
     cch: CCHManager = app.state.cch
     session = await cch.set_session()
     client.cookies.set("session_id", session.id)
 
     # When
-    response = await client.post(endpoint, data=data, params=params)
+    response = await client.post(endpoint, data=data, params=prms)
 
     # Then
     assert response.status_code == 404
-    assert response.json() == expected_json
+    assert response.json()["detail"] == "The input username was not found."
 
     # Given
-    await client.post("/user/register", data=data)
+    pwd: PWDManager = app.state.pwd
+    hashed_password = pwd.hash(password)
+
+    repo: Repository = app.state.repo
+    await repo.register_user(username, hashed_password)
 
     # The input password is incorrect.
     data.update(password="456")
 
-    expected_json.update(detail="The input password is incorrect.")
-
     # When
-    response = await client.post(endpoint, data=data, params=params)
+    response = await client.post(endpoint, data=data, params=prms)
 
     # Then
     assert response.status_code == 401
-    assert response.json() == expected_json
+    assert response.json()["detail"] == "The input password is incorrect."
 
     # Given
     data.update(password=password)
-    await client.post("user/register", data=data)
-
-    expected_json.update(detail=f"{request_id=} is invalid or timed out.")
 
     # When
-    response = await client.post(endpoint, data=data, params=params)
+    response = await client.post(endpoint, data=data, params=prms)
 
     # Then
     assert response.status_code == 400
-    assert response.json() == expected_json
+    assert response.json()["detail"] == f"{request_id=} is invalid or timed out."
 
     # Given
     url = "https://hiresify/user/authorize"
-    params.update(request_id=await cch.set_url(url))
+    prms.update(request_id=await cch.set_url(url))
 
     # When
-    response = await client.post(endpoint, data=data, params=params)
+    response = await client.post(endpoint, data=data, params=prms)
 
     # Then
     assert response.is_redirect
@@ -176,3 +166,103 @@ async def test_login_user(client: AsyncClient) -> None:
     session_id = response.cookies.get("session_id")
     assert session_id is not None
     assert session_id != session.id
+
+##############
+# token routes
+##############
+
+async def test_issue_token(client: AsyncClient) -> None:
+    # Given
+    endpoint = "/token/issue"
+
+    client_id = uuid4().hex
+    code = uuid4().hex
+    code_verifier = token_urlsafe(64)
+    redirect_uri = "https://localhost/callback"
+
+    data = dict(
+        client_id=client_id,
+        code=code,
+        code_verifier=code_verifier,
+        redirect_uri=redirect_uri,
+    )
+
+    # When
+    response = await client.post(endpoint, data=data)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "The authentication code is invalid or timed out."
+    )
+
+    # Given
+    username = "kwu"
+    password = "123"
+
+    pwd: PWDManager = app.state.pwd
+    hashed_password = pwd.hash(password)
+
+    repo: Repository = app.state.repo
+    user = await repo.register_user(username, hashed_password)
+
+    code_challenge_method = "s256"
+    pkce: PKCEManager = app.state.pkce
+    code_challenge = pkce.compute(code_verifier, code_challenge_method)
+
+    cch: CCHManager = app.state.cch
+    code = await cch.set_code(
+        user.uid,
+        client_id=client_id,
+        code_challenge=code_challenge,
+        code_challenge_method=code_challenge_method,
+        redirect_uri=redirect_uri,
+    )  # type: ignore[assignment]
+
+    # Use an incorrect client ID.
+    data.update(client_id=uuid4().hex, code=code)
+
+    # When
+    response = await client.post(endpoint, data=data)
+
+    # Then
+    assert response.status_code == 401
+    assert response.json()["detail"] == "The input client ID is unauthorized."
+
+    # Given an incorrect redirect URI.
+    data.update(client_id=client_id, redirect_uri="https://evil/callback")
+
+    # When
+    response = await client.post(endpoint, data=data)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == "The input redirect URI is invalid."
+
+    # Given an incorrect code verifier.
+    data.update(code_verifier=token_urlsafe(64), redirect_uri=redirect_uri)
+
+    # When
+    response = await client.post(endpoint, data=data)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == "The input code verifier is invalid."
+
+    # Given
+    data.update(code_verifier=code_verifier)
+
+    # When
+    response = await client.post(endpoint, data=data)
+
+    # Then
+    assert response.status_code == 201
+
+    # The authentication code has been removed from the cache store.
+    assert await cch.get_code(code) is None
+
+
+def _get_query_params(url: str) -> dict[str, list[str]]:
+    """Parse the given URL to get the query parameters."""
+    parsed_url = urlparse(url)
+    return parse_qs(parsed_url.query)

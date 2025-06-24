@@ -36,6 +36,11 @@ class _MockCacheStore:
 
         return value
 
+    async def delete(self, key: str) -> None:
+        """Delete a key from the cache store."""
+        self._cache.pop(key, None)
+        self._timer.pop(key, None)
+
     async def aclose(self) -> None:
         """Close the connection to the cache store."""
         self._cache.clear()

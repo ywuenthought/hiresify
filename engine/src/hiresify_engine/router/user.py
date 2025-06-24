@@ -34,7 +34,10 @@ async def register_user(
     try:
         await repo.register_user(username, hashed_password)
     except EntityConflictError as e:
-        raise HTTPException(detail=str(e), status_code=status.HTTP_409_CONFLICT) from e
+        raise HTTPException(
+            detail="The input username already exists.",
+            status_code=status.HTTP_409_CONFLICT,
+        ) from e
 
 
 @router.get("/authorize")
@@ -78,8 +81,9 @@ async def login_user_page(
 ) -> HTMLResponse:
     """Render the login form with an anonymous session."""
     response = _templates.TemplateResponse(
+        request,
         LOGIN_HTML.name,
-        dict(request=request, request_id=request_id),
+        dict(request_id=request_id),
     )
 
     session = await cch.set_session()
@@ -111,7 +115,10 @@ async def login_user(
     try:
         db_user = await repo.find_user(username)
     except EntityNotFoundError as e:
-        raise HTTPException(detail=str(e), status_code=status.HTTP_404_NOT_FOUND) from e
+        raise HTTPException(
+            detail="The input username was not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        ) from e
 
     if not pwd.verify(password, db_user.password):
         raise HTTPException(

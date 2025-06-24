@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Form, HTTPException, status
 
-from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
+from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import (
     CCHManagerDep,
     JWTManagerDep,
@@ -29,7 +29,7 @@ router = APIRouter(prefix="/token")
 async def issue_token(
     client_id: str = Form(..., max_length=32, min_length=32),
     code: str = Form(..., max_length=32, min_length=32),
-    code_verifier: str = Form(..., max_length=43, min_length=128),
+    code_verifier: str = Form(..., max_length=128, min_length=43),
     redirect_uri: str = Form(..., max_length=128, pattern="^https://"),
     device: str | None = Form(None, max_length=128),
     ip: str | None = Form(None, max_length=45),
@@ -43,19 +43,19 @@ async def issue_token(
     """Issue an access token to a user identified by the given metadata."""
     if not (meta := await cch.get_code(code)):
         raise HTTPException(
-            detail=f"{code=} is invalid or timed out.",
+            detail="The authentication code is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
     if client_id != meta.client_id:
         raise HTTPException(
-            detail=f"{client_id=} is unauthorized.",
+            detail="The input client ID is unauthorized.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     if redirect_uri != meta.redirect_uri:
         raise HTTPException(
-            detail=f"{redirect_uri=} is invalid.",
+            detail="The input redirect URI is invalid.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -65,7 +65,7 @@ async def issue_token(
         meta.code_challenge_method,
     ):
         raise HTTPException(
-            detail=f"{code_verifier=} is invalid.",
+            detail="The input code verifier is invalid.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -77,9 +77,10 @@ async def issue_token(
             platform=platform,
         )
     except EntityNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND) from e
-    except EntityConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT) from e
+        raise HTTPException(
+            detail="The user account has been deleted.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        ) from e
 
     await cch.del_code(code)
     return jwt.generate(meta.user_uid, refresh_token)
