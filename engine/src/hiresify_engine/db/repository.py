@@ -171,13 +171,8 @@ class Repository:
                 **metadata,
             )
 
-            try:
-                async with session.begin():
-                    session.add(refresh_token)
-            except IntegrityError as e:
-                raise EntityConflictError(
-                    RefreshToken, token=abbreviate_token(token),
-                ) from e
+            async with session.begin():
+                session.add(refresh_token)
 
             await session.refresh(refresh_token)
             return token
