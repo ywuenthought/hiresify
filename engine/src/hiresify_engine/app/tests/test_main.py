@@ -262,6 +262,39 @@ async def test_issue_token(client: AsyncClient) -> None:
     assert await cch.get_code(code) is None
 
 
+async def refresh_token(client: AsyncClient) -> None:
+    # Given
+    endpoint = "/token/refresh"
+
+    username = "kwu"
+    password = "123"
+
+    pwd: PWDManager = app.state.pwd
+    hashed_password = pwd.hash(password)
+
+    repo: Repository = app.state.repo
+    user = await repo.register_user(username, hashed_password)
+
+    token = await repo.create_token(user.uid)
+    data = dict(token=token)
+
+    # When
+    response = await client.post(endpoint, data=data)
+
+    # Then
+    assert response.status_code == 201
+
+    # Given
+    await repo.revoke_token(token)
+
+    # When
+    response = await client.post(endpoint, data=data)
+
+    # Then
+    assert response.status_code == 408
+    assert response.json()["detail"] == f"{token=} was revoked or timed out."
+
+
 def _get_query_params(url: str) -> dict[str, list[str]]:
     """Parse the given URL to get the query parameters."""
     parsed_url = urlparse(url)

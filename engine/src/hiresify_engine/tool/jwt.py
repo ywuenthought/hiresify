@@ -23,7 +23,7 @@ class TokenResponse:
     expires_in: int
 
     #: The refresh token.
-    refresh_token: str
+    refresh_token: str | None = None
 
     #: The permissions granted by this token.
     scope: str = "read write"
@@ -42,22 +42,22 @@ class JWTTokenManager:
 
         self._secret_key = token_urlsafe(32)
 
-    def generate(self, user_uid: str, refresh_token: str) -> TokenResponse:
+    def generate(
+        self, user_uid: str, refresh_token: str | None = None,
+    ) -> TokenResponse:
         """Generate a token response for the user UID and refresh token."""
         issued_at = datetime.now(UTC)
         expire_at = issued_at + timedelta(seconds=self._ttl)
 
+        claims = dict(
+            exp=int(expire_at.timestamp()),
+            iat=int(issued_at.timestamp()),
+            scope="read write",
+            sub=user_uid,
+        )
+
         return TokenResponse(
-            access_token=jwt.encode(
-                dict(
-                    exp=int(expire_at.timestamp()),
-                    iat=int(issued_at.timestamp()),
-                    scope="read write",
-                    sub=user_uid,
-                ),
-                self._secret_key,
-                algorithm=self._algorithm,
-            ),
+            access_token=jwt.encode(claims, self._secret_key, self._algorithm),
             expires_in=self._ttl,
             refresh_token=refresh_token,
         )

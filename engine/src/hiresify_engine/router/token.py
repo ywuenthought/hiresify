@@ -107,4 +107,4 @@ async def refresh_token(
         )
 
     user_uid = refresh_token.user.uid
-    return jwt.generate(user_uid, token)
+    return jwt.generate(user_uid)
