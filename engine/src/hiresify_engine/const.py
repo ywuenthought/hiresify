@@ -15,6 +15,9 @@ ACCESS_TTL = "ACCESS_TTL"
 # The database URL.
 DATABASE_URL = "DATABASE_URL"
 
+# The deployment type.
+DEPLOYMENT = "DEPLOYMENT"
+
 # The refresh token TTL (day).
 REFRESH_TTL = "REFRESH_TTL"
 
@@ -23,3 +26,13 @@ REGULAR_TTL = "REGULAR_TTL"
 
 # The HTTP session TTL (sec).
 SESSION_TTL = "SESSION_TTL"
+
+#############
+# deployments
+#############
+
+TESTING = "testing"
+
+DEVELOPMENT = "development"
+
+PRODUCTION = "production"
