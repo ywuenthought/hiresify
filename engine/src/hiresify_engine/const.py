@@ -18,6 +18,12 @@ DATABASE_URL = "DATABASE_URL"
 # The deployment type.
 DEPLOYMENT = "DEPLOYMENT"
 
+# The redis server host.
+REDIS_HOST = "REDIS_HOST"
+
+# The redis server port.
+REDIS_PORT = "REDIS_PORT"
+
 # The refresh token TTL (day).
 REFRESH_TTL = "REFRESH_TTL"
 

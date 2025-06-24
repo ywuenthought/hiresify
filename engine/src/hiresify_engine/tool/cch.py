@@ -92,13 +92,7 @@ class _SessionMetadata:
 class CCHStoreManager:
     """A wrapper class for managing a cache store."""
 
-    def __init__(self,
-        ttl: int,
-        session_ttl: int,
-        *,
-        host: str = "localhost",
-        port: int = 6379,
-    ) -> None:
+    def __init__(self, ttl: int, session_ttl: int, *, host: str, port: int) -> None:
         """Initialize a new instance of CCHStoreManager."""
         self._ttl = ttl
         self._session_ttl = session_ttl
