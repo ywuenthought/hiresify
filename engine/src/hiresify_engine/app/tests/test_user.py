@@ -4,7 +4,6 @@
 # explicit written permission from the copyright holder.
 
 from secrets import token_urlsafe
-from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from httpx import AsyncClient
@@ -13,6 +12,7 @@ from hiresify_engine.db.repository import Repository
 from hiresify_engine.tool import CCHManager, PKCEManager, PWDManager
 
 from ..main import app
+from .util import get_query_params
 
 ################
 # authentication
@@ -73,7 +73,7 @@ async def test_authorize_user(client: AsyncClient) -> None:
     url: str = response.headers.get("location")
     assert url.startswith("/user/login")
 
-    query_prms = _get_query_params(url)
+    query_prms = get_query_params(url)
     assert list(query_prms.keys()) == ["request_id"]
 
     # Given
@@ -91,7 +91,7 @@ async def test_authorize_user(client: AsyncClient) -> None:
     url = response.headers.get("location")
     assert url.startswith(redirect_uri)
 
-    query_prms = _get_query_params(url)
+    query_prms = get_query_params(url)
     assert list(query_prms.keys()) == ["code", "state"]
 
 
@@ -166,136 +166,3 @@ async def test_login_user(client: AsyncClient) -> None:
     session_id = response.cookies.get("session_id")
     assert session_id is not None
     assert session_id != session.id
-
-##############
-# token routes
-##############
-
-async def test_issue_token(client: AsyncClient) -> None:
-    # Given
-    endpoint = "/token/issue"
-
-    client_id = uuid4().hex
-    code = uuid4().hex
-    code_verifier = token_urlsafe(64)
-    redirect_uri = "https://localhost/callback"
-
-    data = dict(
-        client_id=client_id,
-        code=code,
-        code_verifier=code_verifier,
-        redirect_uri=redirect_uri,
-    )
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 400
-    assert response.json()["detail"] == (
-        "The authentication code is invalid or timed out."
-    )
-
-    # Given
-    username = "kwu"
-    password = "123"
-
-    pwd: PWDManager = app.state.pwd
-    hashed_password = pwd.hash(password)
-
-    repo: Repository = app.state.repo
-    user = await repo.register_user(username, hashed_password)
-
-    code_challenge_method = "s256"
-    pkce: PKCEManager = app.state.pkce
-    code_challenge = pkce.compute(code_verifier, code_challenge_method)
-
-    cch: CCHManager = app.state.cch
-    code = await cch.set_code(
-        user.uid,
-        client_id=client_id,
-        code_challenge=code_challenge,
-        code_challenge_method=code_challenge_method,
-        redirect_uri=redirect_uri,
-    )  # type: ignore[assignment]
-
-    # Use an incorrect client ID.
-    data.update(client_id=uuid4().hex, code=code)
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 401
-    assert response.json()["detail"] == "The input client ID is unauthorized."
-
-    # Given an incorrect redirect URI.
-    data.update(client_id=client_id, redirect_uri="https://evil/callback")
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 400
-    assert response.json()["detail"] == "The input redirect URI is invalid."
-
-    # Given an incorrect code verifier.
-    data.update(code_verifier=token_urlsafe(64), redirect_uri=redirect_uri)
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 400
-    assert response.json()["detail"] == "The input code verifier is invalid."
-
-    # Given
-    data.update(code_verifier=code_verifier)
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 201
-
-    # The authentication code has been removed from the cache store.
-    assert await cch.get_code(code) is None
-
-
-async def refresh_token(client: AsyncClient) -> None:
-    # Given
-    endpoint = "/token/refresh"
-
-    username = "kwu"
-    password = "123"
-
-    pwd: PWDManager = app.state.pwd
-    hashed_password = pwd.hash(password)
-
-    repo: Repository = app.state.repo
-    user = await repo.register_user(username, hashed_password)
-
-    token = await repo.create_token(user.uid)
-    data = dict(token=token)
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 201
-
-    # Given
-    await repo.revoke_token(token)
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 408
-    assert response.json()["detail"] == f"{token=} was revoked or timed out."
-
-
-def _get_query_params(url: str) -> dict[str, list[str]]:
-    """Parse the given URL to get the query parameters."""
-    parsed_url = urlparse(url)
-    return parse_qs(parsed_url.query)
