@@ -6,15 +6,14 @@
 from secrets import token_urlsafe
 from uuid import uuid4
 
+from fastapi import FastAPI
 from httpx import AsyncClient
 
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.tool import CCHManager, PKCEManager, PWDManager
 
-from ..main import app
 
-
-async def test_issue_token(client: AsyncClient) -> None:
+async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     # Given
     endpoint = "/token/issue"
 
@@ -105,7 +104,7 @@ async def test_issue_token(client: AsyncClient) -> None:
     assert await cch.get_code(code) is None
 
 
-async def refresh_token(client: AsyncClient) -> None:
+async def refresh_token(app: FastAPI, client: AsyncClient) -> None:
     # Given
     endpoint = "/token/refresh"
 

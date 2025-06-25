@@ -6,12 +6,12 @@
 from secrets import token_urlsafe
 from uuid import uuid4
 
+from fastapi import FastAPI
 from httpx import AsyncClient
 
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.tool import CCHManager, PKCEManager, PWDManager
 
-from ..main import app
 from .util import get_query_params
 
 ################
@@ -41,7 +41,7 @@ async def test_register_user(client: AsyncClient) -> None:
     assert response.json()["detail"] == "The input username already exists."
 
 
-async def test_authorize_user(client: AsyncClient) -> None:
+async def test_authorize_user(app: FastAPI, client: AsyncClient) -> None:
     # Given
     endpoint = "/user/authorize"
 
@@ -95,7 +95,7 @@ async def test_authorize_user(client: AsyncClient) -> None:
     assert list(query_prms.keys()) == ["code", "state"]
 
 
-async def test_login_user(client: AsyncClient) -> None:
+async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     # Given
     endpoint = "/user/login"
 

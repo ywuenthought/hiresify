@@ -13,7 +13,6 @@ from fastapi import FastAPI
 
 from hiresify_engine import const
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.testing import TestCCHStoreManager, test_repository
 from hiresify_engine.tool import CCHManager, JWTManager, PKCEManager, PWDManager
 from hiresify_engine.util import get_envvar
 
@@ -21,11 +20,6 @@ from hiresify_engine.util import get_envvar
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     """Wrap the lifespan events for the application."""
-    deployment = get_envvar(const.DEPLOYMENT, str, const.TESTING)
-
-    if deployment not in (const.TESTING, const.DEVELOPMENT, const.PRODUCTION):
-        raise ValueError(f"{deployment=} is invalid.")
-
     # Load the access token TTL and default to 900 seconds.
     access_ttl = get_envvar(const.ACCESS_TTL, int, 900)
 
@@ -44,8 +38,8 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     # Load the database config file path and default to an empty string.
     db_config = get_envvar(const.DATABASE_CONFIG, str, "")
 
-    # Load the redis host and default to localhost.
-    host = get_envvar(const.REDIS_HOST, str, "localhost")
+    # Load the redis host and default to redis.
+    host = get_envvar(const.REDIS_HOST, str, "redis")
 
     # Load the redis port and default to 6379.
     port = get_envvar(const.REDIS_PORT, int, 6379)
@@ -59,27 +53,15 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     # Initialize the user password manager.
     app.state.pwd = PWDManager()
 
-    if deployment == const.TESTING:
+    with open(db_config) as fp:
+        configs = json.load(fp)
 
-        # Initialize the test cache manager.
-        app.state.cch = TestCCHStoreManager(regular_ttl, session_ttl)
+    # Initialize the cache store manager.
+    app.state.cch = CCHManager(regular_ttl, session_ttl, host=host, port=port)
 
-        # Initialize the test database repository.
-        async with test_repository(refresh_ttl) as repo:
-            app.state.repo = repo
-            yield
+    # Initialize the database repository.
+    app.state.repo = Repository(db_url, refresh_ttl, **configs)
 
-    else:
-
-        with open(db_config, "r") as fp:
-            configs = json.load(fp)
-
-        # Initialize the cache store manager.
-        app.state.cch = CCHManager(regular_ttl, session_ttl, host=host, port=port)
-
-        # Initialize the database repository.
-        app.state.repo = Repository(db_url, refresh_ttl, **configs)
-
-        yield
+    yield
 
     await app.state.cch.dispose()

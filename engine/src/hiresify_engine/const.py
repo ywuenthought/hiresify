@@ -18,9 +18,6 @@ DATABASE_URL = "DATABASE_URL"
 # The database config file.
 DATABASE_CONFIG = "DATABASE_CONFIG"
 
-# The deployment type.
-DEPLOYMENT = "DEPLOYMENT"
-
 # The redis server host.
 REDIS_HOST = "REDIS_HOST"
 
@@ -35,13 +32,3 @@ REGULAR_TTL = "REGULAR_TTL"
 
 # The HTTP session TTL (sec).
 SESSION_TTL = "SESSION_TTL"
-
-#############
-# deployments
-#############
-
-TESTING = "testing"
-
-DEVELOPMENT = "development"
-
-PRODUCTION = "production"
