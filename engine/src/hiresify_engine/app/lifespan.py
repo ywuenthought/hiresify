@@ -5,6 +5,7 @@
 
 """Define the app lifespan and service initialization."""
 
+import json
 import typing as ty
 from contextlib import asynccontextmanager
 
@@ -40,6 +41,9 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     # Load the database URL and default to an empty string.
     db_url = get_envvar(const.DATABASE_URL, str, "")
 
+    # Load the database config file path and default to an empty string.
+    db_config = get_envvar(const.DATABASE_CONFIG, str, "")
+
     # Load the redis host and default to localhost.
     host = get_envvar(const.REDIS_HOST, str, "localhost")
 
@@ -67,11 +71,14 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
 
     else:
 
+        with open(db_config, "r") as fp:
+            configs = json.load(fp)
+
         # Initialize the cache store manager.
         app.state.cch = CCHManager(regular_ttl, session_ttl, host=host, port=port)
 
         # Initialize the database repository.
-        app.state.repo = Repository(db_url, refresh_ttl)
+        app.state.repo = Repository(db_url, refresh_ttl, **configs)
 
         yield
 

@@ -15,6 +15,9 @@ ACCESS_TTL = "ACCESS_TTL"
 # The database URL.
 DATABASE_URL = "DATABASE_URL"
 
+# The database config file.
+DATABASE_CONFIG = "DATABASE_CONFIG"
+
 # The deployment type.
 DEPLOYMENT = "DEPLOYMENT"
 
