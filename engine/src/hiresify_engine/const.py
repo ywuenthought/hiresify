@@ -5,6 +5,8 @@
 
 """Define the constants shared among modules."""
 
+import pathlib
+
 #############
 # envvar keys
 #############
@@ -29,3 +31,11 @@ REGULAR_TTL = "REGULAR_TTL"
 
 # The HTTP session TTL (sec).
 SESSION_TTL = "SESSION_TTL"
+
+################
+# dir/file paths
+################
+
+PACKAGE_ROOT = pathlib.Path(__file__).parent
+
+STATIC_DIR = PACKAGE_ROOT / "static"
