@@ -8,10 +8,14 @@
 import typing as ty
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
 
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 from hiresify_engine.dep import CCHManagerDep, PWDManagerDep, RepositoryDep
+from hiresify_engine.templates import LOGIN_HTML
+
+_templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 
 router = APIRouter(prefix="/user")
 
@@ -66,6 +70,26 @@ async def authorize_user(
         url = f"/user/login?request_id={request_id}"
 
     return RedirectResponse(url=url)
+
+
+@router.get("/login")
+async def login_user_page(
+    request_id: str = Query(..., max_length=32, min_length=32),
+    *,
+    cch: CCHManagerDep,
+    request: Request,
+) -> HTMLResponse:
+    """Render the login form with an anonymous session."""
+    response = _templates.TemplateResponse(
+        request,
+        LOGIN_HTML.name,
+        dict(request_id=request_id),
+    )
+
+    session = await cch.set_session()
+    session.set_cookie_on(response)
+
+    return response
 
 
 @router.post("/login")
