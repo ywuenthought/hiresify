@@ -3,6 +3,6 @@
 // See the LICENSE file for more details.
 
 export const ROUTES = {
+  AUTH: '/auth',
   HOME: '/',
-  LOGIN: '/login',
 };

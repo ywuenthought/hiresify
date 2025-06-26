@@ -7,16 +7,16 @@ import './App.css';
 import { Box } from '@mui/material';
 import { Route, Routes } from 'react-router-dom';
 
-import Home from './components/Home';
-import Login from './components/Login';
 import { ROUTES } from './const';
+import Auth from './view/Auth';
+import Home from './view/Home';
 
 function App() {
   return (
     <Box component="main">
       <Routes>
         <Route path={ROUTES.HOME} element={<Home />} />
-        <Route path={ROUTES.LOGIN} element={<Login />} />
+        <Route path={ROUTES.AUTH} element={<Auth />} />
       </Routes>
     </Box>
   );
