@@ -17,7 +17,7 @@ from ...router import routers
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def app() -> ty.AsyncGenerator[None, None]:
+async def app() -> ty.AsyncGenerator[FastAPI, None]:
     """Create an app using the testing tool stack."""
     app = FastAPI()
 

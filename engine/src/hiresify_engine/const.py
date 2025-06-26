@@ -18,11 +18,8 @@ DATABASE_URL = "DATABASE_URL"
 # The database config file.
 DATABASE_CONFIG = "DATABASE_CONFIG"
 
-# The redis server host.
-REDIS_HOST = "REDIS_HOST"
-
-# The redis server port.
-REDIS_PORT = "REDIS_PORT"
+# The redis server URL.
+REDIS_URL = "REDIS_URL"
 
 # The refresh token TTL (day).
 REFRESH_TTL = "REFRESH_TTL"

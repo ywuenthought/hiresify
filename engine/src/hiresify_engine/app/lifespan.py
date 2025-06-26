@@ -23,6 +23,15 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     # Load the access token TTL and default to 900 seconds.
     access_ttl = get_envvar(const.ACCESS_TTL, int, 900)
 
+    # Load the database URL and default to an empty string.
+    db_url = get_envvar(const.DATABASE_URL, str, "")
+
+    # Load the database config file path and default to an empty string.
+    db_config = get_envvar(const.DATABASE_CONFIG, str, "")
+
+    # Load the redis server URL and default to an empty string.
+    redis_url = get_envvar(const.REDIS_URL, str, "")
+
     # Load the refresh token TTL and default to 30 days.
     refresh_ttl = get_envvar(const.REFRESH_TTL, int, 30)
 
@@ -32,32 +41,20 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     # Load the session TTL and default to 1800 seconds.
     session_ttl = get_envvar(const.SESSION_TTL, int, 1800)
 
-    # Load the database URL and default to an empty string.
-    db_url = get_envvar(const.DATABASE_URL, str, "")
-
-    # Load the database config file path and default to an empty string.
-    db_config = get_envvar(const.DATABASE_CONFIG, str, "")
-
-    # Load the redis host and default to redis.
-    host = get_envvar(const.REDIS_HOST, str, "redis")
-
-    # Load the redis port and default to 6379.
-    port = get_envvar(const.REDIS_PORT, int, 6379)
-
-    # Initialize the PKCE code manager.
-    app.state.pkce = PKCEManager()
-
-    # Initialize the JWT access token manager.
-    app.state.jwt = JWTManager(access_ttl)
-
-    # Initialize the user password manager.
-    app.state.pwd = PWDManager()
-
     with open(db_config) as fp:
         configs = json.load(fp)
 
     # Initialize the cache store manager.
-    app.state.cch = CCHManager(regular_ttl, session_ttl, host=host, port=port)
+    app.state.cch = CCHManager(redis_url, regular_ttl, session_ttl)
+
+    # Initialize the JWT access token manager.
+    app.state.jwt = JWTManager(access_ttl)
+
+    # Initialize the PKCE code manager.
+    app.state.pkce = PKCEManager()
+
+    # Initialize the user password manager.
+    app.state.pwd = PWDManager()
 
     # Initialize the database repository.
     app.state.repo = Repository(db_url, refresh_ttl, **configs)
@@ -65,3 +62,4 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     yield
 
     await app.state.cch.dispose()
+    await app.state.repo.dispose()

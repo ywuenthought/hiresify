@@ -92,12 +92,12 @@ class _SessionMetadata:
 class CCHStoreManager:
     """A wrapper class for managing a cache store."""
 
-    def __init__(self, ttl: int, session_ttl: int, *, host: str, port: int) -> None:
+    def __init__(self, db_url, regular_ttl: int, session_ttl: int) -> None:
         """Initialize a new instance of CCHStoreManager."""
-        self._ttl = ttl
-        self._session_ttl = session_ttl
+        self._store = Redis.from_url(db_url, decode_responses=True)
 
-        self._store = Redis(host=host, port=port, decode_responses=True)
+        self._regular_ttl = regular_ttl
+        self._session_ttl = session_ttl
 
     async def dispose(self) -> None:
         """Dispose of the underlying cache store."""
@@ -126,7 +126,8 @@ class CCHStoreManager:
         )
 
         code = uuid4().hex
-        await self._store.setex(f"code:{code}", self._ttl, json.dumps(code_meta))
+        serialized = json.dumps(code_meta)
+        await self._store.setex(f"code:{code}", self._regular_ttl, serialized)
 
         return code
 
@@ -181,7 +182,7 @@ class CCHStoreManager:
     async def set_url(self, url: str) -> str:
         """Set a request ID for the given request URL."""
         request_id = uuid4().hex
-        await self._store.setex(f"request:{request_id}", self._ttl, url)
+        await self._store.setex(f"request:{request_id}", self._regular_ttl, url)
 
         return request_id
 
