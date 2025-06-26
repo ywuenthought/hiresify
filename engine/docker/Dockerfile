@@ -15,15 +15,16 @@ WORKDIR /home/ywu/app
 
 RUN chown -R ywu:ywu /home/ywu/app
 
-COPY --chown=ywu:ywu src/ ./src/
+COPY --chown=ywu:ywu ci/configs/db.json ./
+COPY --chown=ywu:ywu src/ ./
 COPY --chown=ywu:ywu .python-version ./
 COPY --chown=ywu:ywu pyproject.toml ./
 COPY --chown=ywu:ywu uv.lock ./
 
 USER ywu
 
-RUN uv sync
+ENV DATABASE_CONFIG=/home/ywu/app/db.json
+
+RUN uv sync && uv pip install -e .
 
 RUN rm -rf /home/ywu/.cache/uv
-
-ENV PYTHONPATH="/home/ywu/app/src"
