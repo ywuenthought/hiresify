@@ -4,8 +4,22 @@
 
 import './App.css';
 
+import { Box } from '@mui/material';
+import { Route, Routes } from 'react-router-dom';
+
+import Home from './components/Home';
+import Login from './components/Login';
+import { ROUTES } from './const';
+
 function App() {
-  return <></>;
+  return (
+    <Box component="main">
+      <Routes>
+        <Route path={ROUTES.HOME} element={<Home />} />
+        <Route path={ROUTES.LOGIN} element={<Login />} />
+      </Routes>
+    </Box>
+  );
 }
 
 export default App;
