@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
-from hiresify_engine.dep import CCHManagerDep, PWDManagerDep, RepositoryDep
+from hiresify_engine.dep import CacheServiceDep, PWDManagerDep, RepositoryDep
 from hiresify_engine.templates import LOGIN_HTML
 
 _templates = Jinja2Templates(directory=LOGIN_HTML.parent)
@@ -20,7 +20,7 @@ _templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 router = APIRouter(prefix="/user")
 
 
-@router.post("/register")
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(
     username: str = Form(..., max_length=30),
     password: str = Form(..., max_length=128),
@@ -49,24 +49,24 @@ async def authorize_user(
     response_type: ty.Literal["code"] = Query(..., max_length=4, min_length=4),
     state: str = Query(..., max_length=32, min_length=32),
     *,
-    cch: CCHManagerDep,
+    cache: CacheServiceDep,
     request: Request,
 ) -> RedirectResponse:
     """Authorize a verified user to log in the app."""
     session_id = request.cookies.get("session_id")
-    session = await cch.get_session(session_id) if session_id else None
-    code = await cch.set_code(
+    session = await cache.get_session(session_id) if session_id else None
+    code = await cache.set_code(
         session.user_uid,
         client_id=client_id,
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
         redirect_uri=redirect_uri,
-    ) if session else None
+    ) if session and session.user_uid else None
 
     if code:
-        url = f"{redirect_uri}?code={code}&state={state}"
+        url = f"{redirect_uri}?code={code.id}&state={state}"
     else:
-        request_id = await cch.set_url(str(request.url))
+        request_id = await cache.set_url(str(request.url))
         url = f"/user/login?request_id={request_id}"
 
     return RedirectResponse(url=url)
@@ -76,7 +76,7 @@ async def authorize_user(
 async def login_user_page(
     request_id: str = Query(..., max_length=32, min_length=32),
     *,
-    cch: CCHManagerDep,
+    cache: CacheServiceDep,
     request: Request,
 ) -> HTMLResponse:
     """Render the login form with an anonymous session."""
@@ -86,8 +86,8 @@ async def login_user_page(
         dict(request_id=request_id),
     )
 
-    session = await cch.set_session()
-    session.set_cookie_on(response)
+    session = await cache.set_session()
+    response.set_cookie(**session.to_cookie())
 
     return response
 
@@ -98,14 +98,14 @@ async def login_user(
     password: str = Form(..., max_length=128),
     request_id: str = Query(..., max_length=32, min_length=32),
     *,
-    cch: CCHManagerDep,
+    cache: CacheServiceDep,
     pwd: PWDManagerDep,
     repo: RepositoryDep,
     request: Request,
 ) -> RedirectResponse:
     """Verify a user's credentials and set up a login session."""
     if not (session_id := request.cookies.get("session_id")) or not (
-        session := await cch.get_session(session_id)
+        session := await cache.get_session(session_id)
     ):
         raise HTTPException(
             detail=f"{session_id=} is invalid or timed out.",
@@ -126,7 +126,7 @@ async def login_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if not (url := await cch.get_url(request_id)):
+    if not (url := await cache.get_url(request_id)):
         raise HTTPException(
             detail=f"{request_id=} is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -134,7 +134,7 @@ async def login_user(
 
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=url)
 
-    session = await cch.set_session(db_user.uid)
-    session.set_cookie_on(response)
+    session = await cache.set_session(db_user.uid)
+    response.set_cookie(**session.to_cookie())
 
     return response

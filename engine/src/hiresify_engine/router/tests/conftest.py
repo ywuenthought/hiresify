@@ -10,7 +10,7 @@ from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from hiresify_engine.testing import TestCCHStoreManager, test_repository
+from hiresify_engine.testing import TestCacheService, test_repository
 from hiresify_engine.tool import JWTManager, PKCEManager, PWDManager
 
 from ...router import routers
@@ -34,7 +34,7 @@ async def app() -> ty.AsyncGenerator[FastAPI, None]:
     app.state.pwd = PWDManager()
 
     # Initialize the test cache manager.
-    app.state.cch = TestCCHStoreManager(300, 1800)
+    app.state.cache = TestCacheService(ttl=300, long_ttl=1800)
 
     # Initialize the test database repository.
     async with test_repository(30) as repo:

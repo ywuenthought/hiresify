@@ -9,8 +9,9 @@ from uuid import uuid4
 from fastapi import FastAPI
 from httpx import AsyncClient
 
+from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.tool import CCHManager, PKCEManager, PWDManager
+from hiresify_engine.tool import PKCEManager, PWDManager
 
 
 async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
@@ -35,7 +36,7 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     # Then
     assert response.status_code == 400
     assert response.json()["detail"] == (
-        "The authentication code is invalid or timed out."
+        "The authorization code is invalid or timed out."
     )
 
     # Given
@@ -52,17 +53,17 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     pkce: PKCEManager = app.state.pkce
     code_challenge = pkce.compute(code_verifier, code_challenge_method)
 
-    cch: CCHManager = app.state.cch
-    code = await cch.set_code(
+    cache: CacheService = app.state.cache
+    auth_code = await cache.set_code(
         user.uid,
         client_id=client_id,
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
         redirect_uri=redirect_uri,
-    )  # type: ignore[assignment]
+    )
 
     # Use an incorrect client ID.
-    data.update(client_id=uuid4().hex, code=code)
+    data.update(client_id=uuid4().hex, code=auth_code.id)
 
     # When
     response = await client.post(endpoint, data=data)
@@ -100,8 +101,8 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     # Then
     assert response.status_code == 201
 
-    # The authentication code has been removed from the cache store.
-    assert await cch.get_code(code) is None
+    # The authorization code has been removed from the cache store.
+    assert await cache.get_code(code) is None
 
 
 async def refresh_token(app: FastAPI, client: AsyncClient) -> None:

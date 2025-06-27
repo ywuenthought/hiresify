@@ -12,8 +12,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from hiresify_engine import const
+from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.tool import CCHManager, JWTManager, PKCEManager, PWDManager
+from hiresify_engine.tool import JWTManager, PKCEManager, PWDManager
 from hiresify_engine.util import get_envvar
 
 
@@ -35,17 +36,17 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     # Load the refresh token TTL and default to 30 days.
     refresh_ttl = get_envvar(const.REFRESH_TTL, int, 30)
 
-    # Load the regular cache entry TTL and default to 300 seconds.
-    regular_ttl = get_envvar(const.REGULAR_TTL, int, 300)
+    # Load the short TTL and default to 300 seconds.
+    ttl = get_envvar(const.SHORT_CACHE_TTL, int, 300)
 
-    # Load the session TTL and default to 1800 seconds.
-    session_ttl = get_envvar(const.SESSION_TTL, int, 1800)
+    # Load the long TTL and default to 1800 seconds.
+    long_ttl = get_envvar(const.LONG_CACHE_TTL, int, 1800)
 
     with open(db_config) as fp:
         configs = json.load(fp)
 
     # Initialize the cache store manager.
-    app.state.cch = CCHManager(redis_url, regular_ttl, session_ttl)
+    app.state.cache = CacheService(redis_url, ttl=ttl, long_ttl=long_ttl)
 
     # Initialize the JWT access token manager.
     app.state.jwt = JWTManager(access_ttl)
@@ -61,5 +62,5 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
 
     yield
 
-    await app.state.cch.dispose()
+    await app.state.cache.dispose()
     await app.state.repo.dispose()

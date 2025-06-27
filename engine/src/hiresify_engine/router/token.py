@@ -11,7 +11,7 @@ from fastapi import APIRouter, Form, HTTPException, status
 
 from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import (
-    CCHManagerDep,
+    CacheServiceDep,
     JWTManagerDep,
     PKCEManagerDep,
     RepositoryDep,
@@ -35,25 +35,25 @@ async def issue_token(
     ip: str | None = Form(None, max_length=45),
     platform: str | None = Form(None, max_length=32),
     *,
-    cch: CCHManagerDep,
+    cache: CacheServiceDep,
     jwt: JWTManagerDep,
     pkce: PKCEManagerDep,
     repo: RepositoryDep,
 ) -> TokenResponse:
     """Issue an access token to a user identified by the given metadata."""
-    if not (meta := await cch.get_code(code)):
+    if not (auth_code := await cache.get_code(code)):
         raise HTTPException(
-            detail="The authentication code is invalid or timed out.",
+            detail="The authorization code is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    if client_id != meta.client_id:
+    if client_id != auth_code.client_id:
         raise HTTPException(
             detail="The input client ID is unauthorized.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if redirect_uri != meta.redirect_uri:
+    if redirect_uri != auth_code.redirect_uri:
         raise HTTPException(
             detail="The input redirect URI is invalid.",
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -61,8 +61,8 @@ async def issue_token(
 
     if not pkce.verify(
         code_verifier,
-        meta.code_challenge,
-        meta.code_challenge_method,
+        auth_code.code_challenge,
+        auth_code.code_challenge_method,
     ):
         raise HTTPException(
             detail="The input code verifier is invalid.",
@@ -71,7 +71,7 @@ async def issue_token(
 
     try:
         refresh_token = await repo.create_token(
-            meta.user_uid,
+            auth_code.user_uid,
             device=device,
             ip=ip,
             platform=platform,
@@ -82,8 +82,8 @@ async def issue_token(
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    await cch.del_code(code)
-    return jwt.generate(meta.user_uid, refresh_token)
+    await cache.del_code(code)
+    return jwt.generate(auth_code.user_uid, refresh_token)
 
 
 @router.post(

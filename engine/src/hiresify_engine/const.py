@@ -20,17 +20,17 @@ DATABASE_URL = "DATABASE_URL"
 # The database config file.
 DATABASE_CONFIG = "DATABASE_CONFIG"
 
+# The long TTL for a cache entry (sec).
+LONG_CACHE_TTL = "LONG_CACHE_TTL"
+
 # The redis server URL.
 REDIS_URL = "REDIS_URL"
 
 # The refresh token TTL (day).
 REFRESH_TTL = "REFRESH_TTL"
 
-# The regular cache entry TTL (sec).
-REGULAR_TTL = "REGULAR_TTL"
-
-# The HTTP session TTL (sec).
-SESSION_TTL = "SESSION_TTL"
+# The short TTL for a cache entry (sec).
+SHORT_CACHE_TTL = "SHORT_CACHE_TTL"
 
 ################
 # dir/file paths

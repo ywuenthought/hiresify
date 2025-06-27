@@ -7,15 +7,16 @@
 
 from fastapi import FastAPI, Request
 
+from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.tool import CCHManager, JWTManager, PKCEManager, PWDManager
+from hiresify_engine.tool import JWTManager, PKCEManager, PWDManager
 
 
-def get_cch(request: Request) -> CCHManager:
-    """Get the cache manager from app.state."""
+def get_cache(request: Request) -> CacheService:
+    """Get the cache service from app.state."""
     app: FastAPI = request.app
-    manager: CCHManager = app.state.cch
-    return manager
+    service: CacheService = app.state.cache
+    return service
 
 
 def get_jwt(request: Request) -> JWTManager:

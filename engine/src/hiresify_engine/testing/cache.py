@@ -8,10 +8,10 @@
 import typing as ty
 from datetime import UTC, datetime, timedelta
 
-from hiresify_engine.tool import CCHManager
+from hiresify_engine.cache.service import CacheService
 
 
-class _MockCacheStore:
+class MockCacheStore:
     """A mock cache store that lives in memory."""
 
     def __init__(self) -> None:
@@ -19,10 +19,10 @@ class _MockCacheStore:
         self._cache: dict[str, ty.Any] = {}
         self._timer: dict[str, datetime] = {}
 
-    async def setex(self, key: str, ttl: int, value: ty.Any) -> None:
+    async def set(self, key: str, value: ty.Any, *, ex: int) -> None:
         """Set the value of a key with the given key, value, and TTL."""
         self._cache[key] = value
-        self._timer[key] = datetime.now(UTC) + timedelta(seconds=ttl)
+        self._timer[key] = datetime.now(UTC) + timedelta(seconds=ex)
 
     async def get(self, key: str) -> str | None:
         """Get the value of the given key."""
@@ -47,11 +47,11 @@ class _MockCacheStore:
         self._timer.clear()
 
 
-class TestCCHStoreManager(CCHManager):
-    """A test cache store manager that uses a mock cache store."""
+class TestCacheService(CacheService):
+    """A test cache service that uses a mock cache store."""
 
-    def __init__(self, ttl, session_ttl) -> None:
+    def __init__(self, *, ttl, long_ttl) -> None:
         """Initialize a new instance of this class."""
         self._ttl = ttl
-        self._session_ttl = session_ttl
-        self._store = _MockCacheStore()
+        self._long_ttl = long_ttl
+        self._store = MockCacheStore()

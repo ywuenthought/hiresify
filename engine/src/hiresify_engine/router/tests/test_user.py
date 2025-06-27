@@ -9,14 +9,15 @@ from uuid import uuid4
 from fastapi import FastAPI
 from httpx import AsyncClient
 
+from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.tool import CCHManager, PKCEManager, PWDManager
+from hiresify_engine.tool import PKCEManager, PWDManager
 
 from .util import get_query_params
 
-################
-# authentication
-################
+###############
+# authorization
+###############
 
 async def test_register_user(client: AsyncClient) -> None:
     # Given
@@ -31,7 +32,7 @@ async def test_register_user(client: AsyncClient) -> None:
     response = await client.post(endpoint, data=data)
 
     # Then
-    assert response.status_code == 200
+    assert response.status_code == 201
 
     # When
     response = await client.post(endpoint, data=data)
@@ -73,12 +74,12 @@ async def test_authorize_user(app: FastAPI, client: AsyncClient) -> None:
     url: str = response.headers.get("location")
     assert url.startswith("/user/login")
 
-    query_prms = get_query_params(url)
-    assert list(query_prms.keys()) == ["request_id"]
+    query_params = get_query_params(url)
+    assert list(query_params.keys()) == ["request_id"]
 
     # Given
-    cch: CCHManager = app.state.cch
-    session = await cch.set_session()
+    cache: CacheService = app.state.cache
+    session = await cache.set_session("user-uid")
     client.cookies.set("session_id", session.id)
 
     # When
@@ -91,8 +92,8 @@ async def test_authorize_user(app: FastAPI, client: AsyncClient) -> None:
     url = response.headers.get("location")
     assert url.startswith(redirect_uri)
 
-    query_prms = get_query_params(url)
-    assert list(query_prms.keys()) == ["code", "state"]
+    query_params = get_query_params(url)
+    assert list(query_params.keys()) == ["code", "state"]
 
 
 async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
@@ -114,8 +115,8 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     assert response.json()["detail"] == "session_id=None is invalid or timed out."
 
     # Given
-    cch: CCHManager = app.state.cch
-    session = await cch.set_session()
+    cache: CacheService = app.state.cache
+    session = await cache.set_session()
     client.cookies.set("session_id", session.id)
 
     # When
@@ -154,7 +155,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
 
     # Given
     url = "https://hiresify/user/authorize"
-    prms.update(request_id=await cch.set_url(url))
+    prms.update(request_id=await cache.set_url(url))
 
     # When
     response = await client.post(endpoint, data=data, params=prms)
