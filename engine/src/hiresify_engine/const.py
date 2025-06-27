@@ -39,3 +39,11 @@ SHORT_CACHE_TTL = "SHORT_CACHE_TTL"
 PACKAGE_ROOT = pathlib.Path(__file__).parent
 
 STATIC_DIR = PACKAGE_ROOT / "static"
+
+##############
+# regular exps
+##############
+
+USERNAME_REGEX = r"^[a-zA-Z][a-zA-Z0-9_]*$"
+
+PASSWORD_REGEX = r"^[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]+$"

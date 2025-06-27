@@ -11,6 +11,7 @@ from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from hiresify_engine.const import PASSWORD_REGEX, USERNAME_REGEX
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 from hiresify_engine.dep import CacheServiceDep, PWDManagerDep, RepositoryDep
 from hiresify_engine.templates import LOGIN_HTML
@@ -22,8 +23,8 @@ router = APIRouter(prefix="/user")
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(
-    username: str = Form(..., max_length=30),
-    password: str = Form(..., max_length=128),
+    username: str = Form(..., max_length=30, min_length=3, pattern=USERNAME_REGEX),
+    password: str = Form(..., max_length=128, min_length=8, pattern=PASSWORD_REGEX),
     *,
     pwd: PWDManagerDep,
     repo: RepositoryDep,

@@ -24,7 +24,7 @@ async def test_register_user(client: AsyncClient) -> None:
     endpoint = "/user/register"
 
     username = "ywu"
-    password = "123"
+    password = "12345678"
 
     data = dict(username=username, password=password)
 
@@ -101,7 +101,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     endpoint = "/user/login"
 
     username = "ewu"
-    password = "123"
+    password = "12345678"
     request_id = uuid4().hex
 
     data = dict(username=username, password=password)
