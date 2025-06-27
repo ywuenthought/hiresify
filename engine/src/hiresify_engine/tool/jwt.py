@@ -5,19 +5,19 @@
 
 """Export the token manager for user authentication."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from secrets import token_urlsafe
 
-from jose import jwt
-from pydantic.dataclasses import dataclass
+from jose import JWTError, jwt
 
 
 @dataclass(frozen=True)
-class TokenResponse:
-    """The response schema for issuing an access token."""
+class AccessToken:
+    """The data model for an access token."""
 
     #: The encoded access token.
-    access_token: str
+    token: str
 
     #: When the access token expires.
     expires_in: int
@@ -40,11 +40,11 @@ class JWTTokenManager:
         self._ttl = ttl
         self._algorithm = algorithm
 
-        self._secret_key = token_urlsafe(32)
+        self._key = token_urlsafe(64)
 
     def generate(
         self, user_uid: str, refresh_token: str | None = None,
-    ) -> TokenResponse:
+    ) -> AccessToken:
         """Generate a token response for the user UID and refresh token."""
         issued_at = datetime.now(UTC)
         expire_at = issued_at + timedelta(seconds=self._ttl)
@@ -56,13 +56,16 @@ class JWTTokenManager:
             sub=user_uid,
         )
 
-        return TokenResponse(
-            access_token=jwt.encode(claims, self._secret_key, self._algorithm),
+        return AccessToken(
+            token=jwt.encode(claims, self._key, self._algorithm),
             expires_in=self._ttl,
             refresh_token=refresh_token,
         )
 
-    def verify(self, token: str) -> bool:
-        """Verify the given access token."""
-        payload = jwt.decode(token, self._secret_key, algorithms=[self._algorithm])
-        return payload["sub"]
+    def verify(self, token: str) -> str | None:
+        """Verify the given access token and return the subscriber."""
+        try:
+            payload = jwt.decode(token, self._key, algorithms=[self._algorithm])
+            return payload["sub"]
+        except JWTError:
+            return None

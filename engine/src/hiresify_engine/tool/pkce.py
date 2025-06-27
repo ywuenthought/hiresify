@@ -14,10 +14,10 @@ class PKCECodeManager:
 
     def __init__(self) -> None:
         """Initialize a new instance of PKCECodeManager."""
-        self._methods = {"s256": self._compute_challenge_s256}
+        self._methods = dict(s256=self._compute_challenge_s256)
 
     def compute(self, verifier: str, method: str) -> str:
-        """Compute the code challenge using the given method."""
+        """Compute the code challenge using the preferred method."""
         if compute_func := self._methods.get(method):
             return compute_func(verifier)
 

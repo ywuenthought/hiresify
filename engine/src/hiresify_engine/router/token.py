@@ -5,6 +5,7 @@
 
 """Define the backend token-related endpoints."""
 
+from dataclasses import asdict
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Form, HTTPException, status
@@ -16,16 +17,11 @@ from hiresify_engine.dep import (
     PKCEManagerDep,
     RepositoryDep,
 )
-from hiresify_engine.tool.jwt import TokenResponse
 
 router = APIRouter(prefix="/token")
 
 
-@router.post(
-    "/issue",
-    response_model=TokenResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/issue", status_code=status.HTTP_201_CREATED)
 async def issue_token(
     client_id: str = Form(..., max_length=32, min_length=32),
     code: str = Form(..., max_length=32, min_length=32),
@@ -39,7 +35,7 @@ async def issue_token(
     jwt: JWTManagerDep,
     pkce: PKCEManagerDep,
     repo: RepositoryDep,
-) -> TokenResponse:
+) -> dict:
     """Issue an access token to a user identified by the given metadata."""
     if not (auth_code := await cache.get_code(code)):
         raise HTTPException(
@@ -83,20 +79,16 @@ async def issue_token(
         ) from e
 
     await cache.del_code(code)
-    return jwt.generate(auth_code.user_uid, refresh_token)
+    return asdict(jwt.generate(auth_code.user_uid, refresh_token))
 
 
-@router.post(
-    "/refresh",
-    response_model=TokenResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/refresh", status_code=status.HTTP_201_CREATED)
 async def refresh_token(
     token: str = Form(..., max_length=32, min_length=32),
     *,
     jwt: JWTManagerDep,
     repo: RepositoryDep,
-) -> TokenResponse:
+) -> dict:
     """Refresh a user's access token if the given refresh token is active."""
     refresh_token = await repo.find_token(token, eager=True)
 
@@ -107,4 +99,4 @@ async def refresh_token(
         )
 
     user_uid = refresh_token.user.uid
-    return jwt.generate(user_uid)
+    return asdict(jwt.generate(user_uid))
