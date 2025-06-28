@@ -3,33 +3,13 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-"""Export the token manager for user authentication."""
+"""Export the JWT token manager."""
 
-from dataclasses import dataclass
+import typing as ty
 from datetime import UTC, datetime, timedelta
 from secrets import token_urlsafe
 
 from jose import JWTError, jwt
-
-
-@dataclass(frozen=True)
-class AccessToken:
-    """The data model for an access token."""
-
-    #: The encoded access token.
-    token: str
-
-    #: When the access token expires.
-    expires_in: int
-
-    #: The refresh token.
-    refresh_token: str | None = None
-
-    #: The permissions granted by this token.
-    scope: str = "read write"
-
-    #: The type of this token.
-    token_type: str = "bearer"
 
 
 class JWTTokenManager:
@@ -43,9 +23,15 @@ class JWTTokenManager:
         self._key = token_urlsafe(64)
 
     def generate(
-        self, user_uid: str, refresh_token: str | None = None,
-    ) -> AccessToken:
-        """Generate a token response for the user UID and refresh token."""
+        self, user_uid: str,
+        *,
+        refresh_token: str | None = None,
+    ) -> dict[str, ty.Any]:
+        """Generate a token response for the given user UID.
+
+        Note that if `refresh_token` is given, it will also be sent to the client to
+        exchange for a fresh access token.
+        """
         issued_at = datetime.now(UTC)
         expire_at = issued_at + timedelta(seconds=self._ttl)
 
@@ -56,14 +42,16 @@ class JWTTokenManager:
             sub=user_uid,
         )
 
-        return AccessToken(
+        return dict(
             token=jwt.encode(claims, self._key, self._algorithm),
             expires_in=self._ttl,
             refresh_token=refresh_token,
+            scope="read write",
+            token_type="bearer",
         )
 
     def verify(self, token: str) -> str | None:
-        """Verify the given access token and return the subscriber."""
+        """Verify the given access token and return the user UID."""
         try:
             payload = jwt.decode(token, self._key, algorithms=[self._algorithm])
             return payload["sub"]

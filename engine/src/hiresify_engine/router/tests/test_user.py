@@ -42,7 +42,7 @@ async def test_register_user(client: AsyncClient) -> None:
     assert response.json()["detail"] == "The input username already exists."
 
 
-async def test_authorize_user(app: FastAPI, client: AsyncClient) -> None:
+async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     # Given
     endpoint = "/user/authorize"
 
@@ -72,14 +72,11 @@ async def test_authorize_user(app: FastAPI, client: AsyncClient) -> None:
     assert response.status_code == 307
 
     url: str = response.headers.get("location")
-    assert url.startswith("/user/login")
-
-    query_params = get_query_params(url)
-    assert list(query_params.keys()) == ["request_id"]
+    assert url == "/user/login"
 
     # Given
     cache: CacheService = app.state.cache
-    session = await cache.set_session("user-uid")
+    session = await cache.set_user_session("user-uid")
     client.cookies.set("session_id", session.id)
 
     # When
@@ -102,13 +99,12 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
 
     username = "ewu"
     password = "12345678"
-    request_id = uuid4().hex
+    csrf_token = uuid4().hex
 
-    data = dict(username=username, password=password)
-    prms = dict(request_id=request_id)
+    data = dict(username=username, password=password, csrf_token=csrf_token)
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 400
@@ -116,11 +112,22 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
 
     # Given
     cache: CacheService = app.state.cache
-    session = await cache.set_session()
+    session = await cache.set_request_session("/user/authorize")
     client.cookies.set("session_id", session.id)
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"{csrf_token=} is invalid or timed out."
+
+    # Given
+    token = await cache.set_csrf_token(session.id)
+    data.update(csrf_token=token)
+
+    # When
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 404
@@ -137,7 +144,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     data.update(password="456")
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 401
@@ -147,18 +154,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     data.update(password=password)
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
-
-    # Then
-    assert response.status_code == 400
-    assert response.json()["detail"] == f"{request_id=} is invalid or timed out."
-
-    # Given
-    url = "https://hiresify/user/authorize"
-    prms.update(request_id=await cache.set_url(url))
-
-    # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.is_redirect

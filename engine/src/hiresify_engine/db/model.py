@@ -5,11 +5,29 @@
 
 """Define the database schema."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String, TypeDecorator
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class AwareDateTime(TypeDecorator):
+    """A SQLAlchemy type that ensures datetimes are always UTC-aware.
+
+    In SQLite for testing, retrieved datetime fields are naive even with timezone=True.
+    """
+
+    impl = DateTime(timezone=True)
+
+    cache_ok = True
+
+    def process_result_value(self, value: datetime | None, dialect) -> datetime | None:
+        """Process the result value to be UTC-aware if it is a datetime object."""
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+
+        return value
 
 
 class Base(DeclarativeBase):
@@ -56,10 +74,10 @@ class RefreshToken(Base):
     token: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
 
     #: The date and time when the token was issued.
-    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    issued_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
 
     #: The date and time when the token was set to expire.
-    expire_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expire_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
 
     #: A boolean flag for whether the token has been revoked.
     revoked: Mapped[bool] = mapped_column(default=False, nullable=False)

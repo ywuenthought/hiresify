@@ -5,6 +5,7 @@
 
 """Define the data models used by cache store."""
 
+import copy
 import json
 import typing as ty
 from dataclasses import asdict, dataclass, field
@@ -13,10 +14,10 @@ from uuid import uuid4
 
 
 @dataclass(frozen=True)
-class AuthorizationCode:
-    """The data model for an authorization code."""
+class Authorization:
+    """The data model for an authorization."""
 
-    #: The ID of the client.
+    #: The ID of the client to be authorized.
     client_id: str
 
     #: The code challenge sent by the client.
@@ -28,14 +29,14 @@ class AuthorizationCode:
     #: The redirect URI.
     redirect_uri: str
 
-    #: The UID of the user to be authenticated.
+    #: The UID of the user that granted the authorization.
     user_uid: str
 
-    #: The code ID that defaults to a random UUID.
-    id: str = field(default_factory=lambda: uuid4().hex)
+    #: The authorization code that defaults to a random UUID.
+    code: str = field(default_factory=lambda: uuid4().hex)
 
     @classmethod
-    def from_serialized(cls, serialized: str) -> "AuthorizationCode":
+    def from_serialized(cls, serialized: str) -> "Authorization":
         """Instantiate this class using the given serialized data."""
         raw = json.loads(serialized)
         return cls(**raw)
@@ -45,9 +46,8 @@ class AuthorizationCode:
         return json.dumps(asdict(self))
 
 
-@dataclass(frozen=True)
-class UserSession:
-    """The data model for a user session."""
+class SessionMixin:
+    """The mixin that injects methods to session data models."""
 
     #: When the session was issued.
     issued_at: datetime
@@ -55,15 +55,11 @@ class UserSession:
     #: When the session expires.
     expire_at: datetime
 
-    #: The user UID linked to this session.
-    # If not given, the session will be anonymous.
-    user_uid: str | None = None
-
-    #: The session ID that defaults to a random UUID.
-    id: str = field(default_factory=lambda: uuid4().hex)
+    #: The session ID.
+    id: str
 
     @classmethod
-    def from_serialized(cls, serialized: str) -> "UserSession":
+    def from_serialized(cls, serialized: str) -> ty.Self:
         """Instantiate this class using the given serialized data."""
         raw = json.loads(serialized)
 
@@ -74,7 +70,7 @@ class UserSession:
 
     def serialize(self) -> str:
         """Serialize this object into a string."""
-        raw = asdict(self)
+        raw = copy.deepcopy(self.__dict__)
 
         for key in ("issued_at", "expire_at"):
             raw[key] = raw[key].isoformat()
@@ -99,3 +95,40 @@ class UserSession:
             # Only send over HTTPS connections.
             secure=True,
         )
+
+
+@dataclass(frozen=True)
+class RequestSession(SessionMixin):
+    """The data model for a request session.
+
+    A request session is anonymous and only associated with a specific request.
+    """
+
+    #: The request URI linked to this session.
+    request_uri: str
+
+    #: When the session was issued.
+    issued_at: datetime
+
+    #: When the session expires.
+    expire_at: datetime
+
+    #: The session ID that defaults to a random UUID.
+    id: str = field(default_factory=lambda: uuid4().hex)
+
+
+@dataclass(frozen=True)
+class UserSession(SessionMixin):
+    """The data model for a user's session."""
+
+    #: The user UID linked to this session.
+    user_uid: str
+
+    #: When the session was issued.
+    issued_at: datetime
+
+    #: When the session expires.
+    expire_at: datetime
+
+    #: The session ID that defaults to a random UUID.
+    id: str = field(default_factory=lambda: uuid4().hex)

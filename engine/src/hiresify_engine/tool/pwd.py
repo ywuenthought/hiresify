@@ -3,7 +3,7 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-"""Export the password manager for user authentication."""
+"""Export the password manager."""
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError

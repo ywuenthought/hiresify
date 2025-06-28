@@ -42,7 +42,7 @@ async def register_user(
 
 
 @router.get("/authorize")
-async def authorize_user(
+async def authorize_client(
     client_id: str = Query(..., max_length=32, min_length=32),
     code_challenge: str = Query(..., max_length=43, min_length=43),
     code_challenge_method: str = Query(..., max_length=10, min_length=4),
@@ -53,10 +53,10 @@ async def authorize_user(
     cache: CacheServiceDep,
     request: Request,
 ) -> RedirectResponse:
-    """Authorize a verified user to log in the app."""
+    """Authorize a client on behalf of a verified user."""
     session_id = request.cookies.get("session_id")
-    session = await cache.get_session(session_id) if session_id else None
-    code = await cache.set_code(
+    session = await cache.get_user_session(session_id) if session_id else None
+    auth = await cache.set_authorization(
         session.user_uid,
         client_id=client_id,
         code_challenge=code_challenge,
@@ -64,31 +64,33 @@ async def authorize_user(
         redirect_uri=redirect_uri,
     ) if session and session.user_uid else None
 
-    if code:
-        url = f"{redirect_uri}?code={code.id}&state={state}"
-    else:
-        request_id = await cache.set_url(str(request.url))
-        url = f"/user/login?request_id={request_id}"
+    url = f"{redirect_uri}?code={auth.code}&state={state}" if auth else "/user/login"
+    response = RedirectResponse(url=url)
 
-    return RedirectResponse(url=url)
+    if not auth:
+        req_session = await cache.set_request_session(str(request.url))
+        response.set_cookie(**req_session.to_cookie())
+
+    return response
 
 
 @router.get("/login")
-async def login_user_page(
-    request_id: str = Query(..., max_length=32, min_length=32),
-    *,
-    cache: CacheServiceDep,
-    request: Request,
-) -> HTMLResponse:
-    """Render the login form with an anonymous session."""
+async def login_user_page(*, cache: CacheServiceDep, request: Request) -> HTMLResponse:
+    """Render the login form with a CSRF token."""
+    session_id = request.cookies.get("session_id")
+
+    if not session_id or not await cache.get_request_session(session_id):
+        raise HTTPException(
+            detail=f"{session_id=} is invalid or timed out.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    token = await cache.set_csrf_token(session_id)
     response = _templates.TemplateResponse(
         request,
         LOGIN_HTML.name,
-        dict(request_id=request_id),
+        dict(csrf_token=token),
     )
-
-    session = await cache.set_session()
-    response.set_cookie(**session.to_cookie())
 
     return response
 
@@ -97,7 +99,7 @@ async def login_user_page(
 async def login_user(
     username: str = Form(..., max_length=30),
     password: str = Form(..., max_length=128),
-    request_id: str = Query(..., max_length=32, min_length=32),
+    csrf_token: str = Form(..., max_length=32, min_length=32),
     *,
     cache: CacheServiceDep,
     pwd: PWDManagerDep,
@@ -105,11 +107,17 @@ async def login_user(
     request: Request,
 ) -> RedirectResponse:
     """Verify a user's credentials and set up a login session."""
-    if not (session_id := request.cookies.get("session_id")) or not (
-        session := await cache.get_session(session_id)
-    ):
+    session_id = request.cookies.get("session_id")
+
+    if not session_id or not (session := await cache.get_request_session(session_id)):
         raise HTTPException(
             detail=f"{session_id=} is invalid or timed out.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if csrf_token != await cache.get_csrf_token(session_id):
+        raise HTTPException(
+            detail=f"{csrf_token=} is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -127,15 +135,10 @@ async def login_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if not (url := await cache.get_url(request_id)):
-        raise HTTPException(
-            detail=f"{request_id=} is invalid or timed out.",
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-
+    url = session.request_uri
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=url)
 
-    session = await cache.set_session(db_user.uid)
-    response.set_cookie(**session.to_cookie())
+    user_session = await cache.set_user_session(db_user.uid)
+    response.set_cookie(**user_session.to_cookie())
 
     return response

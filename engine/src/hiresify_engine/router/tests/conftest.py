@@ -34,7 +34,7 @@ async def app() -> ty.AsyncGenerator[FastAPI, None]:
     app.state.pwd = PWDManager()
 
     # Initialize the test cache manager.
-    app.state.cache = TestCacheService(ttl=300, long_ttl=1800)
+    app.state.cache = TestCacheService(ttl=300)
 
     # Initialize the test database repository.
     async with test_repository(30) as repo:

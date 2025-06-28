@@ -54,7 +54,7 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     code_challenge = pkce.compute(code_verifier, code_challenge_method)
 
     cache: CacheService = app.state.cache
-    auth_code = await cache.set_code(
+    auth = await cache.set_authorization(
         user.uid,
         client_id=client_id,
         code_challenge=code_challenge,
@@ -63,7 +63,7 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     )
 
     # Use an incorrect client ID.
-    data.update(client_id=uuid4().hex, code=auth_code.id)
+    data.update(client_id=uuid4().hex, code=auth.code)
 
     # When
     response = await client.post(endpoint, data=data)
@@ -102,14 +102,14 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     assert response.status_code == 201
 
     # The authorization code has been removed from the cache store.
-    assert await cache.get_code(code) is None
+    assert await cache.get_authorization(auth.code) is None
 
 
-async def refresh_token(app: FastAPI, client: AsyncClient) -> None:
+async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
     # Given
     endpoint = "/token/refresh"
 
-    username = "kwu"
+    username = "swu"
     password = "123"
 
     pwd: PWDManager = app.state.pwd

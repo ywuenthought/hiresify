@@ -5,7 +5,7 @@
 
 """Define the backend token-related endpoints."""
 
-from dataclasses import asdict
+import typing as ty
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Form, HTTPException, status
@@ -35,21 +35,21 @@ async def issue_token(
     jwt: JWTManagerDep,
     pkce: PKCEManagerDep,
     repo: RepositoryDep,
-) -> dict:
+) -> dict[str, ty.Any]:
     """Issue an access token to a user identified by the given metadata."""
-    if not (auth_code := await cache.get_code(code)):
+    if not (auth := await cache.get_authorization(code)):
         raise HTTPException(
             detail="The authorization code is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    if client_id != auth_code.client_id:
+    if client_id != auth.client_id:
         raise HTTPException(
             detail="The input client ID is unauthorized.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if redirect_uri != auth_code.redirect_uri:
+    if redirect_uri != auth.redirect_uri:
         raise HTTPException(
             detail="The input redirect URI is invalid.",
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -57,8 +57,8 @@ async def issue_token(
 
     if not pkce.verify(
         code_verifier,
-        auth_code.code_challenge,
-        auth_code.code_challenge_method,
+        auth.code_challenge,
+        auth.code_challenge_method,
     ):
         raise HTTPException(
             detail="The input code verifier is invalid.",
@@ -67,7 +67,7 @@ async def issue_token(
 
     try:
         refresh_token = await repo.create_token(
-            auth_code.user_uid,
+            auth.user_uid,
             device=device,
             ip=ip,
             platform=platform,
@@ -78,8 +78,8 @@ async def issue_token(
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    await cache.del_code(code)
-    return asdict(jwt.generate(auth_code.user_uid, refresh_token))
+    await cache.del_authorization(code)
+    return jwt.generate(auth.user_uid, refresh_token=refresh_token)
 
 
 @router.post("/refresh", status_code=status.HTTP_201_CREATED)
@@ -88,15 +88,15 @@ async def refresh_token(
     *,
     jwt: JWTManagerDep,
     repo: RepositoryDep,
-) -> dict:
+) -> dict[str, ty.Any]:
     """Refresh a user's access token if the given refresh token is active."""
     refresh_token = await repo.find_token(token, eager=True)
 
-    if refresh_token.revoked or refresh_token.expire_at >= datetime.now(UTC):
+    if refresh_token.revoked or refresh_token.expire_at <= datetime.now(UTC):
         raise HTTPException(
             detail=f"{token=} was revoked or timed out.",
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
     user_uid = refresh_token.user.uid
-    return asdict(jwt.generate(user_uid))
+    return jwt.generate(user_uid)

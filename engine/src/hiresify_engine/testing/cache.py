@@ -50,8 +50,7 @@ class MockCacheStore:
 class TestCacheService(CacheService):
     """A test cache service that uses a mock cache store."""
 
-    def __init__(self, *, ttl, long_ttl) -> None:
+    def __init__(self, *, ttl) -> None:
         """Initialize a new instance of this class."""
         self._ttl = ttl
-        self._long_ttl = long_ttl
         self._store = MockCacheStore()

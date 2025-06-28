@@ -3,14 +3,14 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-"""Export the PKCE code manager for user authentication."""
+"""Export the PKCE code manager."""
 
 import base64
 import hashlib
 
 
 class PKCECodeManager:
-    """A wrapper class for managing PKCE codes."""
+    """A wrapper class for managing PKCE code."""
 
     def __init__(self) -> None:
         """Initialize a new instance of PKCECodeManager."""

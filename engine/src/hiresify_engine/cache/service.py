@@ -10,31 +10,27 @@ from uuid import uuid4
 
 from redis.asyncio import Redis
 
-from .model import AuthorizationCode, UserSession
+from .model import Authorization, RequestSession, UserSession
 
 
 class CacheService:
     """A wrapper class exposing APIs for cache service."""
 
-    def __init__(self, db_url, *, ttl: int, long_ttl: int) -> None:
+    def __init__(self, db_url, *, ttl: int) -> None:
         """Initialize a new instance of CacheService."""
         self._store = Redis.from_url(db_url, decode_responses=True)
-
-        # The short-term TTL.
+        # The cache entry TTL.
         self._ttl = ttl
-
-        # The long-term TTL.
-        self._long_ttl = long_ttl
 
     async def dispose(self) -> None:
         """Dispose of the underlying cache store."""
         await self._store.aclose()
 
-    ###########
-    # auth code
-    ###########
+    ###############
+    # authorization
+    ###############
 
-    async def set_code(
+    async def set_authorization(
         self,
         user_uid: str,
         *,
@@ -42,9 +38,9 @@ class CacheService:
         code_challenge: str,
         code_challenge_method: str,
         redirect_uri: str,
-    ) -> AuthorizationCode:
-        """Set an authorization code for the given user UID."""
-        code = AuthorizationCode(
+    ) -> Authorization:
+        """Set an authorization with the given user UID."""
+        auth = Authorization(
             client_id=client_id,
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
@@ -52,33 +48,57 @@ class CacheService:
             user_uid=user_uid,
         )
 
-        serialized = code.serialize()
-        await self._store.set(f"code:{code.id}", serialized, ex=self._ttl)
+        serialized = auth.serialize()
+        await self._store.set(f"auth:{auth.code}", serialized, ex=self._ttl)
 
-        return code
+        return auth
 
-    async def get_code(self, code_id: str) -> AuthorizationCode | None:
-        """Get the code with the given code ID."""
-        if not (serialized := await self._store.get(f"code:{code_id}")):
+    async def get_authorization(self, code: str) -> Authorization | None:
+        """Get the authorization with the given code."""
+        if not (serialized := await self._store.get(f"auth:{code}")):
             return None
 
-        return AuthorizationCode.from_serialized(serialized)
+        return Authorization.from_serialized(serialized)
 
-    async def del_code(self, code_id: str) -> None:
-        """Delete the code with the given code ID."""
-        await self._store.delete(f"code:{code_id}")
+    async def del_authorization(self, code: str) -> None:
+        """Delete the authorization with the given code."""
+        await self._store.delete(f"auth:{code}")
+
+    #############
+    # req session
+    #############
+
+    async def set_request_session(self, request_uri: str) -> RequestSession:
+        """Set a request session for the given request URI."""
+        issued_at = datetime.now(UTC)
+        expire_at = issued_at + timedelta(seconds=self._ttl)
+
+        session = RequestSession(
+            request_uri=request_uri,
+            issued_at=issued_at,
+            expire_at=expire_at,
+        )
+
+        serialized = session.serialize()
+        await self._store.set(f"req:{session.id}", serialized, ex=self._ttl)
+
+        return session
+
+    async def get_request_session(self, session_id: str) -> RequestSession | None:
+        """Get the request session with the given session ID."""
+        if not (serialized := await self._store.get(f"req:{session_id}")):
+            return None
+
+        return RequestSession.from_serialized(serialized)
 
     ##############
     # user session
     ##############
 
-    async def set_session(self, user_uid: str | None = None) -> UserSession:
-        """Set a session for the given user UID.
-
-        If `user_uid` is not given, the session will be anonymous.
-        """
+    async def set_user_session(self, user_uid: str) -> UserSession:
+        """Set a user session for the given user UID."""
         issued_at = datetime.now(UTC)
-        expire_at = issued_at + timedelta(seconds=self._long_ttl)
+        expire_at = issued_at + timedelta(seconds=self._ttl)
 
         session = UserSession(
             user_uid=user_uid,
@@ -87,28 +107,30 @@ class CacheService:
         )
 
         serialized = session.serialize()
-        await self._store.set(f"session:{session.id}", serialized, ex=self._long_ttl)
+        await self._store.set(f"user:{session.id}", serialized, ex=self._ttl)
 
         return session
 
-    async def get_session(self, session_id: str) -> UserSession | None:
-        """Get the session with the given session ID."""
-        if not (serialized := await self._store.get(f"session:{session_id}")):
+    async def get_user_session(self, session_id: str) -> UserSession | None:
+        """Get the user session with the given session ID."""
+        if not (serialized := await self._store.get(f"user:{session_id}")):
             return None
 
         return UserSession.from_serialized(serialized)
 
-    #############
-    # request URL
-    #############
+    ############
+    # CSRF token
+    ############
 
-    async def set_url(self, url: str) -> str:
-        """Set a request ID for the given request URL."""
-        request_id = uuid4().hex
-        await self._store.set(f"request:{request_id}", url, ex=self._ttl)
+    async def set_csrf_token(self, session_id: str) -> str:
+        """Set a CSRF token for the given session ID.
 
-        return request_id
+        Usually, the session is anonymous for a login or register process.
+        """
+        token = uuid4().hex
+        await self._store.set(f"csrf:{session_id}", token, ex=self._ttl)
+        return token
 
-    async def get_url(self, request_id: str) -> str | None:
-        """Get the request URL for the given request ID."""
-        return await self._store.get(f"request:{request_id}")
+    async def get_csrf_token(self, session_id: str) -> str | None:
+        """Get the CSRF token with the given session ID."""
+        return await self._store.get(f"csrf:{session_id}")

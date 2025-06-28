@@ -36,17 +36,14 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     # Load the refresh token TTL and default to 30 days.
     refresh_ttl = get_envvar(const.REFRESH_TTL, int, 30)
 
-    # Load the short TTL and default to 300 seconds.
-    ttl = get_envvar(const.SHORT_CACHE_TTL, int, 300)
-
-    # Load the long TTL and default to 1800 seconds.
-    long_ttl = get_envvar(const.LONG_CACHE_TTL, int, 1800)
+    # Load the cache TTL and default to 300 seconds.
+    cache_ttl = get_envvar(const.CACHE_TTL, int, 300)
 
     with open(db_config) as fp:
         configs = json.load(fp)
 
     # Initialize the cache store manager.
-    app.state.cache = CacheService(redis_url, ttl=ttl, long_ttl=long_ttl)
+    app.state.cache = CacheService(redis_url, ttl=cache_ttl)
 
     # Initialize the JWT access token manager.
     app.state.jwt = JWTManager(access_ttl)
