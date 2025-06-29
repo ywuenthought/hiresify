@@ -5,7 +5,6 @@
 
 """Define the backend token-related endpoints."""
 
-import typing as ty
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Form, HTTPException, status
@@ -35,7 +34,7 @@ async def issue_token(
     jwt: JWTManagerDep,
     pkce: PKCEManagerDep,
     repo: RepositoryDep,
-) -> dict[str, ty.Any]:
+) -> dict[str, str]:
     """Issue an access token to a user identified by the given metadata."""
     if not (auth := await cache.get_authorization(code)):
         raise HTTPException(
@@ -78,8 +77,10 @@ async def issue_token(
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
+    access_token = jwt.generate(auth.user_uid)
     await cache.del_authorization(code)
-    return jwt.generate(auth.user_uid, refresh_token=refresh_token)
+
+    return dict(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/refresh", status_code=status.HTTP_201_CREATED)
@@ -88,7 +89,7 @@ async def refresh_token(
     *,
     jwt: JWTManagerDep,
     repo: RepositoryDep,
-) -> dict[str, ty.Any]:
+) -> dict[str, str]:
     """Refresh a user's access token if the given refresh token is active."""
     refresh_token = await repo.find_token(token, eager=True)
 
@@ -99,4 +100,23 @@ async def refresh_token(
         )
 
     user_uid = refresh_token.user.uid
-    return jwt.generate(user_uid)
+    access_token = jwt.generate(user_uid)
+
+    return dict(access_token=access_token)
+
+
+@router.post("/revoke", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_token(
+    token: str = Form(..., max_length=32, min_length=32),
+    *,
+    repo: RepositoryDep,
+) -> None:
+    """Revoke a user's refresh token."""
+    try:
+        await repo.revoke_token(token)
+    except EntityNotFoundError as e:
+        raise HTTPException(
+            detail="The refresh token was not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        ) from e
+

@@ -100,6 +100,7 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
 
     # Then
     assert response.status_code == 201
+    assert list(response.json().keys()) == ["access_token", "refresh_token"]
 
     # The authorization code has been removed from the cache store.
     assert await cache.get_authorization(auth.code) is None
@@ -126,6 +127,7 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
 
     # Then
     assert response.status_code == 201
+    assert list(response.json().keys()) == ["access_token"]
 
     # Given
     await repo.revoke_token(token)

@@ -16,7 +16,7 @@ from hiresify_engine.tool import PKCEManager, PWDManager
 from .util import get_query_params
 
 ###############
-# authorization
+# user workflow
 ###############
 
 async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
