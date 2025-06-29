@@ -11,7 +11,7 @@ from httpx import AsyncClient
 
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.tool import PKCEManager, PWDManager
+from hiresify_engine.tool import compute_challenge, hash_password
 
 from .util import get_query_params
 
@@ -76,9 +76,7 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
 
     code_verifier = token_urlsafe(64)
     code_challenge_method = "s256"
-
-    pkce: PKCEManager = app.state.pkce
-    code_challenge = pkce.compute(code_verifier, code_challenge_method)
+    code_challenge = compute_challenge(code_verifier, code_challenge_method)
 
     prms = dict(
         client_id=client_id,
@@ -158,8 +156,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     assert response.json()["detail"] == "The input username was not found."
 
     # Given
-    pwd: PWDManager = app.state.pwd
-    hashed_password = pwd.hash(password)
+    hashed_password = hash_password(password)
 
     repo: Repository = app.state.repo
     await repo.register_user(username, hashed_password)

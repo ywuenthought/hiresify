@@ -11,7 +11,7 @@ from httpx import AsyncClient
 
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.tool import PKCEManager, PWDManager
+from hiresify_engine.tool import compute_challenge, hash_password
 
 
 async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
@@ -43,15 +43,13 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     username = "kwu"
     password = "123"
 
-    pwd: PWDManager = app.state.pwd
-    hashed_password = pwd.hash(password)
+    hashed_password = hash_password(password)
 
     repo: Repository = app.state.repo
     user = await repo.register_user(username, hashed_password)
 
     code_challenge_method = "s256"
-    pkce: PKCEManager = app.state.pkce
-    code_challenge = pkce.compute(code_verifier, code_challenge_method)
+    code_challenge = compute_challenge(code_verifier, code_challenge_method)
 
     cache: CacheService = app.state.cache
     auth = await cache.set_authorization(
@@ -113,8 +111,7 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
     username = "swu"
     password = "123"
 
-    pwd: PWDManager = app.state.pwd
-    hashed_password = pwd.hash(password)
+    hashed_password = hash_password(password)
 
     repo: Repository = app.state.repo
     user = await repo.register_user(username, hashed_password)

@@ -3,8 +3,14 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-from .jwt import JWTTokenManager as JWTManager
-from .pkce import PKCECodeManager as PKCEManager
-from .pwd import PasswordManager as PWDManager
+from .jwt import JWTTokenManager
+from .pkce import compute_challenge, confirm_verifier
+from .pwd import hash_password, verify_password
 
-__all__ = ["JWTManager", "PKCEManager", "PWDManager"]
+__all__ = [
+  "JWTTokenManager",
+  "compute_challenge",
+  "confirm_verifier",
+  "hash_password",
+  "verify_password",
+]

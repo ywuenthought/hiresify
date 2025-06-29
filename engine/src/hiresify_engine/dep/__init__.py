@@ -5,18 +5,6 @@
 
 """Export the reusable dependency types for FastAPI endpoints."""
 
-from .type import (
-    CacheServiceDep,
-    JWTManagerDep,
-    PKCEManagerDep,
-    PWDManagerDep,
-    RepositoryDep,
-)
+from .type import CacheServiceDep, JWTManagerDep, RepositoryDep
 
-__all__ = [
-    "CacheServiceDep",
-    "JWTManagerDep",
-    "PKCEManagerDep",
-    "PWDManagerDep",
-    "RepositoryDep",
-]
+__all__ = ["CacheServiceDep", "JWTManagerDep", "RepositoryDep"]

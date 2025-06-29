@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from hiresify_engine import const
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.tool import JWTManager, PKCEManager, PWDManager
+from hiresify_engine.tool import JWTTokenManager
 from hiresify_engine.util import get_envvar
 
 
@@ -46,13 +46,7 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     app.state.cache = CacheService(redis_url, ttl=cache_ttl)
 
     # Initialize the JWT access token manager.
-    app.state.jwt = JWTManager(access_ttl)
-
-    # Initialize the PKCE code manager.
-    app.state.pkce = PKCEManager()
-
-    # Initialize the user password manager.
-    app.state.pwd = PWDManager()
+    app.state.jwt = JWTTokenManager(access_ttl)
 
     # Initialize the database repository.
     app.state.repo = Repository(db_url, refresh_ttl, **configs)

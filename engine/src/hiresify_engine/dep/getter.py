@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.tool import JWTManager, PKCEManager, PWDManager
+from hiresify_engine.tool import JWTTokenManager
 
 
 def get_cache(request: Request) -> CacheService:
@@ -19,24 +19,10 @@ def get_cache(request: Request) -> CacheService:
     return service
 
 
-def get_jwt(request: Request) -> JWTManager:
+def get_jwt(request: Request) -> JWTTokenManager:
     """Get the JWT access token manager from app.state."""
     app: FastAPI = request.app
-    manager: JWTManager = app.state.jwt
-    return manager
-
-
-def get_pkce(request: Request) -> PKCEManager:
-    """Get the PKCE code manager from app.state."""
-    app: FastAPI = request.app
-    manager: PKCEManager = app.state.pkce
-    return manager
-
-
-def get_pwd(request: Request) -> PWDManager:
-    """Get the user password manager from app.state."""
-    app: FastAPI = request.app
-    manager: PWDManager = app.state.pwd
+    manager: JWTTokenManager = app.state.jwt
     return manager
 
 

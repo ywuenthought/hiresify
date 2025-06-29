@@ -13,8 +13,9 @@ from fastapi.templating import Jinja2Templates
 
 from hiresify_engine.const import PASSWORD_REGEX, USERNAME_REGEX
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
-from hiresify_engine.dep import CacheServiceDep, PWDManagerDep, RepositoryDep
+from hiresify_engine.dep import CacheServiceDep, RepositoryDep
 from hiresify_engine.templates import LOGIN_HTML, REGISTER_HTML
+from hiresify_engine.tool import hash_password, verify_password
 
 _templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 
@@ -48,7 +49,6 @@ async def register_user(
     csrf_token: str = Form(..., max_length=32, min_length=32),
     *,
     cache: CacheServiceDep,
-    pwd: PWDManagerDep,
     repo: RepositoryDep,
     request: Request,
 ) -> None:
@@ -67,7 +67,7 @@ async def register_user(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    hashed_password = pwd.hash(password)
+    hashed_password = hash_password(password)
 
     try:
         await repo.register_user(username, hashed_password)
@@ -139,7 +139,6 @@ async def login_user(
     csrf_token: str = Form(..., max_length=32, min_length=32),
     *,
     cache: CacheServiceDep,
-    pwd: PWDManagerDep,
     repo: RepositoryDep,
     request: Request,
 ) -> RedirectResponse:
@@ -166,7 +165,7 @@ async def login_user(
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    if not pwd.verify(password, db_user.password):
+    if not verify_password(password, db_user.password):
         raise HTTPException(
             detail="The input password is incorrect.",
             status_code=status.HTTP_401_UNAUTHORIZED,

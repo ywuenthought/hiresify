@@ -10,12 +10,8 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Form, HTTPException, status
 
 from hiresify_engine.db.exception import EntityNotFoundError
-from hiresify_engine.dep import (
-    CacheServiceDep,
-    JWTManagerDep,
-    PKCEManagerDep,
-    RepositoryDep,
-)
+from hiresify_engine.dep import CacheServiceDep, JWTManagerDep, RepositoryDep
+from hiresify_engine.tool import confirm_verifier
 
 router = APIRouter(prefix="/token")
 
@@ -32,7 +28,6 @@ async def issue_token(
     *,
     cache: CacheServiceDep,
     jwt: JWTManagerDep,
-    pkce: PKCEManagerDep,
     repo: RepositoryDep,
 ) -> dict[str, str]:
     """Issue an access token to a user identified by the given metadata."""
@@ -54,7 +49,7 @@ async def issue_token(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    if not pkce.verify(
+    if not confirm_verifier(
         code_verifier,
         auth.code_challenge,
         auth.code_challenge_method,

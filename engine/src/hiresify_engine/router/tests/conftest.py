@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from hiresify_engine.testing import TestCacheService, test_repository
-from hiresify_engine.tool import JWTManager, PKCEManager, PWDManager
+from hiresify_engine.tool import JWTTokenManager
 
 from ...router import routers
 
@@ -25,13 +25,7 @@ async def app() -> ty.AsyncGenerator[FastAPI, None]:
         app.include_router(router)
 
     # Initialize the JWT access token manager.
-    app.state.jwt = JWTManager(300)
-
-    # Initialize the PKCE code manager.
-    app.state.pkce = PKCEManager()
-
-    # Initialize the user password manager.
-    app.state.pwd = PWDManager()
+    app.state.jwt = JWTTokenManager(300)
 
     # Initialize the test cache manager.
     app.state.cache = TestCacheService(ttl=300)
