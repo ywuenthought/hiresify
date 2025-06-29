@@ -19,14 +19,38 @@ from .util import get_query_params
 # authorization
 ###############
 
-async def test_register_user(client: AsyncClient) -> None:
+async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     # Given
     endpoint = "/user/register"
 
     username = "ywu"
     password = "12345678"
+    csrf_token = uuid4().hex
 
-    data = dict(username=username, password=password)
+    data = dict(username=username, password=password, csrf_token=csrf_token)
+
+    # When
+    response = await client.post(endpoint, data=data)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == "session_id=None is invalid or timed out."
+
+    # Given
+    cache: CacheService = app.state.cache
+    session = await cache.set_request_session(endpoint)
+    client.cookies.set("session_id", session.id)
+
+    # When
+    response = await client.post(endpoint, data=data)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"{csrf_token=} is invalid or timed out."
+
+    # Given
+    token = await cache.set_csrf_token(session.id)
+    data.update(csrf_token=token)
 
     # When
     response = await client.post(endpoint, data=data)

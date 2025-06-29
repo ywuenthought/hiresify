@@ -10,3 +10,5 @@ import pathlib
 _TEMPLATES_PATH = pathlib.Path(__file__).parent
 
 LOGIN_HTML_PATH = _TEMPLATES_PATH / "login.html"
+
+REGISTER_HTML_PATH = _TEMPLATES_PATH / "register.html"

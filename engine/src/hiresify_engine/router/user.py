@@ -14,22 +14,59 @@ from fastapi.templating import Jinja2Templates
 from hiresify_engine.const import PASSWORD_REGEX, USERNAME_REGEX
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 from hiresify_engine.dep import CacheServiceDep, PWDManagerDep, RepositoryDep
-from hiresify_engine.templates import LOGIN_HTML
+from hiresify_engine.templates import LOGIN_HTML, REGISTER_HTML
 
 _templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 
 router = APIRouter(prefix="/user")
 
 
+@router.get("/register")
+async def register_user_page(
+    *,
+    cache: CacheServiceDep,
+    request: Request,
+) -> HTMLResponse:
+    """Render the login form with a CSRF token."""
+    session = await cache.set_request_session(str(request.url))
+    token = await cache.set_csrf_token(session.id)
+
+    response = _templates.TemplateResponse(
+        request,
+        REGISTER_HTML.name,
+        dict(csrf_token=token),
+    )
+
+    response.set_cookie(**session.to_cookie())
+    return response
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(
     username: str = Form(..., max_length=30, min_length=3, pattern=USERNAME_REGEX),
     password: str = Form(..., max_length=128, min_length=8, pattern=PASSWORD_REGEX),
+    csrf_token: str = Form(..., max_length=32, min_length=32),
     *,
+    cache: CacheServiceDep,
     pwd: PWDManagerDep,
     repo: RepositoryDep,
+    request: Request,
 ) -> None:
     """Register a user using the given user name."""
+    session_id = request.cookies.get("session_id")
+
+    if not session_id or not await cache.get_request_session(session_id):
+        raise HTTPException(
+            detail=f"{session_id=} is invalid or timed out.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if csrf_token != await cache.get_csrf_token(session_id):
+        raise HTTPException(
+            detail=f"{csrf_token=} is invalid or timed out.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
     hashed_password = pwd.hash(password)
 
     try:
