@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="/static/favicon.svg" rel="icon" type="image/svg+xml" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
   <title>HIRESIFY Register</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -13,36 +13,66 @@
       <h1 class="font-extrabold text-3xl text-gray-800">Welcome to HIRESIFY</h1>
     </div>
 
-    <form method="post" action="/user/register" class="space-y-6">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <form action="/user/register" class="space-y-6" method="post">
+      <input name="csrf_token" type="hidden" value="{{ csrf_token }}">
 
       <div>
         <label class="block font-medium mb-1 text-gray-700 text-sm">Username</label>
         <input
-          name="username"
-          type="text"
-          required
           class="border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 px-4 py-2 rounded-lg shadow-sm w-full"
+          id="username"
+          required
+          type="text"
         />
+        <p id="usernameError" class="text-sm text-red-500 mt-1 hidden">
+          Username must start with a letter and may only contain letters, digits, and underscores.
+        </p>
       </div>
 
       <div>
         <label class="block font-medium mb-1 text-gray-700 text-sm">Password</label>
         <input
-          name="password"
-          type="password"
-          required
           class="border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 px-4 py-2 rounded-lg shadow-sm w-full"
+          id="password"
+          required
+          type="password"
         />
+        <p id="passwordError" class="text-sm text-red-500 mt-1 hidden">
+          Password must contain only English letters, numbers, and common special characters.
+        </p>
       </div>
 
       <button
-        type="submit"
         class="bg-blue-600 font-semibold hover:bg-blue-700 py-2 rounded-lg shadow-md text-white transition w-full"
+        type="submit"
       >
         Sign Up
       </button>
     </form>
   </div>
+
+  <script defer>
+    USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+    PASSWORD_REGEX = /^[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]+$/;
+
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const usernameError = document.getElementById('usernameError');
+    const passwordError = document.getElementById('passwordError');
+
+    function validateAndUpdateUI() {
+      const username = usernameInput.value;
+      const password = passwordInput.value;
+
+      const isUsernameValid = USERNAME_REGEX.test(usernameInput.value);
+      const isPasswordValid = PASSWORD_REGEX.test(passwordInput.value);
+
+      usernameError.classList.toggle('hidden', isUsernameValid || !username);
+      passwordError.classList.toggle('hidden', isPasswordValid || !password);
+    }
+
+    usernameInput.addEventListener('keyup', validateAndUpdateUI);
+    passwordInput.addEventListener('keyup', validateAndUpdateUI);
+  </script>
 </body>
 </html>

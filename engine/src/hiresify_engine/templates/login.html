@@ -13,32 +13,32 @@
       <h1 class="font-extrabold text-3xl text-gray-800">Welcome to HIRESIFY</h1>
     </div>
 
-    <form method="post" action="/user/login" class="space-y-6">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <form action="/user/login" class="space-y-6" method="post">
+      <input name="csrf_token" type="hidden" value="{{ csrf_token }}">
 
       <div>
         <label class="block font-medium mb-1 text-gray-700 text-sm">Username</label>
         <input
-          name="username"
-          type="text"
-          required
           class="border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 px-4 py-2 rounded-lg shadow-sm w-full"
+          id="username"
+          required
+          type="text"
         />
       </div>
 
       <div>
         <label class="block font-medium mb-1 text-gray-700 text-sm">Password</label>
         <input
-          name="password"
-          type="password"
-          required
           class="border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 px-4 py-2 rounded-lg shadow-sm w-full"
+          id="password"
+          required
+          type="password"
         />
       </div>
 
       <button
-        type="submit"
         class="bg-blue-600 font-semibold hover:bg-blue-700 py-2 rounded-lg shadow-md text-white transition w-full"
+        type="submit"
       >
         Log In
       </button>
