@@ -7,19 +7,17 @@ import './App.css';
 import { Box } from '@mui/material';
 import { Route, Routes } from 'react-router-dom';
 
-import { ROUTES } from './const';
+import { routes } from './const';
 import Auth from './view/Auth';
 import Home from './view/Home';
 
-function App() {
+export default function App() {
   return (
     <Box component="main">
       <Routes>
-        <Route path={ROUTES.HOME} element={<Home />} />
-        <Route path={ROUTES.AUTH} element={<Auth />} />
+        <Route path={routes.HOME} element={<Home />} />
+        <Route path={routes.AUTH} element={<Auth />} />
       </Routes>
     </Box>
   );
 }
-
-export default App;

@@ -2,17 +2,13 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import { Box, Stack, Tabs } from '@mui/material';
-import { type SyntheticEvent, useState } from 'react';
+import { Box, Stack, Typography } from '@mui/material';
 
-import AuthTab from '@/component/AuthTab';
+import LoginButton from '@/component/LoginButton';
+import RegisterLink from '@/component/RegisterLink';
+import { userUrls } from '@/const';
 
 function Auth() {
-  const [tabIndex, setTabIndex] = useState(0);
-
-  const handleChange = (_event: SyntheticEvent, newTabIndex: number) =>
-    setTabIndex(newTabIndex);
-
   return (
     <Box
       sx={{
@@ -21,22 +17,38 @@ function Auth() {
         justifyContent: 'center',
       }}
     >
-      <Box
-        sx={{
-          borderRadius: 2,
-          boxShadow: 3,
-          height: 400,
-          padding: 2,
-          width: 600,
-        }}
+      <Stack
+        spacing={7}
+        sx={{ alignItems: 'center', justifyContent: 'center' }}
       >
-        <Stack direction="column" spacing={2}>
-          <Tabs value={tabIndex} onChange={handleChange}>
-            <AuthTab label="Login" onTop={tabIndex === 0} />
-            <AuthTab label="Register" onTop={tabIndex === 1} />
-          </Tabs>
+        <Stack spacing={1}>
+          <Typography
+            variant="h2"
+            sx={{ textAlign: 'center', fontSize: '4rem' }}
+          >
+            HIRESIFY
+          </Typography>
+          <Typography
+            variant="h3"
+            sx={{ textAlign: 'center', fontSize: '2.7rem' }}
+          >
+            YOUR VISION
+          </Typography>
         </Stack>
-      </Box>
+        <Stack spacing={2}>
+          <Box width={280}>
+            <LoginButton loginUrl={userUrls.login} />
+          </Box>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            sx={{ alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Typography variant="subtitle1">New here?</Typography>
+            <RegisterLink registerUrl={userUrls.register} />
+          </Stack>
+        </Stack>
+      </Stack>
     </Box>
   );
 }
