@@ -14,6 +14,7 @@ export default function RegisterLink(props: RegisterLinkProps) {
 
   return (
     <Link
+      fontWeight="bold"
       href={registerUrl}
       rel="noopener noreferrer"
       underline="hover"

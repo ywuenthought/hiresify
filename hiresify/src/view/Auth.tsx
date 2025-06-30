@@ -4,6 +4,7 @@
 
 import { Box, Stack, Typography } from '@mui/material';
 
+import bg from '@/assets/bg.jpg';
 import LoginButton from '@/component/LoginButton';
 import RegisterLink from '@/component/RegisterLink';
 import { userUrls } from '@/const';
@@ -12,14 +13,24 @@ function Auth() {
   return (
     <Box
       sx={{
-        alignItems: 'center',
-        display: 'flex',
-        justifyContent: 'center',
+        backgroundImage: `url(${bg})`,
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
+        bottom: 0,
+        left: 0,
+        position: 'fixed',
+        right: 0,
+        top: 0,
       }}
     >
       <Stack
         spacing={7}
-        sx={{ alignItems: 'center', justifyContent: 'center' }}
+        sx={{
+          alignItems: 'center',
+          height: '100%',
+          justifyContent: 'center',
+        }}
       >
         <Stack spacing={1}>
           <Typography
