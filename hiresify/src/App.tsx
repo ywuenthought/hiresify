@@ -7,6 +7,7 @@ import './App.css';
 import { Box } from '@mui/material';
 import { Route, Routes } from 'react-router-dom';
 
+import Callback from './component/Callback';
 import { routes } from './const';
 import Auth from './view/Auth';
 import Home from './view/Home';
@@ -16,6 +17,7 @@ export default function App() {
     <Box component="main">
       <Routes>
         <Route path={routes.HOME} element={<Home />} />
+        <Route path={routes.CALLBACK} element={<Callback />} />
         <Route path={routes.AUTH} element={<Auth />} />
       </Routes>
     </Box>

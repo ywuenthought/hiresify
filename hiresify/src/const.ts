@@ -15,6 +15,12 @@ const {
 const API_PREFIX = `${API_SCHEME}://${API_HOST}:${API_PORT}`;
 const APP_PREFIX = `${APP_SCHEME}://${APP_HOST}:${APP_PORT}`;
 
+const TOKEN_PREFIX = `${API_PREFIX}/token`;
+
+export const tokenUrls = {
+  issue: `${TOKEN_PREFIX}/issue`,
+};
+
 const USER_PREFIX = `${API_PREFIX}/user`;
 
 export const userUrls = {
