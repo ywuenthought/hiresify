@@ -3,21 +3,29 @@
 // See the LICENSE file for more details.
 
 const {
-  VITE_BACKEND_SCHEME: SCHEME,
-  VITE_BACKEND_HOST: HOST,
-  VITE_BACKEND_PORT: PORT,
+  VITE_API_SCHEME: API_SCHEME,
+  VITE_API_HOST: API_HOST,
+  VITE_API_PORT: API_PORT,
+
+  VITE_APP_SCHEME: APP_SCHEME,
+  VITE_APP_HOST: APP_HOST,
+  VITE_APP_PORT: APP_PORT,
 } = import.meta.env;
 
-const backendPrefix = `${SCHEME}://${HOST}:${PORT}`;
+const API_PREFIX = `${API_SCHEME}://${API_HOST}:${API_PORT}`;
+const APP_PREFIX = `${APP_SCHEME}://${APP_HOST}:${APP_PORT}`;
 
-const userPrefix = `${backendPrefix}/user`;
+const USER_PREFIX = `${API_PREFIX}/user`;
 
 export const userUrls = {
-  login: `${userPrefix}/login`,
-  register: `${userPrefix}/register`,
+  authorize: `${USER_PREFIX}/authorize`,
+  register: `${USER_PREFIX}/register`,
 };
 
 export const routes = {
   AUTH: '/auth',
+  CALLBACK: '/callback',
   HOME: '/',
 };
+
+export const CALLBACK_URL = `${APP_PREFIX}/#${routes.CALLBACK}`;

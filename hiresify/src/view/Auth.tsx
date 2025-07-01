@@ -48,7 +48,7 @@ function Auth() {
         </Stack>
         <Stack spacing={2}>
           <Box width={280}>
-            <LoginButton loginUrl={userUrls.login} />
+            <LoginButton />
           </Box>
           <Stack
             direction="row"
