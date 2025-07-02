@@ -29,9 +29,19 @@ export const userUrls = {
 };
 
 export const routes = {
-  AUTH: '/auth',
-  CALLBACK: '/callback',
-  HOME: '/',
+  home: {
+    children: {
+      callback: { root: '/callback', children: {} },
+    },
+    root: '/',
+  },
+  main: {
+    children: {},
+    root: '/main',
+  },
 };
 
-export const CALLBACK_URL = `${APP_PREFIX}/#${routes.CALLBACK}`;
+export const CALLBACK_URL =
+  `${APP_PREFIX}/#` +
+  `${routes.home.root}` +
+  `${routes.home.children.callback.root}`;

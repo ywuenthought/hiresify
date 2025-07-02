@@ -4,7 +4,7 @@
 
 import { CssBaseline } from '@mui/material';
 import { StrictMode } from 'react';
-import { HashRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 
 import App from './App.tsx';
 
@@ -12,9 +12,9 @@ export default function Root() {
   return (
     <StrictMode>
       <CssBaseline />
-      <HashRouter>
+      <BrowserRouter>
         <App />
-      </HashRouter>
+      </BrowserRouter>
     </StrictMode>
   );
 }
