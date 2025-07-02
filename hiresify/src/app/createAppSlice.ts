@@ -3,6 +3,8 @@
 // Access, use, and distribution is subject to written agreement
 // by and between Enthought, Inc. and Daiichi Sankyo.
 
-import { buildCreateSlice } from '@reduxjs/toolkit';
+import { asyncThunkCreator, buildCreateSlice } from '@reduxjs/toolkit';
 
-export const createAppSlice = buildCreateSlice();
+export const createAppSlice = buildCreateSlice({
+  creators: { asyncThunk: asyncThunkCreator },
+});

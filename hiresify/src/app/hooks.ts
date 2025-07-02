@@ -5,7 +5,11 @@
 
 import { useDispatch, useSelector } from 'react-redux';
 
-import type { AppDispatch, RootState } from './store';
+import type { AppDispatch, AppStartListening, RootState } from './store';
+import { listenerMiddleware } from './store';
+
+export const startAppListening =
+  listenerMiddleware.startListening as AppStartListening;
 
 export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
 export const useAppSelector = useSelector.withTypes<RootState>();
