@@ -2,8 +2,29 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
+import { Box } from '@mui/material';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import LogoutButton from '@/component/LogoutButton';
+import { routes } from '@/const';
+
 function Main() {
-  return <></>;
+  const navigate = useNavigate();
+
+  const refreshToken = sessionStorage.getItem('refreshToken');
+
+  useEffect(() => {
+    if (!refreshToken) {
+      navigate(routes.home.root);
+    }
+  }, [refreshToken, navigate]);
+
+  return (
+    <Box width={150} sx={{ position: 'absolute', right: 0, top: 0 }}>
+      <LogoutButton />
+    </Box>
+  );
 }
 
 export default Main;
