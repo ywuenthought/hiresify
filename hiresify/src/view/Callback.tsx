@@ -67,8 +67,8 @@ export default function Callback() {
       sessionStorage.setItem('accessToken', accessToken);
       sessionStorage.setItem('refreshToken', refreshToken);
 
-      // Get to the home page.
-      navigate(routes.home.root);
+      // Navigate to main after a successful login.
+      navigate(routes.main.root);
     };
 
     requestToken();

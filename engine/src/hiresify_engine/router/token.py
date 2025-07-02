@@ -114,4 +114,3 @@ async def revoke_token(
             detail="The refresh token was not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
-

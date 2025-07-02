@@ -53,3 +53,18 @@ export function buildIssueTokenFormData(
 
   return data.toString();
 }
+
+type buildRevokeTokenFormDataProps = {
+  refreshToken: string;
+};
+
+export function buildRevokeTokenFormData(
+  props: buildRevokeTokenFormDataProps
+): string {
+  const { refreshToken } = props;
+
+  const data = new URLSearchParams();
+  data.set('refresh_token', refreshToken);
+
+  return data.toString();
+}

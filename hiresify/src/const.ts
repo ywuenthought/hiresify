@@ -19,6 +19,7 @@ const TOKEN_PREFIX = `${API_PREFIX}/token`;
 
 export const tokenUrls = {
   issue: `${TOKEN_PREFIX}/issue`,
+  revoke: `${TOKEN_PREFIX}/revoke`,
 };
 
 const USER_PREFIX = `${API_PREFIX}/user`;
