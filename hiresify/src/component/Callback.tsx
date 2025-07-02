@@ -3,30 +3,31 @@
 // See the LICENSE file for more details.
 
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { CALLBACK_URL, tokenUrls } from '@/const';
+import { CALLBACK_URL, routes, tokenUrls } from '@/const';
 import { buildIssueTokenFormData } from '@/tool/url';
 import type { JWTTokenJson } from '@/type';
 import { getDetail, mustGet } from '@/util';
 
 export default function Callback() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
 
-  const code = params.get('code');
-  const stateFromUrl = params.get('state');
+  const authCode = params.get('code');
+  const curState = params.get('state');
 
   const clientId = mustGet('clientId');
-  const codeVerifier = mustGet('codeVerifier');
-  const state = mustGet('state');
+  const verifier = mustGet('codeVerifier');
+  const preState = mustGet('state');
 
   useEffect(() => {
     const requestToken = async () => {
-      if (code && stateFromUrl === state) {
+      if (authCode && curState === preState) {
         const formData = buildIssueTokenFormData({
           clientId,
-          code,
-          codeVerifier,
+          code: authCode,
+          codeVerifier: verifier,
           redirectUri: CALLBACK_URL,
         });
 
@@ -49,11 +50,22 @@ export default function Callback() {
         // Save the access and refresh tokens.
         sessionStorage.setItem('accessToken', accessToken);
         sessionStorage.setItem('refreshToken', refreshToken);
+
+        // Get to the home page.
+        navigate(routes.HOME);
       }
     };
 
     requestToken();
-  }, [clientId, code, codeVerifier, state, stateFromUrl]);
+    // eslint-disable-next-line prettier/prettier
+  }, [
+    authCode,
+    clientId,
+    curState,
+    preState,
+    verifier,
+    navigate,
+  ]);
 
   return <></>;
 }
