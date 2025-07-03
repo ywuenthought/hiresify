@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 
 from hiresify_engine.const import PASSWORD_REGEX, USERNAME_REGEX
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
-from hiresify_engine.dep import CacheServiceDep, RepositoryDep
+from hiresify_engine.dep import AddSecureHeadersDep, CacheServiceDep, RepositoryDep
 from hiresify_engine.templates import LOGIN_HTML, REGISTER_HTML
 from hiresify_engine.tool import hash_password, verify_password
 
@@ -25,6 +25,7 @@ router = APIRouter(prefix="/user")
 @router.get("/register")
 async def register_user_page(
     *,
+    add_secure_headers: AddSecureHeadersDep,
     cache: CacheServiceDep,
     request: Request,
 ) -> HTMLResponse:
@@ -39,6 +40,8 @@ async def register_user_page(
     )
 
     response.set_cookie(**session.to_cookie())
+    add_secure_headers(response)
+
     return response
 
 
@@ -87,6 +90,7 @@ async def authorize_client(
     response_type: ty.Literal["code"] = Query(..., max_length=4, min_length=4),
     state: str = Query(..., max_length=32, min_length=32),
     *,
+    add_secure_headers: AddSecureHeadersDep,
     cache: CacheServiceDep,
     request: Request,
 ) -> RedirectResponse:
@@ -103,6 +107,7 @@ async def authorize_client(
 
     url = f"{redirect_uri}?code={auth.code}&state={state}" if auth else "/user/login"
     response = RedirectResponse(url=url)
+    add_secure_headers(response)
 
     if not auth:
         req_session = await cache.set_request_session(str(request.url))
@@ -112,7 +117,12 @@ async def authorize_client(
 
 
 @router.get("/login")
-async def login_user_page(*, cache: CacheServiceDep, request: Request) -> HTMLResponse:
+async def login_user_page(
+    *,
+    add_secure_headers: AddSecureHeadersDep,
+    cache: CacheServiceDep,
+    request: Request,
+) -> HTMLResponse:
     """Render the login form with a CSRF token."""
     session_id = request.cookies.get("session_id")
 
@@ -129,6 +139,7 @@ async def login_user_page(*, cache: CacheServiceDep, request: Request) -> HTMLRe
         dict(csrf_token=token),
     )
 
+    add_secure_headers(response)
     return response
 
 

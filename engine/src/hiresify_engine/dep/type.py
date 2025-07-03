@@ -11,9 +11,13 @@ from fastapi import Depends
 
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
+from hiresify_engine.router.util import AddSecureHeaders
 from hiresify_engine.tool.jwt import JWTTokenManager
 
-from .getter import get_cache, get_jwt, get_repo
+from .getter import get_add_secure_headers, get_cache, get_jwt, get_repo
+
+# The type for the callable to add secure headers to a response.
+AddSecureHeadersDep = ty.Annotated[AddSecureHeaders, Depends(get_add_secure_headers)]
 
 # The type for the cache service dependency.
 CacheServiceDep = ty.Annotated[CacheService, Depends(get_cache)]

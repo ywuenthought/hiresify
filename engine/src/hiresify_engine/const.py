@@ -23,6 +23,9 @@ DATABASE_URL = "DATABASE_URL"
 # The database config file.
 DATABASE_CONFIG = "DATABASE_CONFIG"
 
+# The current deployment type.
+DEPLOYMENT = "DEPLOYMENT"
+
 # The redis server URL.
 REDIS_URL = "REDIS_URL"
 
@@ -44,3 +47,11 @@ STATIC_DIR = PACKAGE_ROOT / "static"
 USERNAME_REGEX = r"^[a-zA-Z][a-zA-Z0-9_]*$"
 
 PASSWORD_REGEX = r"^[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]+$"
+
+##################
+# deployment types
+##################
+
+DEVELOPMENT = "development"
+
+PRODUCTION = "production"
