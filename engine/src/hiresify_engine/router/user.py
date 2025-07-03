@@ -86,7 +86,7 @@ async def authorize_client(
     client_id: str = Query(..., max_length=32, min_length=32),
     code_challenge: str = Query(..., max_length=43, min_length=43),
     code_challenge_method: str = Query(..., max_length=10, min_length=4),
-    redirect_uri: str = Query(..., max_length=2048, pattern="^https://"),
+    redirect_uri: str = Query(..., max_length=2048),
     response_type: ty.Literal["code"] = Query(..., max_length=4, min_length=4),
     state: str = Query(..., max_length=32, min_length=32),
     *,
