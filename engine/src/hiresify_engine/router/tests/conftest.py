@@ -10,6 +10,7 @@ from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from hiresify_engine.router.util import add_secure_headers
 from hiresify_engine.testing import TestCacheService, test_repository
 from hiresify_engine.tool import JWTTokenManager
 
@@ -23,6 +24,9 @@ async def app() -> ty.AsyncGenerator[FastAPI, None]:
 
     for router in routers:
         app.include_router(router)
+
+    # Initialize the callable to add secure response headers.
+    app.state.add_secure_headers = add_secure_headers
 
     # Initialize the JWT access token manager.
     app.state.jwt = JWTTokenManager(300)
