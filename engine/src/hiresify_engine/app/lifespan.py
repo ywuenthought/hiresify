@@ -8,53 +8,45 @@
 import json
 import typing as ty
 from contextlib import asynccontextmanager
-from functools import partial
 
 from fastapi import FastAPI
 
 from hiresify_engine import const
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.router.util import add_secure_headers
-from hiresify_engine.tool import JWTTokenManager
 from hiresify_engine.util import get_envvar
 
+##########
+# env vars
+##########
+
+# Load the database URL and default to an empty string.
+db_url = get_envvar(const.DATABASE_URL, str, "")
+
+# Load the database config file path and default to an empty string.
+db_config = get_envvar(const.DATABASE_CONFIG, str, "")
+
+# Load the redis server URL and default to an empty string.
+redis_url = get_envvar(const.REDIS_URL, str, "")
+
+# Load the refresh token TTL and default to 30 days.
+refresh_ttl = get_envvar(const.REFRESH_TTL, int, 30)
+
+# Load the cache TTL and default to 300 seconds.
+cache_ttl = get_envvar(const.CACHE_TTL, int, 300)
+
+##########
+# lifespan
+##########
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     """Wrap the lifespan events for the application."""
-    # Load the access token TTL and default to 900 seconds.
-    access_ttl = get_envvar(const.ACCESS_TTL, int, 900)
-
-    # Load the database URL and default to an empty string.
-    db_url = get_envvar(const.DATABASE_URL, str, "")
-
-    # Load the database config file path and default to an empty string.
-    db_config = get_envvar(const.DATABASE_CONFIG, str, "")
-
-    # Load the deployment type and default to "development".
-    deployment = get_envvar(const.DEPLOYMENT, str, const.DEVELOPMENT)
-
-    # Load the redis server URL and default to an empty string.
-    redis_url = get_envvar(const.REDIS_URL, str, "")
-
-    # Load the refresh token TTL and default to 30 days.
-    refresh_ttl = get_envvar(const.REFRESH_TTL, int, 30)
-
-    # Load the cache TTL and default to 300 seconds.
-    cache_ttl = get_envvar(const.CACHE_TTL, int, 300)
-
     with open(db_config) as fp:
         configs = json.load(fp)
 
-    # Initialize the callable to add secure headers to a response.
-    app.state.add_secure_headers = partial(add_secure_headers, deployment=deployment)
-
     # Initialize the cache store manager.
     app.state.cache = CacheService(redis_url, ttl=cache_ttl)
-
-    # Initialize the JWT access token manager.
-    app.state.jwt = JWTTokenManager(access_ttl)
 
     # Initialize the database repository.
     app.state.repo = Repository(db_url, refresh_ttl, **configs)
