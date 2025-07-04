@@ -7,7 +7,6 @@ import { Box, Stack, Typography } from '@mui/material';
 import bg from '@/assets/bg.jpg';
 import LoginButton from '@/component/LoginButton';
 import RegisterLink from '@/component/RegisterLink';
-import { userUrls } from '@/const';
 
 function Home() {
   return (
@@ -56,7 +55,7 @@ function Home() {
             sx={{ alignItems: 'center', justifyContent: 'center' }}
           >
             <Typography variant="subtitle1">New here?</Typography>
-            <RegisterLink registerUrl={userUrls.register} />
+            <RegisterLink />
           </Stack>
         </Stack>
       </Stack>

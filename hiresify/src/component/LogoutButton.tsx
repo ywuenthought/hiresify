@@ -8,20 +8,15 @@ import { Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
 import { routes, tokenUrls } from '@/const';
-import { buildRevokeTokenFormData } from '@/tool/url';
-import { mustGet } from '@/util';
+import { mustGet, postWithUrlEncodedFormData } from '@/util';
 
 export default function LogoutButton(props: ButtonProps) {
   const navigate = useNavigate();
 
   const handleClick = async () => {
-    const refreshToken = mustGet('refreshToken');
-    const formData = buildRevokeTokenFormData({ refreshToken });
-
-    await fetch(tokenUrls.issue, {
-      body: formData,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      method: 'POST',
+    // Send a request to revoke the refresh token.
+    await postWithUrlEncodedFormData(tokenUrls.revoke, {
+      refreshToken: mustGet('refreshToken'),
     });
 
     // Reset the session storage.

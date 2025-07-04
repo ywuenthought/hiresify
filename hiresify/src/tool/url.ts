@@ -32,39 +32,3 @@ export function buildAuthorizeClientUrl(
 
   return authUrl.toString();
 }
-
-type buildIssueTokenFormDataProps = {
-  clientId: string;
-  code: string;
-  codeVerifier: string;
-  redirectUri: string;
-};
-
-export function buildIssueTokenFormData(
-  props: buildIssueTokenFormDataProps
-): string {
-  const { clientId, code, codeVerifier, redirectUri } = props;
-
-  const data = new URLSearchParams();
-  data.set('client_id', clientId);
-  data.set('code', code);
-  data.set('code_verifier', codeVerifier);
-  data.set('redirect_uri', redirectUri);
-
-  return data.toString();
-}
-
-type buildRevokeTokenFormDataProps = {
-  refreshToken: string;
-};
-
-export function buildRevokeTokenFormData(
-  props: buildRevokeTokenFormDataProps
-): string {
-  const { refreshToken } = props;
-
-  const data = new URLSearchParams();
-  data.set('refresh_token', refreshToken);
-
-  return data.toString();
-}

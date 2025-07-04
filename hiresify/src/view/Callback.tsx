@@ -8,9 +8,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import BackButton from '@/component/BackButton';
 import { CALLBACK_URL, routes, tokenUrls } from '@/const';
-import { buildIssueTokenFormData } from '@/tool/url';
 import type { JWTTokenJson } from '@/type';
-import { getDetail } from '@/util';
+import { getDetail, postWithUrlEncodedFormData } from '@/util';
 
 export default function Callback() {
   const [params] = useSearchParams();
@@ -39,17 +38,11 @@ export default function Callback() {
         return;
       }
 
-      const formData = buildIssueTokenFormData({
+      const resp = await postWithUrlEncodedFormData(tokenUrls.issue, {
         clientId,
         code: authCode,
         codeVerifier: verifier,
         redirectUri: CALLBACK_URL,
-      });
-
-      const resp = await fetch(tokenUrls.issue, {
-        body: formData,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        method: 'POST',
       });
 
       if (!resp.ok) {

@@ -5,18 +5,20 @@
 import { Login } from '@mui/icons-material';
 import type { ButtonProps } from '@mui/material';
 import { Button } from '@mui/material';
-import { v4 as uuid4 } from 'uuid';
 
 import { generateCodeChallenge, generateCodeVerifier } from '@/tool/pkce';
 import { buildAuthorizeClientUrl } from '@/tool/url';
+import { getManyUuids, setManyItems } from '@/util';
 
 export default function LoginButton(props: ButtonProps) {
   const handleClick = async () => {
-    const clientId = uuid4();
-    const state = uuid4();
-
+    // Generate authorization parameters.
+    const [clientId, state] = getManyUuids(2);
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+    // Save the authorization parameters to be used later.
+    setManyItems({ clientId, codeVerifier, state });
 
     // Generate the full authorization URL.
     const authUrl = buildAuthorizeClientUrl({
@@ -26,12 +28,7 @@ export default function LoginButton(props: ButtonProps) {
       state,
     });
 
-    // Save the authorization parameters to be used later.
-    sessionStorage.setItem('clientId', clientId);
-    sessionStorage.setItem('codeVerifier', codeVerifier);
-    sessionStorage.setItem('state', state);
-
-    // Redirect to the authorization URL on the current tab.
+    // Redirect to the authorization URL.
     window.location.href = authUrl;
   };
 

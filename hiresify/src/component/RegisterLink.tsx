@@ -5,22 +5,18 @@
 import type { LinkBaseProps } from '@mui/material';
 import { Link } from '@mui/material';
 
-interface RegisterLinkProps extends LinkBaseProps {
-  registerUrl: string;
-}
+import { userUrls } from '@/const';
 
-export default function RegisterLink(props: RegisterLinkProps) {
-  const { registerUrl, ...rest } = props;
-
+export default function RegisterLink(props: LinkBaseProps) {
   return (
     <Link
       fontWeight="bold"
-      href={registerUrl}
+      href={userUrls.register}
       rel="noopener noreferrer"
       underline="hover"
       target="_blank"
       variant="subtitle1"
-      {...rest}
+      {...props}
     >
       Register
     </Link>
