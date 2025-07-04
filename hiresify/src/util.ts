@@ -9,6 +9,10 @@ export async function getDetail(resp: Response): Promise<string> {
   return `HTTP ${resp.status}${detail ? `: ${detail}` : ''}`;
 }
 
+export function getManyItems(keys: string[]) {
+  return keys.map((key) => sessionStorage.getItem(key));
+}
+
 export function getManyUuids(length: number) {
   return Array.from({ length }, () => uuid4());
 }

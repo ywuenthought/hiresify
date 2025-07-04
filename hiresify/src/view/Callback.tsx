@@ -9,20 +9,27 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import BackButton from '@/component/BackButton';
 import { CALLBACK_URL, routes, tokenUrls } from '@/const';
 import type { JWTTokenJson } from '@/type';
-import { getDetail, postWithUrlEncodedFormData } from '@/util';
+import {
+  getDetail,
+  getManyItems,
+  postWithUrlEncodedFormData,
+  setManyItems,
+} from '@/util';
 
 export default function Callback() {
-  const [params] = useSearchParams();
   const navigate = useNavigate();
-
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [params] = useSearchParams();
 
   const authCode = params.get('code');
   const curState = params.get('state');
 
-  const clientId = sessionStorage.getItem('clientId');
-  const verifier = sessionStorage.getItem('codeVerifier');
-  const preState = sessionStorage.getItem('state');
+  const [clientId, verifier, preState] = getManyItems([
+    'clientId',
+    'codeVerifier',
+    'state',
+  ]);
+
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const requestToken = async () => {
@@ -34,7 +41,7 @@ export default function Callback() {
         !preState ||
         curState !== preState
       ) {
-        setErrorMsg('Invalid authorization callback.');
+        setError('Invalid authorization callback.');
         return;
       }
 
@@ -46,19 +53,18 @@ export default function Callback() {
       });
 
       if (!resp.ok) {
-        setErrorMsg(await getDetail(resp));
+        setError(await getDetail(resp));
         return;
       }
 
-      const tokenJson: JWTTokenJson = await resp.json();
-      const { accessToken, refreshToken = '' } = tokenJson;
+      const { accessToken, refreshToken = '' }: JWTTokenJson =
+        await resp.json();
 
-      // Clear all the authorization parameters.
+      // Reset the session storage.
       sessionStorage.clear();
 
       // Save the access and refresh tokens.
-      sessionStorage.setItem('accessToken', accessToken);
-      sessionStorage.setItem('refreshToken', refreshToken);
+      setManyItems({ accessToken, refreshToken });
 
       // Navigate to main after a successful login.
       navigate(routes.main.root);
@@ -75,7 +81,7 @@ export default function Callback() {
     navigate,
   ]);
 
-  if (errorMsg) {
+  if (error) {
     return (
       <Stack
         spacing={7}
@@ -98,7 +104,7 @@ export default function Callback() {
             variant="body1"
             sx={{ textAlign: 'center' }}
           >
-            {errorMsg}
+            {error}
           </Typography>
         </Stack>
         <Box width={280}>
