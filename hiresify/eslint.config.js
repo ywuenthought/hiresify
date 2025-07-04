@@ -1,3 +1,4 @@
+import jestDomPlugin from 'eslint-plugin-jest-dom';
 import js from '@eslint/js';
 import globals from 'globals';
 import importPlugin from 'eslint-plugin-import';
@@ -7,6 +8,7 @@ import prettierConfig from 'eslint-config-prettier';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import testingLibraryPlugin from 'eslint-plugin-testing-library';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -25,11 +27,13 @@ export default tseslint.config(
     },
     plugins: {
       import: importPlugin,
+      'jest-dom': jestDomPlugin,
       prettier: prettier,
       react: react,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
       'simple-import-sort': sortPlugin,
+      'testing-library': testingLibraryPlugin,
     },
     rules: {
       'import/newline-after-import': 'warn',
