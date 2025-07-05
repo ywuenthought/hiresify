@@ -14,7 +14,11 @@ export function getManyItems(keys: string[]) {
 }
 
 export function getManyUuids(length: number) {
-  return Array.from({ length }, () => uuid4());
+  return Array.from({ length }, () => getUuid4());
+}
+
+export function getUuid4() {
+  return uuid4().replace(/-/g, '');
 }
 
 export function mustGet(key: string): string {

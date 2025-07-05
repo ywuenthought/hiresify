@@ -29,7 +29,7 @@ export default function LoginButton(props: ButtonProps) {
     });
 
     // Redirect to the authorization URL.
-    window.location.href = authUrl;
+    window.location.href = authUrl.toString();
   };
 
   return (

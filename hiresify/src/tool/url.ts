@@ -13,7 +13,7 @@ type buildAuthorizeClientUrlProps = {
 
 export function buildAuthorizeClientUrl(
   props: buildAuthorizeClientUrlProps
-): string {
+): URL {
   const { clientId, codeChallenge, codeVerifier, state } = props;
 
   // Generate the full authorization URL.
@@ -30,5 +30,5 @@ export function buildAuthorizeClientUrl(
   sessionStorage.setItem('codeVerifier', codeVerifier);
   sessionStorage.setItem('state', state);
 
-  return authUrl.toString();
+  return authUrl;
 }
