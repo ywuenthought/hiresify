@@ -101,6 +101,7 @@ export default function Callback() {
           </Typography>
           <Typography
             color="error"
+            data-testid="error"
             variant="body1"
             sx={{ textAlign: 'center' }}
           >

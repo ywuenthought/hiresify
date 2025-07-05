@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "lint-fix": "eslint . --fix",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run --mode test"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

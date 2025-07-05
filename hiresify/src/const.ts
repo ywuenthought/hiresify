@@ -2,9 +2,9 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-const { DEV, VITE_API_ORIGIN } = import.meta.env;
+const { MODE, VITE_API_ORIGIN } = import.meta.env;
 
-const API_ORIGIN = DEV ? '/api' : VITE_API_ORIGIN;
+const API_ORIGIN = MODE === 'development' ? '/api' : VITE_API_ORIGIN;
 const TOK_PREFIX = `${API_ORIGIN}/token`;
 const USR_PREFIX = `${API_ORIGIN}/user`;
 
