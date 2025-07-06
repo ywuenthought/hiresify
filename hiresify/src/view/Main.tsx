@@ -8,17 +8,17 @@ import { useNavigate } from 'react-router-dom';
 
 import LogoutButton from '@/component/LogoutButton';
 import { routes } from '@/const';
+import { getManyItems } from '@/util';
 
 function Main() {
   const navigate = useNavigate();
-
-  const refreshToken = sessionStorage.getItem('refreshToken');
+  const [token] = getManyItems(['refreshToken']);
 
   useEffect(() => {
-    if (!refreshToken) {
+    if (!token) {
       navigate(routes.home.root);
     }
-  }, [refreshToken, navigate]);
+  }, [token, navigate]);
 
   return (
     <Box width={150} sx={{ position: 'absolute', right: 0, top: 0 }}>
