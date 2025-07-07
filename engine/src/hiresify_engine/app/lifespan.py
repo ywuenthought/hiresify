@@ -46,12 +46,15 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
         configs = json.load(fp)
 
     # Initialize the cache store manager.
-    app.state.cache = CacheService(redis_url, ttl=cache_ttl)
+    app.state.cache = cache = CacheService(redis_url, ttl=cache_ttl)
 
     # Initialize the database repository.
-    app.state.repo = Repository(db_url, refresh_ttl, **configs)
+    app.state.repo = repo = Repository(db_url, refresh_ttl, **configs)
+
+    # Initialize the database schema.
+    await repo.init_schema()
 
     yield
 
-    await app.state.cache.dispose()
-    await app.state.repo.dispose()
+    await cache.dispose()
+    await repo.dispose()
