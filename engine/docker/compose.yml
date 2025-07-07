@@ -5,6 +5,12 @@ services:
       POSTGRES_DB: hiresify
       POSTGRES_USER: user
       POSTGRES_PASSWORD: 1234
+    healthcheck:
+      interval: 5s
+      retries: 5
+      start_period: 10s
+      test: ["CMD", "psql", "-U", "user", "-d", "hiresify", "-c", "SELECT 1"]
+      timeout: 3s
     image: postgres:latest
     ports:
       - 5432:5432
@@ -14,6 +20,12 @@ services:
 
   redis:
     container_name: redis
+    healthcheck:
+      interval: 5s
+      retries: 5
+      start_period: 5s
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 3s
     image: redis:latest
     ports:
       - 6379:6379
@@ -22,12 +34,17 @@ services:
   fastapi:
     command: >
       uv run uvicorn hiresify_engine.app.main:app
+      --access-log
       --host 0.0.0.0
+      --log-level debug
       --port 8000
+      --workers 2
     container_name: fastapi
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://user:1234@postgres:5432/hiresify
       REDIS_URL: redis://redis:6379
