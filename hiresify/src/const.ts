@@ -6,7 +6,7 @@ const { MODE, VITE_API_ORIGIN } = import.meta.env;
 
 const API_ORIGIN = MODE === 'development' ? '/api' : VITE_API_ORIGIN;
 const TOK_PREFIX = `${API_ORIGIN}/token`;
-const USR_PREFIX = `${API_ORIGIN}/user`;
+const USR_PREFIX = `${VITE_API_ORIGIN}/user`;
 
 export const tokenUrls = {
   issue: `${TOK_PREFIX}/issue`,
