@@ -6,6 +6,7 @@
 """Define the backend user-related endpoints."""
 
 import typing as ty
+from uuid import uuid4
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -32,15 +33,16 @@ async def register_user_page(
     """Render the login form with a CSRF token."""
     session = await cache.set_request_session(str(request.url))
     token = await cache.set_csrf_token(session.id)
+    nonce = uuid4().hex
 
     response = _templates.TemplateResponse(
         request,
         REGISTER_HTML.name,
-        dict(csrf_token=token),
+        dict(csrf_token=token, nonce=nonce),
     )
 
     response.set_cookie(**session.to_cookie())
-    add_secure_headers(response)
+    add_secure_headers(response, nonces=[nonce])
 
     return response
 

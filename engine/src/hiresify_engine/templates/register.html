@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="stylesheet" href="/static/style.css">
   <link href="/static/favicon.svg" rel="icon" type="image/svg+xml" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
   <title>HIRESIFY Register</title>
-  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-br flex from-gray-100 items-center justify-center min-h-screen px-4 to-gray-200">
   <div class="bg-white max-w-md p-8 rounded-2xl shadow-xl w-full">
@@ -51,7 +51,7 @@
     </form>
   </div>
 
-  <script defer>
+  <script defer nonce="{{ nonce }}">
     USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]*$/;
     PASSWORD_REGEX = /^[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]+$/;
 

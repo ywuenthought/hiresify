@@ -12,17 +12,26 @@ from fastapi import Response
 from hiresify_engine.const import DEVELOPMENT, PRODUCTION
 
 # Argument `deployment` will be auto-filled on the app level.
-AddSecureHeaders = ty.Callable[[Response], None]
+AddSecureHeaders = ty.Callable[..., None]
 
 
-def add_secure_headers(response: Response, deployment: str = DEVELOPMENT) -> None:
+def add_secure_headers(
+    response: Response,
+    *,
+    nonces: list[str] | None = None,
+    deployment: str = DEVELOPMENT,
+) -> None:
     """Add secure headers to the given response."""
+    script_srcs = ["self"] if nonces is None else [f"nonce-{nonce}" for nonce in nonces]
+    script_srcs = [f"{src!r}" for src in script_srcs]
+
     response.headers.update(
         {
             # Prevent loading any external resources.
             "Content-Security-Policy": (
                 "default-src 'none'; " +
-                "script-src 'self'; " +
+                "img-src 'self'; " +
+                f"script-src {' '.join(script_srcs)}; " +
                 "style-src 'self';"
             ),
 
