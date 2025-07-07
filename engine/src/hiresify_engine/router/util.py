@@ -15,31 +15,29 @@ from hiresify_engine.const import DEVELOPMENT, PRODUCTION
 AddSecureHeaders = ty.Callable[..., None]
 
 
-def add_secure_headers(
-    response: Response,
-    *,
-    nonces: list[str] | None = None,
-    deployment: str = DEVELOPMENT,
-) -> None:
-    """Add secure headers to the given response."""
-    script_srcs = ["self"] if nonces is None else [f"nonce-{nonce}" for nonce in nonces]
-    script_srcs = [f"{src!r}" for src in script_srcs]
+_CSP_ITEMS = {
+    "default-src": ["none"],
+    "img-src": ["self"],
+    "script-src": ["self"],
+    "style-src": ["self"],
+}
 
+_STS_ITEMS = [
+    "includeSubDomains",
+    "max-age=63072000",
+    "preload",
+]
+
+
+def add_secure_headers(response: Response, *, deployment: str = DEVELOPMENT) -> None:
+    """Add secure headers to the given response."""
     response.headers.update(
         {
             # Prevent loading any external resources.
-            "Content-Security-Policy": (
-                "default-src 'none'; " +
-                "img-src 'self'; " +
-                f"script-src {' '.join(script_srcs)}; " +
-                "style-src 'self';"
-            ),
+            "Content-Security-Policy": _format_csp_items(_CSP_ITEMS),
 
             # Disable access to sensitive APIs.
-            "Permissions-Policy": (
-                "geolocation=(), " +
-                "camera=()"
-            ),
+            "Permissions-Policy": "geolocation=(), camera=()",
 
             # Prevent leaking the referrer URL.
             "Referrer-Policy": "no-referrer",
@@ -54,8 +52,14 @@ def add_secure_headers(
 
     if deployment == PRODUCTION:
         # Force browsers to use HTTPS for all future requests.
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=63072000; " +
-            "includeSubDomains; " +
-            "preload"
-        )
+        response.headers["Strict-Transport-Security"] = "; ".join(_STS_ITEMS)
+
+
+def _format_csp_items(csp_items: dict[str, list[str]]) -> str:
+    """Format the given CSP items into a string."""
+    formatted_items = []
+    for key, values in csp_items.items():
+        value_string = " ".join([f"{value!r}" for value in values])
+        formatted_items.append(f"{key} {value_string};")
+
+    return " ".join(formatted_items)
