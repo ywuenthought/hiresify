@@ -54,7 +54,10 @@ async def register_user_page(
     response = _templates.TemplateResponse(
         request,
         REGISTER_HTML.name,
-        dict(csrf_token=token),
+        dict(
+            csrf_token=token,
+            redirect_uri=redirect_uri,
+        ),
     )
 
     secure(response)
