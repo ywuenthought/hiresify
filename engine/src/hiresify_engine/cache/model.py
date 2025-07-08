@@ -46,8 +46,12 @@ class Authorization:
         return json.dumps(asdict(self))
 
 
-class SessionMixin:
-    """The mixin that injects methods to session data models."""
+@dataclass(frozen=True)
+class UserSession:
+    """The data model for a user's session."""
+
+    #: The user UID linked to this session.
+    user_uid: str
 
     #: When the session was issued.
     issued_at: datetime
@@ -55,8 +59,8 @@ class SessionMixin:
     #: When the session expires.
     expire_at: datetime
 
-    #: The session ID.
-    id: str
+    #: The session ID that defaults to a random UUID.
+    id: str = field(default_factory=lambda: uuid4().hex)
 
     @classmethod
     def from_serialized(cls, serialized: str) -> ty.Self:
@@ -95,40 +99,3 @@ class SessionMixin:
             # Only send over HTTPS connections.
             secure=True,
         )
-
-
-@dataclass(frozen=True)
-class RequestSession(SessionMixin):
-    """The data model for a request session.
-
-    A request session is anonymous and only associated with a specific request.
-    """
-
-    #: The request URI linked to this session.
-    request_uri: str
-
-    #: When the session was issued.
-    issued_at: datetime
-
-    #: When the session expires.
-    expire_at: datetime
-
-    #: The session ID that defaults to a random UUID.
-    id: str = field(default_factory=lambda: uuid4().hex)
-
-
-@dataclass(frozen=True)
-class UserSession(SessionMixin):
-    """The data model for a user's session."""
-
-    #: The user UID linked to this session.
-    user_uid: str
-
-    #: When the session was issued.
-    issued_at: datetime
-
-    #: When the session expires.
-    expire_at: datetime
-
-    #: The session ID that defaults to a random UUID.
-    id: str = field(default_factory=lambda: uuid4().hex)

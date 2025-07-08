@@ -24,47 +24,36 @@ router = APIRouter(prefix="/user")
 
 @router.get("/register")
 async def register_user_page(
+    redirect_uri: str = Query(..., max_length=2048),
     *,
-    add_secure_headers: AddSecureHeadersDep,
+    secure: AddSecureHeadersDep,
     cache: CacheServiceDep,
     request: Request,
 ) -> HTMLResponse:
     """Render the login form with a CSRF token."""
-    session = await cache.set_request_session(str(request.url))
-    token = await cache.set_csrf_token(session.id)
-
+    token = await cache.set_csrf_token(redirect_uri)
     response = _templates.TemplateResponse(
         request,
         REGISTER_HTML.name,
         dict(csrf_token=token),
     )
 
-    response.set_cookie(**session.to_cookie())
-    add_secure_headers(response)
-
+    secure(response)
     return response
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_user(
+    redirect_uri: str = Query(..., max_length=2048),
     username: str = Form(..., max_length=30, min_length=3, pattern=USERNAME_REGEX),
     password: str = Form(..., max_length=128, min_length=8, pattern=PASSWORD_REGEX),
     csrf_token: str = Form(..., max_length=32, min_length=32),
     *,
     cache: CacheServiceDep,
     repo: RepositoryDep,
-    request: Request,
 ) -> None:
     """Register a user using the given user name."""
-    session_id = request.cookies.get("session_id")
-
-    if not session_id or not await cache.get_request_session(session_id):
-        raise HTTPException(
-            detail=f"{session_id=} is invalid or timed out.",
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-
-    if csrf_token != await cache.get_csrf_token(session_id):
+    if csrf_token != await cache.get_csrf_token(redirect_uri):
         raise HTTPException(
             detail=f"{csrf_token=} is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -90,7 +79,7 @@ async def authorize_client(
     response_type: ty.Literal["code"] = Query(..., max_length=4, min_length=4),
     state: str = Query(..., max_length=32, min_length=32),
     *,
-    add_secure_headers: AddSecureHeadersDep,
+    secure: AddSecureHeadersDep,
     cache: CacheServiceDep,
     request: Request,
 ) -> RedirectResponse:
@@ -105,64 +94,51 @@ async def authorize_client(
         redirect_uri=redirect_uri,
     ) if session and session.user_uid else None
 
-    url = f"{redirect_uri}?code={auth.code}&state={state}" if auth else "/user/login"
+    url = (
+        f"{redirect_uri}?code={auth.code}&state={state}"
+        if auth else f"/user/login?redirect_uri={redirect_uri}"
+    )
     response = RedirectResponse(url=url)
-    add_secure_headers(response)
-
-    if not auth:
-        req_session = await cache.set_request_session(str(request.url))
-        response.set_cookie(**req_session.to_cookie())
+    secure(response)
 
     return response
 
 
 @router.get("/login")
 async def login_user_page(
+    redirect_uri: str = Query(..., max_length=2048),
     *,
-    add_secure_headers: AddSecureHeadersDep,
+    secure: AddSecureHeadersDep,
     cache: CacheServiceDep,
     request: Request,
 ) -> HTMLResponse:
     """Render the login form with a CSRF token."""
-    session_id = request.cookies.get("session_id")
-
-    if not session_id or not await cache.get_request_session(session_id):
-        raise HTTPException(
-            detail=f"{session_id=} is invalid or timed out.",
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-
-    token = await cache.set_csrf_token(session_id)
+    token = await cache.set_csrf_token(redirect_uri)
     response = _templates.TemplateResponse(
         request,
         LOGIN_HTML.name,
-        dict(csrf_token=token),
+        dict(
+            csrf_token=token,
+            redirect_uri=redirect_uri,
+        ),
     )
 
-    add_secure_headers(response)
+    secure(response)
     return response
 
 
 @router.post("/login")
 async def login_user(
+    redirect_uri: str = Query(..., max_length=2048),
     username: str = Form(..., max_length=30),
     password: str = Form(..., max_length=128),
     csrf_token: str = Form(..., max_length=32, min_length=32),
     *,
     cache: CacheServiceDep,
     repo: RepositoryDep,
-    request: Request,
 ) -> RedirectResponse:
     """Verify a user's credentials and set up a login session."""
-    session_id = request.cookies.get("session_id")
-
-    if not session_id or not (session := await cache.get_request_session(session_id)):
-        raise HTTPException(
-            detail=f"{session_id=} is invalid or timed out.",
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-
-    if csrf_token != await cache.get_csrf_token(session_id):
+    if csrf_token != await cache.get_csrf_token(redirect_uri):
         raise HTTPException(
             detail=f"{csrf_token=} is invalid or timed out.",
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -182,8 +158,9 @@ async def login_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    url = session.request_uri
-    response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=url)
+    response = RedirectResponse(
+        status_code=status.HTTP_302_FOUND, url=redirect_uri,
+    )
 
     user_session = await cache.set_user_session(db_user.uid)
     response.set_cookie(**user_session.to_cookie())

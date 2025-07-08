@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from redis.asyncio import Redis
 
-from .model import Authorization, RequestSession, UserSession
+from .model import Authorization, UserSession
 
 
 class CacheService:
@@ -64,33 +64,6 @@ class CacheService:
         """Delete the authorization with the given code."""
         await self._store.delete(f"auth:{code}")
 
-    #############
-    # req session
-    #############
-
-    async def set_request_session(self, request_uri: str) -> RequestSession:
-        """Set a request session for the given request URI."""
-        issued_at = datetime.now(UTC)
-        expire_at = issued_at + timedelta(seconds=self._ttl)
-
-        session = RequestSession(
-            request_uri=request_uri,
-            issued_at=issued_at,
-            expire_at=expire_at,
-        )
-
-        serialized = session.serialize()
-        await self._store.set(f"req:{session.id}", serialized, ex=self._ttl)
-
-        return session
-
-    async def get_request_session(self, session_id: str) -> RequestSession | None:
-        """Get the request session with the given session ID."""
-        if not (serialized := await self._store.get(f"req:{session_id}")):
-            return None
-
-        return RequestSession.from_serialized(serialized)
-
     ##############
     # user session
     ##############
@@ -122,15 +95,12 @@ class CacheService:
     # CSRF token
     ############
 
-    async def set_csrf_token(self, session_id: str) -> str:
-        """Set a CSRF token for the given session ID.
-
-        Usually, the session is anonymous for a login or register process.
-        """
+    async def set_csrf_token(self, redirect_uri: str) -> str:
+        """Set a CSRF token for the given redirect URI."""
         token = uuid4().hex
-        await self._store.set(f"csrf:{session_id}", token, ex=self._ttl)
+        await self._store.set(f"ruri:{redirect_uri}", token, ex=self._ttl)
         return token
 
-    async def get_csrf_token(self, session_id: str) -> str | None:
-        """Get the CSRF token with the given session ID."""
-        return await self._store.get(f"csrf:{session_id}")
+    async def get_csrf_token(self, redirect_uri: str) -> str | None:
+        """Get the CSRF token with the given redirect URI."""
+        return await self._store.get(f"ruri:{redirect_uri}")

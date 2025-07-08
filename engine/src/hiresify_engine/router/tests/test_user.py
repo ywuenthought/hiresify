@@ -22,6 +22,8 @@ from .util import get_query_params
 async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     # Given
     endpoint = "/user/register"
+    redirect_uri = "http://localhost/callback"
+    endpoint = f"{endpoint}?redirect_uri={redirect_uri}"
 
     username = "ywu"
     password = "12345678"
@@ -34,22 +36,11 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
 
     # Then
     assert response.status_code == 400
-    assert response.json()["detail"] == "session_id=None is invalid or timed out."
-
-    # Given
-    cache: CacheService = app.state.cache
-    session = await cache.set_request_session(endpoint)
-    client.cookies.set("session_id", session.id)
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 400
     assert response.json()["detail"] == f"{csrf_token=} is invalid or timed out."
 
     # Given
-    token = await cache.set_csrf_token(session.id)
+    cache: CacheService = app.state.cache
+    token = await cache.set_csrf_token(redirect_uri)
     data.update(csrf_token=token)
 
     # When
@@ -71,7 +62,7 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     endpoint = "/user/authorize"
 
     client_id = uuid4().hex
-    redirect_uri = "https://localhost/callback"
+    redirect_uri = "http://localhost/callback"
     state = uuid4().hex
 
     code_verifier = token_urlsafe(64)
@@ -94,7 +85,7 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     assert response.status_code == 307
 
     url: str = response.headers.get("location")
-    assert url == "/user/login"
+    assert url == f"/user/login?redirect_uri={redirect_uri}"
 
     # Given
     cache: CacheService = app.state.cache
@@ -118,6 +109,8 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
 async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     # Given
     endpoint = "/user/login"
+    redirect_uri = "http://localhost/callback"
+    endpoint = f"{endpoint}?redirect_uri={redirect_uri}"
 
     username = "ewu"
     password = "12345678"
@@ -130,22 +123,11 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
 
     # Then
     assert response.status_code == 400
-    assert response.json()["detail"] == "session_id=None is invalid or timed out."
-
-    # Given
-    cache: CacheService = app.state.cache
-    session = await cache.set_request_session("/user/authorize")
-    client.cookies.set("session_id", session.id)
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 400
     assert response.json()["detail"] == f"{csrf_token=} is invalid or timed out."
 
     # Given
-    token = await cache.set_csrf_token(session.id)
+    cache: CacheService = app.state.cache
+    token = await cache.set_csrf_token(redirect_uri)
     data.update(csrf_token=token)
 
     # When
@@ -159,7 +141,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     hashed_password = hash_password(password)
 
     repo: Repository = app.state.repo
-    await repo.register_user(username, hashed_password)
+    user = await repo.register_user(username, hashed_password)
 
     # The input password is incorrect.
     data.update(password="456")
@@ -183,4 +165,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
 
     session_id = response.cookies.get("session_id")
     assert session_id is not None
-    assert session_id != session.id
+
+    session = await cache.get_user_session(session_id)
+    assert session is not None
+    assert session.user_uid == user.uid
