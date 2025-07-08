@@ -4,6 +4,7 @@
 # explicit written permission from the copyright holder.
 
 from secrets import token_urlsafe
+from urllib.parse import quote
 from uuid import uuid4
 
 from fastapi import FastAPI
@@ -85,7 +86,7 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     assert response.status_code == 307
 
     url: str = response.headers.get("location")
-    assert url == f"/user/login?redirect_uri={redirect_uri}"
+    assert url == f"/user/login?redirect_uri={quote(redirect_uri, safe='')}"
 
     # Given
     cache: CacheService = app.state.cache

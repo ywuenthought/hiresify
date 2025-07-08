@@ -6,6 +6,7 @@
 """Define the backend user-related endpoints."""
 
 import typing as ty
+from urllib.parse import quote
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -114,7 +115,7 @@ async def authorize_client(
 
     url = (
         f"{redirect_uri}?code={auth.code}&state={state}"
-        if auth else f"/user/login?redirect_uri={redirect_uri}"
+        if auth else f"/user/login?redirect_uri={quote(redirect_uri, safe='')}"
     )
     response = RedirectResponse(url=url)
     secure(response)
