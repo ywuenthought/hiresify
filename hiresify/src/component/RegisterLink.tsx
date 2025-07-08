@@ -6,9 +6,17 @@ import type { LinkBaseProps } from '@mui/material';
 import { Link } from '@mui/material';
 
 import { buildRegisterUserUrl } from '@/tool/url';
+import { getUuid4, setManyItems } from '@/util';
 
 export default function RegisterLink(props: LinkBaseProps) {
-  const registerUrl = buildRegisterUserUrl();
+  // Generate the register token.
+  const registerToken = getUuid4();
+
+  // Save the register token to be used later.
+  setManyItems({ registerToken });
+
+  // Generate the full registration URL.
+  const registerUrl = buildRegisterUserUrl({ registerToken });
 
   return (
     <Link

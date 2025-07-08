@@ -5,10 +5,13 @@
 import { render } from '@testing-library/react';
 
 import { buildRegisterUserUrl } from '@/tool/url';
+import { getManyItems } from '@/util';
 
 import RegisterLink from '../RegisterLink';
 
 describe('RegisterLink UI component', () => {
+  beforeEach(() => sessionStorage.clear());
+
   it('renders something', () => {
     // When
     const { baseElement: root } = render(<RegisterLink />);
@@ -18,15 +21,15 @@ describe('RegisterLink UI component', () => {
   });
 
   it('links to the user register URL', () => {
-    // Given
-    const registerUrl = buildRegisterUserUrl();
-
     // When
     const { getByRole } = render(<RegisterLink />);
 
     // Then
-    const link = getByRole('link');
+    const [registerToken] = getManyItems(['registerToken']) as string[];
+    expect(registerToken).not.toBeNull();
 
+    const link = getByRole('link');
+    const registerUrl = buildRegisterUserUrl({ registerToken });
     expect(link).toHaveAttribute('href', registerUrl.toString());
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });

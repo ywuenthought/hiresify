@@ -3,10 +3,23 @@
 // See the LICENSE file for more details.
 
 import { Box, Stack, Typography } from '@mui/material';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import BackButton from '@/component/BackButton';
+import { routes } from '@/const';
+import { getManyItems } from '@/util';
 
 export default function RegisterCallback() {
+  const navigate = useNavigate();
+  const [registerToken] = getManyItems(['registerToken']);
+
+  useEffect(() => {
+    if (!registerToken) {
+      navigate(routes.home.root);
+    }
+  }, [registerToken, navigate]);
+
   return (
     <Stack
       spacing={7}

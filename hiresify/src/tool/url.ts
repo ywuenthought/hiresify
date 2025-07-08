@@ -11,14 +11,13 @@ import {
 type buildAuthorizeClientUrlProps = {
   clientId: string;
   codeChallenge: string;
-  codeVerifier: string;
   state: string;
 };
 
 export function buildAuthorizeClientUrl(
   props: buildAuthorizeClientUrlProps
 ): URL {
-  const { clientId, codeChallenge, codeVerifier, state } = props;
+  const { clientId, codeChallenge, state } = props;
 
   // Generate the full authorization URL.
   const authUrl = new URL(userUrls.authorize);
@@ -29,18 +28,24 @@ export function buildAuthorizeClientUrl(
   authUrl.searchParams.set('response_type', 'code');
   authUrl.searchParams.set('state', state);
 
-  // Save the authorization parameters to be used later.
-  sessionStorage.setItem('clientId', clientId);
-  sessionStorage.setItem('codeVerifier', codeVerifier);
-  sessionStorage.setItem('state', state);
-
   return authUrl;
 }
 
-export function buildRegisterUserUrl(): URL {
+type buildRegisterUserUrlProps = {
+  registerToken: string;
+};
+
+export function buildRegisterUserUrl(props: buildRegisterUserUrlProps): URL {
+  const { registerToken } = props;
+
+  // Insert a one-time token as a query parameter.
+  // This token prohibits direct visits to the callback page.
+  const callbackUrl = new URL(REGISTER_CALLBACK_URL);
+  callbackUrl.searchParams.set('register_token', registerToken);
+
   // Generate the full registration URL.
   const registerUrl = new URL(userUrls.register);
-  registerUrl.searchParams.set('redirect_uri', REGISTER_CALLBACK_URL);
+  registerUrl.searchParams.set('redirect_uri', callbackUrl.toString());
 
   return registerUrl;
 }

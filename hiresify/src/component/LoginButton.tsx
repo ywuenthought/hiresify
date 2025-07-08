@@ -24,7 +24,6 @@ export default function LoginButton(props: ButtonProps) {
     const authUrl = buildAuthorizeClientUrl({
       clientId,
       codeChallenge,
-      codeVerifier,
       state,
     });
 
