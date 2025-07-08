@@ -21,7 +21,13 @@ export const userUrls = {
 export const routes = {
   home: {
     children: {
-      callback: { root: '/callback', children: {} },
+      callback: {
+        root: '/callback',
+        children: {
+          authorize: { root: 'authorize', children: {} },
+          register: { root: 'register', children: {} },
+        },
+      },
     },
     root: '',
   },
@@ -31,7 +37,14 @@ export const routes = {
   },
 };
 
-export const CALLBACK_URL =
+export const AUTHORIZE_CALLBACK_URL =
   `${window.location.origin}` +
   `${routes.home.root}` +
-  `${routes.home.children.callback.root}`;
+  `${routes.home.children.callback.root}` +
+  `${routes.home.children.callback.children.authorize.root}`;
+
+export const REGISTER_CALLBACK_URL =
+  `${window.location.origin}` +
+  `${routes.home.root}` +
+  `${routes.home.children.callback.root}` +
+  `${routes.home.children.callback.children.register.root}`;

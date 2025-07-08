@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import BackButton from '@/component/BackButton';
-import { CALLBACK_URL, routes, tokenUrls } from '@/const';
+import { AUTHORIZE_CALLBACK_URL, routes, tokenUrls } from '@/const';
 import type { JWTTokenJson } from '@/type';
 import {
   getDetail,
@@ -49,7 +49,7 @@ export default function Callback() {
         clientId,
         code: authCode,
         codeVerifier: verifier,
-        redirectUri: CALLBACK_URL,
+        redirectUri: AUTHORIZE_CALLBACK_URL,
       });
 
       if (!resp.ok) {

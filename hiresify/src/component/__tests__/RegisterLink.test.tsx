@@ -4,7 +4,7 @@
 
 import { render } from '@testing-library/react';
 
-import { userUrls } from '@/const';
+import { buildRegisterUserUrl } from '@/tool/url';
 
 import RegisterLink from '../RegisterLink';
 
@@ -18,13 +18,16 @@ describe('RegisterLink UI component', () => {
   });
 
   it('links to the user register URL', () => {
+    // Given
+    const registerUrl = buildRegisterUserUrl();
+
     // When
     const { getByRole } = render(<RegisterLink />);
 
     // Then
     const link = getByRole('link');
 
-    expect(link).toHaveAttribute('href', userUrls.register);
+    expect(link).toHaveAttribute('href', registerUrl.toString());
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 });

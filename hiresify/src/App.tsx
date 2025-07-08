@@ -19,7 +19,19 @@ export default function App() {
         <Route path={routes.home.root} element={<Home />} />
         <Route path={routes.main.root} element={<Main />} />
         <Route
-          path={`${routes.home.root}${routes.home.children.callback.root}`}
+          path={
+            `${routes.home.root}` +
+            `${routes.home.children.callback.root}` +
+            `${routes.home.children.callback.children.authorize.root}`
+          }
+          element={<Callback />}
+        />
+        <Route
+          path={
+            `${routes.home.root}` +
+            `${routes.home.children.callback.root}` +
+            `${routes.home.children.callback.children.register.root}`
+          }
           element={<Callback />}
         />
       </Routes>

@@ -5,13 +5,15 @@
 import type { LinkBaseProps } from '@mui/material';
 import { Link } from '@mui/material';
 
-import { userUrls } from '@/const';
+import { buildRegisterUserUrl } from '@/tool/url';
 
 export default function RegisterLink(props: LinkBaseProps) {
+  const registerUrl = buildRegisterUserUrl();
+
   return (
     <Link
       fontWeight="bold"
-      href={userUrls.register}
+      href={registerUrl.toString()}
       rel="noopener noreferrer"
       underline="hover"
       target="_blank"

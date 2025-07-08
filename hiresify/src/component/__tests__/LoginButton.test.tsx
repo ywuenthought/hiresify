@@ -5,7 +5,7 @@
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { CALLBACK_URL, userUrls } from '@/const';
+import { AUTHORIZE_CALLBACK_URL, userUrls } from '@/const';
 import { getManyItems } from '@/util';
 
 import LoginButton from '../LoginButton';
@@ -76,6 +76,6 @@ describe('LoginButton UI component', () => {
 
     const encodedRedirectUri = params.get('redirect_uri') as string;
     expect(encodedRedirectUri).not.toBeNull();
-    expect(decodeURIComponent(encodedRedirectUri)).toBe(CALLBACK_URL);
+    expect(decodeURIComponent(encodedRedirectUri)).toBe(AUTHORIZE_CALLBACK_URL);
   });
 });
