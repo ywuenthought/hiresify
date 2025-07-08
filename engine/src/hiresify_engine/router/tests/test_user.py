@@ -48,7 +48,8 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint, data=data)
 
     # Then
-    assert response.status_code == 201
+    assert response.status_code == 307
+    assert response.headers["location"] == redirect_uri
 
     # When
     response = await client.post(endpoint, data=data)

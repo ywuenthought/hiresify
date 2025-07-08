@@ -5,7 +5,7 @@
 import './App.css';
 
 import { Box } from '@mui/material';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { routes } from './const';
 import AuthorizeCallback from './view/AuthorizeCallback';
@@ -17,6 +17,7 @@ export default function App() {
   return (
     <Box component="main">
       <Routes>
+        <Route path="/" element={<Navigate to={routes.home.root} replace />} />
         <Route path={routes.home.root} element={<Home />} />
         <Route path={routes.main.root} element={<Main />} />
         <Route

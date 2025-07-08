@@ -24,12 +24,12 @@ export const routes = {
       callback: {
         root: '/callback',
         children: {
-          authorize: { root: 'authorize', children: {} },
-          register: { root: 'register', children: {} },
+          authorize: { root: '/authorize', children: {} },
+          register: { root: '/register', children: {} },
         },
       },
     },
-    root: '',
+    root: '/home',
   },
   main: {
     children: {},

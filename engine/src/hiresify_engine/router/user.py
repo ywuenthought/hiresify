@@ -91,6 +91,8 @@ async def register_user(
             status_code=status.HTTP_409_CONFLICT,
         ) from e
 
+    return RedirectResponse(url=redirect_uri)
+
 
 @router.get("/authorize")
 async def authorize_client(

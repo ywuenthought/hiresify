@@ -16,7 +16,8 @@ AddSecureHeaders = ty.Callable[..., None]
 
 
 _CSP_ITEMS = {
-    "default-src": ["none"],
+    "connect-src": ["self"],
+    "default-src": ["self"],
     "img-src": ["self"],
     "script-src": ["self"],
     "style-src": ["self"],
