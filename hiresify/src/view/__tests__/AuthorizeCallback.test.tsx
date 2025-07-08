@@ -27,9 +27,9 @@ import { generateCodeVerifier } from '@/tool/pkce';
 import type { JWTTokenJson } from '@/type';
 import { getManyItems, getManyUuids, setManyItems } from '@/util';
 
-import Callback from '../Callback';
+import AuthorizeCallback from '../AuthorizeCallback';
 
-describe('Callback view', () => {
+describe('AuthorizeCallback view', () => {
   const calledEndpoints: string[] = [];
 
   beforeAll(() => {
@@ -58,7 +58,7 @@ describe('Callback view', () => {
 
   it('renders something', () => {
     // When
-    const { baseElement: root } = render(<Callback />);
+    const { baseElement: root } = render(<AuthorizeCallback />);
 
     // Then
     expect(root).toBeTruthy();
@@ -69,7 +69,7 @@ describe('Callback view', () => {
     const expectedError = 'Invalid authorization callback.';
 
     // When
-    const { findByTestId } = render(<Callback />);
+    const { findByTestId } = render(<AuthorizeCallback />);
 
     // Then
     const error = await findByTestId('error');
@@ -95,7 +95,7 @@ describe('Callback view', () => {
     setManyItems({ clientId, codeVerifier, state });
 
     // When
-    const { findByTestId } = render(<Callback />);
+    const { findByTestId } = render(<AuthorizeCallback />);
 
     // Then
     expect(calledEndpoints).toEqual([tokenUrls.issue]);
@@ -124,7 +124,7 @@ describe('Callback view', () => {
     setManyItems({ clientId, codeVerifier, state });
 
     // When
-    render(<Callback />);
+    render(<AuthorizeCallback />);
 
     // Then
     await waitFor(() => expect(sessionStorage).toHaveLength(2));

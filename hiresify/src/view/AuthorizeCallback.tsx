@@ -16,7 +16,7 @@ import {
   setManyItems,
 } from '@/util';
 
-export default function Callback() {
+export default function AuthorizeCallback() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
 

@@ -8,9 +8,10 @@ import { Box } from '@mui/material';
 import { Route, Routes } from 'react-router-dom';
 
 import { routes } from './const';
-import Callback from './view/Callback';
+import AuthorizeCallback from './view/AuthorizeCallback';
 import Home from './view/Home';
 import Main from './view/Main';
+import RegisterCallback from './view/RegisterCallback';
 
 export default function App() {
   return (
@@ -24,7 +25,7 @@ export default function App() {
             `${routes.home.children.callback.root}` +
             `${routes.home.children.callback.children.authorize.root}`
           }
-          element={<Callback />}
+          element={<AuthorizeCallback />}
         />
         <Route
           path={
@@ -32,7 +33,7 @@ export default function App() {
             `${routes.home.children.callback.root}` +
             `${routes.home.children.callback.children.register.root}`
           }
-          element={<Callback />}
+          element={<RegisterCallback />}
         />
       </Routes>
     </Box>
