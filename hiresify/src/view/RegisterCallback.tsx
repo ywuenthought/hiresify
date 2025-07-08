@@ -4,7 +4,7 @@
 
 import { Box, Stack, Typography } from '@mui/material';
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import BackButton from '@/component/BackButton';
 import { routes } from '@/const';
@@ -12,13 +12,18 @@ import { getManyItems } from '@/util';
 
 export default function RegisterCallback() {
   const navigate = useNavigate();
-  const [registerToken] = getManyItems(['registerToken']);
+  const [params] = useSearchParams();
+
+  const curToken = params.get('register_token');
+  const [preToken] = getManyItems(['registerToken']);
 
   useEffect(() => {
-    if (!registerToken) {
+    if (!preToken || curToken !== preToken) {
       navigate(routes.home.root);
+    } else {
+      sessionStorage.clear();
     }
-  }, [registerToken, navigate]);
+  }, [curToken, preToken, navigate]);
 
   return (
     <Stack
@@ -35,6 +40,7 @@ export default function RegisterCallback() {
         </Typography>
         <Typography
           color="success"
+          data-testid="success"
           variant="body1"
           sx={{ textAlign: 'center' }}
         >
