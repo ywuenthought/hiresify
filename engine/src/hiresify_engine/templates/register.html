@@ -25,8 +25,11 @@
           required
           type="text"
         />
-        <p id="usernameError" class="text-sm text-red-500 mt-1 hidden">
+        <p id="usernameError" class="hidden mt-1 text-red-500 text-sm">
           Username must start with a letter and may only contain letters, digits, and underscores.
+        </p>
+        <p id="usernameExist" class="hidden mt-1 text-sm">
+          <!-- TBD dynamically." -->
         </p>
       </div>
 
@@ -39,7 +42,7 @@
           required
           type="password"
         />
-        <p id="passwordError" class="text-sm text-red-500 mt-1 hidden">
+        <p id="passwordError" class="hidden mt-1 text-red-500 text-sm">
           Password must contain only English letters, numbers, and common special characters.
         </p>
       </div>

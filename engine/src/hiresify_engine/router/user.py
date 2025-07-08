@@ -22,6 +22,24 @@ _templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 router = APIRouter(prefix="/user")
 
 
+@router.get("/check")
+async def check_username(
+    username: str = Query(..., max_length=30, min_length=3, pattern=USERNAME_REGEX),
+    *,
+    repo: RepositoryDep,
+) -> None:
+    """Check if the given username already exists in the database."""
+    try:
+        await repo.find_user(username)
+    except EntityNotFoundError:
+        pass
+    else:
+        raise HTTPException(
+            detail=f"{username=} already exists",
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
+
 @router.get("/register")
 async def register_user_page(
     redirect_uri: str = Query(..., max_length=2048),
