@@ -6,7 +6,6 @@
 """Define the backend user-related endpoints."""
 
 import typing as ty
-from urllib.parse import quote
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -54,26 +53,23 @@ async def register_user_page(
     response = _templates.TemplateResponse(
         request,
         REGISTER_HTML.name,
-        dict(
-            csrf_token=token,
-            redirect_uri=redirect_uri,
-        ),
+        dict(csrf_token=token, redirect_uri=redirect_uri),
     )
 
     secure(response)
     return response
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+@router.post("/register")
 async def register_user(
-    redirect_uri: str = Query(..., max_length=2048),
     username: str = Form(..., max_length=30, min_length=3, pattern=USERNAME_REGEX),
     password: str = Form(..., max_length=128, min_length=8, pattern=PASSWORD_REGEX),
     csrf_token: str = Form(..., max_length=32, min_length=32),
+    redirect_uri: str = Query(..., max_length=2048),
     *,
     cache: CacheServiceDep,
     repo: RepositoryDep,
-) -> None:
+) -> RedirectResponse:
     """Register a user using the given user name."""
     if csrf_token != await cache.get_csrf_token(redirect_uri):
         raise HTTPException(
@@ -91,41 +87,7 @@ async def register_user(
             status_code=status.HTTP_409_CONFLICT,
         ) from e
 
-    return RedirectResponse(url=redirect_uri)
-
-
-@router.get("/authorize")
-async def authorize_client(
-    client_id: str = Query(..., max_length=32, min_length=32),
-    code_challenge: str = Query(..., max_length=43, min_length=43),
-    code_challenge_method: str = Query(..., max_length=10, min_length=4),
-    redirect_uri: str = Query(..., max_length=2048),
-    response_type: ty.Literal["code"] = Query(..., max_length=4, min_length=4),
-    state: str = Query(..., max_length=32, min_length=32),
-    *,
-    secure: AddSecureHeadersDep,
-    cache: CacheServiceDep,
-    request: Request,
-) -> RedirectResponse:
-    """Authorize a client on behalf of a verified user."""
-    session_id = request.cookies.get("session_id")
-    session = await cache.get_user_session(session_id) if session_id else None
-    auth = await cache.set_authorization(
-        session.user_uid,
-        client_id=client_id,
-        code_challenge=code_challenge,
-        code_challenge_method=code_challenge_method,
-        redirect_uri=redirect_uri,
-    ) if session and session.user_uid else None
-
-    url = (
-        f"{redirect_uri}?code={auth.code}&state={state}"
-        if auth else f"/user/login?redirect_uri={quote(redirect_uri, safe='')}"
-    )
-    response = RedirectResponse(url=url)
-    secure(response)
-
-    return response
+    return RedirectResponse(status_code=status.HTTP_303_SEE_OTHER, url=redirect_uri)
 
 
 @router.get("/login")
@@ -141,10 +103,7 @@ async def login_user_page(
     response = _templates.TemplateResponse(
         request,
         LOGIN_HTML.name,
-        dict(
-            csrf_token=token,
-            redirect_uri=redirect_uri,
-        ),
+        dict(csrf_token=token, redirect_uri=redirect_uri),
     )
 
     secure(response)
@@ -153,10 +112,10 @@ async def login_user_page(
 
 @router.post("/login")
 async def login_user(
-    redirect_uri: str = Query(..., max_length=2048),
     username: str = Form(..., max_length=30),
     password: str = Form(..., max_length=128),
     csrf_token: str = Form(..., max_length=32, min_length=32),
+    redirect_uri: str = Query(..., max_length=2048),
     *,
     cache: CacheServiceDep,
     repo: RepositoryDep,
@@ -182,11 +141,50 @@ async def login_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    response = RedirectResponse(
-        status_code=status.HTTP_302_FOUND, url=redirect_uri,
-    )
+    response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=redirect_uri)
 
     user_session = await cache.set_user_session(db_user.uid)
     response.set_cookie(**user_session.to_cookie())
+
+    return response
+
+
+@router.get("/authorize")
+async def authorize_client(
+    client_id: str = Query(..., max_length=32, min_length=32),
+    code_challenge: str = Query(..., max_length=43, min_length=43),
+    code_challenge_method: str = Query(..., max_length=10, min_length=4),
+    redirect_uri: str = Query(..., max_length=2048),
+    response_type: ty.Literal["code"] = Query(..., max_length=4, min_length=4),
+    state: str = Query(..., max_length=32, min_length=32),
+    *,
+    secure: AddSecureHeadersDep,
+    cache: CacheServiceDep,
+    request: Request,
+) -> RedirectResponse:
+    """Authorize a client on behalf of a verified user."""
+    if (session_id := request.cookies.get("session_id")) is None:
+        raise HTTPException(
+            detail="No session ID was found in the cookies.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    if (session := await cache.get_user_session(session_id)) is None:
+        raise HTTPException(
+            detail=f"{session_id=} is invalid or timed out.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    auth = await cache.set_authorization(
+        session.user_uid,
+        client_id=client_id,
+        code_challenge=code_challenge,
+        code_challenge_method=code_challenge_method,
+        redirect_uri=redirect_uri,
+    )
+
+    url = f"{redirect_uri}?code={auth.code}&state={state}"
+    response = RedirectResponse(url=url)
+    secure(response)
 
     return response

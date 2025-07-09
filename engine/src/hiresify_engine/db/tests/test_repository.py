@@ -103,8 +103,7 @@ async def test_create_token(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
 
     # When
-    token = await repository.create_token(user.uid)
-    refresh_token = await repository.find_token(token)
+    refresh_token = await repository.create_token(user.uid)
 
     # Then
     assert refresh_token.expire_at > refresh_token.issued_at
@@ -116,13 +115,13 @@ async def test_revoke_token(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
 
     # When
-    token = await repository.create_token(user.uid)
-    refresh_token = await repository.find_token(token)
+    refresh_token = await repository.create_token(user.uid)
 
     # Then
     assert not refresh_token.revoked
 
     # When
+    token = refresh_token.token
     await repository.revoke_token(token)
     refresh_token = await repository.find_token(token)
 
@@ -143,13 +142,8 @@ async def test_revoke_tokens(repository: Repository) -> None:
     # Given
     tokens = [await repository.create_token(user.uid) for _ in range(3)]
 
-    # When
-    refresh_tokens = await repository.find_tokens(user.uid)
-
     # Then
-    assert len(refresh_tokens) == len(tokens)
-    for i, refresh_token in enumerate(refresh_tokens):
-        assert refresh_token.token == tokens[i]
+    for refresh_token in tokens:
         assert not refresh_token.revoked
 
     # When
@@ -159,20 +153,14 @@ async def test_revoke_tokens(repository: Repository) -> None:
     # Then
     assert len(refresh_tokens) == len(tokens)
     for i, refresh_token in enumerate(refresh_tokens):
-        assert refresh_token.token == tokens[i]
+        assert refresh_token.token == tokens[i].token
         assert refresh_token.revoked
 
 
 async def test_purge_tokens(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
-    tokens = [await repository.create_token(user.uid) for _ in range(3)]
-
-    # When
-    refresh_tokens = await repository.find_tokens(user.uid)
-
-    # Then
-    assert len(refresh_tokens) == len(tokens)
+    refresh_tokens = [await repository.create_token(user.uid) for _ in range(3)]
 
     # When
     *_, refresh_token = refresh_tokens

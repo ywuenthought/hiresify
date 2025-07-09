@@ -9,8 +9,8 @@ from fastapi import FastAPI, Request
 
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
+from hiresify_engine.jwt.service import JWTTokenService
 from hiresify_engine.router.util import AddSecureHeaders
-from hiresify_engine.tool import JWTTokenManager
 
 
 def get_add_secure_headers(request: Request) -> AddSecureHeaders:
@@ -27,11 +27,11 @@ def get_cache(request: Request) -> CacheService:
     return service
 
 
-def get_jwt(request: Request) -> JWTTokenManager:
-    """Get the JWT access token manager from app.state."""
+def get_jwt(request: Request) -> JWTTokenService:
+    """Get the JWT access token service from app.state."""
     app: FastAPI = request.app
-    manager: JWTTokenManager = app.state.jwt
-    return manager
+    service: JWTTokenService = app.state.jwt
+    return service
 
 
 def get_repo(request: Request) -> Repository:

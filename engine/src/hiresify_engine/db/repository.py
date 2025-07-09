@@ -24,7 +24,7 @@ from .util import abbreviate_token
 class Repository:
     """A wrapper class providing APIs to manage the database."""
 
-    def __init__(self, url: str, refresh_ttl: int, **configs: ty.Any) -> None:
+    def __init__(self, url: str, *, refresh_ttl: int, **configs: ty.Any) -> None:
         """Initialize a new instance of Repository."""
         self._refresh_ttl = refresh_ttl
         self._engine = create_async_engine(url, **configs)
@@ -148,7 +148,7 @@ class Repository:
 
             return user.refresh_tokens
 
-    async def create_token(self, user_uid: str, **metadata: ty.Any) -> str:
+    async def create_token(self, user_uid: str, **metadata: ty.Any) -> RefreshToken:
         """Create a refresh token for the given user UID."""
         where_clause = User.uid == user_uid
         stmt = select(User).where(where_clause)
@@ -164,7 +164,7 @@ class Repository:
                 raise EntityNotFoundError(User, uid=user_uid)
 
             refresh_token = RefreshToken(
-                token=(token := uuid4().hex),
+                token=uuid4().hex,
                 issued_at=issued_at,
                 expire_at=expire_at,
                 user_id=user.id,
@@ -175,7 +175,7 @@ class Repository:
                 session.add(refresh_token)
 
             await session.refresh(refresh_token)
-            return token
+            return refresh_token
 
     async def revoke_token(self, token: str) -> None:
         """Revoke a refresh token given its token string."""

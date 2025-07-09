@@ -7,16 +7,16 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Form, HTTPException, status
+from fastapi import APIRouter, Form, HTTPException, Request, Response, status
 
 from hiresify_engine.db.exception import EntityNotFoundError
-from hiresify_engine.dep import CacheServiceDep, JWTManagerDep, RepositoryDep
+from hiresify_engine.dep import CacheServiceDep, JWTServiceDep, RepositoryDep
 from hiresify_engine.tool import confirm_verifier
 
 router = APIRouter(prefix="/token")
 
 
-@router.post("/issue", status_code=status.HTTP_201_CREATED)
+@router.post("/issue")
 async def issue_token(
     client_id: str = Form(..., max_length=32, min_length=32),
     code: str = Form(..., max_length=32, min_length=32),
@@ -27,9 +27,9 @@ async def issue_token(
     platform: str | None = Form(None, max_length=32),
     *,
     cache: CacheServiceDep,
-    jwt: JWTManagerDep,
+    jwt: JWTServiceDep,
     repo: RepositoryDep,
-) -> dict[str, str]:
+) -> Response:
     """Issue an access token to a user identified by the given metadata."""
     if not (auth := await cache.get_authorization(code)):
         raise HTTPException(
@@ -59,6 +59,7 @@ async def issue_token(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+
     try:
         refresh_token = await repo.create_token(
             auth.user_uid,
@@ -68,25 +69,41 @@ async def issue_token(
         )
     except EntityNotFoundError as e:
         raise HTTPException(
-            detail="The user account has been deleted.",
+            detail="The user account does not exist.",
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
+    response = Response(status_code=status.HTTP_201_CREATED)
+    response.set_cookie(**refresh_token.to_cookie())
+
     access_token = jwt.generate(auth.user_uid)
+    response.set_cookie(**access_token.to_cookie())
+
     await cache.del_authorization(code)
+    return response
 
-    return dict(access_token=access_token, refresh_token=refresh_token)
 
-
-@router.post("/refresh", status_code=status.HTTP_201_CREATED)
+@router.post("/refresh")
 async def refresh_token(
-    token: str = Form(..., max_length=32, min_length=32),
     *,
-    jwt: JWTManagerDep,
+    jwt: JWTServiceDep,
     repo: RepositoryDep,
-) -> dict[str, str]:
+    request: Request,
+) -> Response:
     """Refresh a user's access token if the given refresh token is active."""
-    refresh_token = await repo.find_token(token, eager=True)
+    if (token := request.cookies.get("refresh_token")) is None:
+        raise HTTPException(
+            detail="No refresh token was found in the cookies.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    try:
+        refresh_token = await repo.find_token(token, eager=True)
+    except EntityNotFoundError as e:
+        raise HTTPException(
+            detail=f"{token=} does not exist.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        ) from e
 
     if refresh_token.revoked or refresh_token.expire_at <= datetime.now(UTC):
         raise HTTPException(
@@ -94,19 +111,23 @@ async def refresh_token(
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
-    user_uid = refresh_token.user.uid
-    access_token = jwt.generate(user_uid)
+    response = Response(status_code=status.HTTP_201_CREATED)
 
-    return dict(access_token=access_token)
+    access_token = jwt.generate(refresh_token.user.uid)
+    response.set_cookie(**access_token.to_cookie())
+
+    return response
 
 
 @router.post("/revoke", status_code=status.HTTP_204_NO_CONTENT)
-async def revoke_token(
-    token: str = Form(..., max_length=32, min_length=32),
-    *,
-    repo: RepositoryDep,
-) -> None:
+async def revoke_token(*, repo: RepositoryDep, request: Request) -> None:
     """Revoke a user's refresh token."""
+    if (token := request.cookies.get("refresh_token")) is None:
+        raise HTTPException(
+            detail="No refresh token was found in the cookies.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
     try:
         await repo.revoke_token(token)
     except EntityNotFoundError as e:

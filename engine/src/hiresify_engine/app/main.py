@@ -11,9 +11,9 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from hiresify_engine import const
+from hiresify_engine.jwt.service import JWTTokenService
 from hiresify_engine.router import api_routers, routers
 from hiresify_engine.router.util import add_secure_headers
-from hiresify_engine.tool import JWTTokenManager
 from hiresify_engine.util import get_envvar
 
 from .lifespan import lifespan
@@ -38,8 +38,8 @@ app = FastAPI(lifespan=lifespan)
 # Initialize the callable to add secure headers to a response.
 app.state.add_secure_headers = partial(add_secure_headers, deployment=deployment)
 
-# Initialize the JWT access token manager.
-app.state.jwt = JWTTokenManager(access_ttl)
+# Initialize the JWT access token service.
+app.state.jwt = JWTTokenService(access_ttl)
 
 if deployment == const.PRODUCTION:
     app.add_middleware(HTTPSOnlyMiddleware)

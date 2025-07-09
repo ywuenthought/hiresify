@@ -4,7 +4,6 @@
 # explicit written permission from the copyright holder.
 
 from secrets import token_urlsafe
-from urllib.parse import quote
 from uuid import uuid4
 
 from fastapi import FastAPI
@@ -24,16 +23,16 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     # Given
     endpoint = "/user/register"
     redirect_uri = "http://localhost/callback"
-    endpoint = f"{endpoint}?redirect_uri={redirect_uri}"
 
     username = "ywu"
     password = "12345678"
     csrf_token = uuid4().hex
 
     data = dict(username=username, password=password, csrf_token=csrf_token)
+    prms = dict(redirect_uri=redirect_uri)
 
     # When
-    response = await client.post(endpoint, data=data)
+    response = await client.post(endpoint, data=data, params=prms)
 
     # Then
     assert response.status_code == 400
@@ -45,18 +44,82 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     data.update(csrf_token=token)
 
     # When
-    response = await client.post(endpoint, data=data)
+    response = await client.post(endpoint, data=data, params=prms)
 
     # Then
-    assert response.status_code == 307
+    assert response.status_code == 303
     assert response.headers["location"] == redirect_uri
 
     # When
-    response = await client.post(endpoint, data=data)
+    response = await client.post(endpoint, data=data, params=prms)
 
     # Then
     assert response.status_code == 409
     assert response.json()["detail"] == "The input username already exists."
+
+
+async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
+    # Given
+    endpoint = "/user/login"
+    redirect_uri = "http://localhost/callback"
+
+    username = "ewu"
+    password = "12345678"
+    csrf_token = uuid4().hex
+
+    data = dict(username=username, password=password, csrf_token=csrf_token)
+    prms = dict(redirect_uri=redirect_uri)
+
+    # When
+    response = await client.post(endpoint, data=data, params=prms)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"{csrf_token=} is invalid or timed out."
+
+    # Given
+    cache: CacheService = app.state.cache
+    token = await cache.set_csrf_token(redirect_uri)
+    data.update(csrf_token=token)
+
+    # When
+    response = await client.post(endpoint, data=data, params=prms)
+
+    # Then
+    assert response.status_code == 404
+    assert response.json()["detail"] == "The input username was not found."
+
+    # Given
+    hashed_password = hash_password(password)
+
+    repo: Repository = app.state.repo
+    user = await repo.register_user(username, hashed_password)
+
+    # The input password is incorrect.
+    data.update(password="456")
+
+    # When
+    response = await client.post(endpoint, data=data, params=prms)
+
+    # Then
+    assert response.status_code == 401
+    assert response.json()["detail"] == "The input password is incorrect."
+
+    # Given
+    data.update(password=password)
+
+    # When
+    response = await client.post(endpoint, data=data, params=prms)
+
+    # Then
+    assert response.status_code == 302
+
+    session_id = response.cookies.get("session_id")
+    assert session_id is not None
+
+    session = await cache.get_user_session(session_id)
+    assert session is not None
+    assert session.user_uid == user.uid
 
 
 async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
@@ -84,10 +147,19 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     response = await client.get(endpoint, params=prms)
 
     # Then
-    assert response.status_code == 307
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No session ID was found in the cookies."
 
-    url: str = response.headers.get("location")
-    assert url == f"/user/login?redirect_uri={quote(redirect_uri, safe='')}"
+    # Given
+    session_id = uuid4().hex
+    client.cookies.set("session_id", session_id)
+
+    # When
+    response = await client.get(endpoint, params=prms)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"{session_id=} is invalid or timed out."
 
     # Given
     cache: CacheService = app.state.cache
@@ -98,76 +170,10 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     response = await client.get(endpoint, params=prms)
 
     # Then
-    assert response.is_redirect
     assert response.status_code == 307
 
-    url = response.headers.get("location")
+    url: str = response.headers.get("location")
     assert url.startswith(redirect_uri)
 
     query_params = get_query_params(url)
     assert list(query_params.keys()) == ["code", "state"]
-
-
-async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
-    # Given
-    endpoint = "/user/login"
-    redirect_uri = "http://localhost/callback"
-    endpoint = f"{endpoint}?redirect_uri={redirect_uri}"
-
-    username = "ewu"
-    password = "12345678"
-    csrf_token = uuid4().hex
-
-    data = dict(username=username, password=password, csrf_token=csrf_token)
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 400
-    assert response.json()["detail"] == f"{csrf_token=} is invalid or timed out."
-
-    # Given
-    cache: CacheService = app.state.cache
-    token = await cache.set_csrf_token(redirect_uri)
-    data.update(csrf_token=token)
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 404
-    assert response.json()["detail"] == "The input username was not found."
-
-    # Given
-    hashed_password = hash_password(password)
-
-    repo: Repository = app.state.repo
-    user = await repo.register_user(username, hashed_password)
-
-    # The input password is incorrect.
-    data.update(password="456")
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.status_code == 401
-    assert response.json()["detail"] == "The input password is incorrect."
-
-    # Given
-    data.update(password=password)
-
-    # When
-    response = await client.post(endpoint, data=data)
-
-    # Then
-    assert response.is_redirect
-    assert response.status_code == 302
-
-    session_id = response.cookies.get("session_id")
-    assert session_id is not None
-
-    session = await cache.get_user_session(session_id)
-    assert session is not None
-    assert session.user_uid == user.uid

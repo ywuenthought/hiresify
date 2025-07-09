@@ -98,7 +98,9 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
 
     # Then
     assert response.status_code == 201
-    assert list(response.json().keys()) == ["access_token", "refresh_token"]
+
+    for key in ("access_token", "refresh_token"):
+        assert client.cookies.get(key) is not None
 
     # The authorization code has been removed from the cache store.
     assert await cache.get_authorization(auth.code) is None
@@ -116,21 +118,42 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
     repo: Repository = app.state.repo
     user = await repo.register_user(username, hashed_password)
 
-    token = await repo.create_token(user.uid)
-    data = dict(token=token)
+    # When
+    response = await client.post(endpoint)
+
+    # Then
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No refresh token was found in the cookies."
+
+    # Given
+    token = uuid4().hex
+    client.cookies.set("refresh_token", token)
 
     # When
-    response = await client.post(endpoint, data=data)
+    response = await client.post(endpoint)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"{token=} does not exist."
+
+    # Given
+    refresh_token = await repo.create_token(user.uid)
+
+    token = refresh_token.token
+    client.cookies.set("refresh_token", token)
+
+    # When
+    response = await client.post(endpoint)
 
     # Then
     assert response.status_code == 201
-    assert list(response.json().keys()) == ["access_token"]
+    assert client.cookies.get("access_token") is not None
 
     # Given
     await repo.revoke_token(token)
 
     # When
-    response = await client.post(endpoint, data=data)
+    response = await client.post(endpoint)
 
     # Then
     assert response.status_code == 408

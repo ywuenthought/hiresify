@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     app.state.cache = cache = CacheService(redis_url, ttl=cache_ttl)
 
     # Initialize the database repository.
-    app.state.repo = repo = Repository(db_url, refresh_ttl, **configs)
+    app.state.repo = repo = Repository(db_url, refresh_ttl=refresh_ttl, **configs)
 
     # Initialize the database schema.
     await repo.init_schema()

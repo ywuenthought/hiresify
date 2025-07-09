@@ -19,7 +19,7 @@ async def test_repository(refresh_ttl: int) -> ty.AsyncGenerator[Repository, Non
         temp_db.close()
 
         db_url = f"sqlite+aiosqlite:///{temp_db.name}"
-        repository = Repository(db_url, refresh_ttl)
+        repository = Repository(db_url, refresh_ttl=refresh_ttl)
         await repository.init_schema()
         yield repository
         await repository.dispose()
