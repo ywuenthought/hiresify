@@ -4,6 +4,7 @@
 
 import {
   AUTHORIZE_CALLBACK_URL,
+  LOGIN_CALLBACK_URL,
   REGISTER_CALLBACK_URL,
   userUrls,
 } from '@/const';
@@ -29,6 +30,14 @@ export function buildAuthorizeClientUrl(
   authUrl.searchParams.set('state', state);
 
   return authUrl;
+}
+
+export function buildLoginUserUrl(): URL {
+  // Generate the full login URL.
+  const loginUrl = new URL(userUrls.login);
+  loginUrl.searchParams.set('redirect_uri', LOGIN_CALLBACK_URL);
+
+  return loginUrl;
 }
 
 type buildRegisterUserUrlProps = {

@@ -5,8 +5,7 @@
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { AUTHORIZE_CALLBACK_URL, userUrls } from '@/const';
-import { getManyItems } from '@/util';
+import { LOGIN_CALLBACK_URL, userUrls } from '@/const';
 
 import LoginButton from '../LoginButton';
 
@@ -46,7 +45,7 @@ describe('LoginButton UI component', () => {
     expect(root).toBeTruthy();
   });
 
-  it('redirects to authUrl after a click', async () => {
+  it('navigates to loginUrl after a click', async () => {
     // Given
     const { getByRole } = render(<LoginButton />);
 
@@ -57,25 +56,11 @@ describe('LoginButton UI component', () => {
     // Then
     const urlObj = new URL(window.location.href);
     const params = new URLSearchParams(urlObj.search);
-    const [clientId, codeVerifier, state] = getManyItems([
-      'clientId',
-      'codeVerifier',
-      'state',
-    ]);
 
-    expect(urlObj.origin + urlObj.pathname).toBe(userUrls.authorize);
-    expect(clientId).toHaveLength(32);
-    expect(codeVerifier).toHaveLength(86);
-    expect(state).toHaveLength(32);
-
-    expect(params.get('client_id')).toBe(clientId);
-    expect(params.get('code_challenge')).toHaveLength(43);
-    expect(params.get('code_challenge_method')).toBe('s256');
-    expect(params.get('response_type')).toBe('code');
-    expect(params.get('state')).toBe(state);
+    expect(urlObj.origin + urlObj.pathname).toBe(userUrls.login);
 
     const encodedRedirectUri = params.get('redirect_uri') as string;
     expect(encodedRedirectUri).not.toBeNull();
-    expect(decodeURIComponent(encodedRedirectUri)).toBe(AUTHORIZE_CALLBACK_URL);
+    expect(decodeURIComponent(encodedRedirectUri)).toBe(LOGIN_CALLBACK_URL);
   });
 });

@@ -16,6 +16,7 @@ export const tokenUrls = {
 
 export const userUrls = {
   authorize: `${USR_PREFIX}/authorize`,
+  login: `${USR_PREFIX}/login`,
   register: `${USR_PREFIX}/register`,
 };
 
@@ -26,6 +27,7 @@ export const routes = {
         root: '/callback',
         children: {
           authorize: { root: '/authorize', children: {} },
+          login: { root: '/login', children: {} },
           register: { root: '/register', children: {} },
         },
       },
@@ -43,6 +45,12 @@ export const AUTHORIZE_CALLBACK_URL =
   `${routes.home.root}` +
   `${routes.home.children.callback.root}` +
   `${routes.home.children.callback.children.authorize.root}`;
+
+export const LOGIN_CALLBACK_URL =
+  `${window.location.origin}` +
+  `${routes.home.root}` +
+  `${routes.home.children.callback.root}` +
+  `${routes.home.children.callback.children.login.root}`;
 
 export const REGISTER_CALLBACK_URL =
   `${window.location.origin}` +
