@@ -8,12 +8,29 @@ from uuid import uuid4
 from ..service import JWTTokenService
 
 
-def test_round_trip(service: JWTTokenService) -> None:
+def test_access_token_round_trip(service: JWTTokenService) -> None:
     # Given
     user_uid = uuid4().hex
 
     # When
-    token = service.generate(user_uid)
+    token = service.generate_access_token(user_uid)
+
+    # Then
+    assert len(token.token) == 160
+
+    # When
+    sub = service.verify(token.token)
+
+    # Then
+    assert sub == user_uid
+
+
+def test_refresh_token_round_trip(service: JWTTokenService) -> None:
+    # Given
+    user_uid = uuid4().hex
+
+    # When
+    token = service.generate_refresh_token(user_uid)
 
     # Then
     assert len(token.token) == 160

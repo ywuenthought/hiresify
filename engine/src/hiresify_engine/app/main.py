@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from hiresify_engine import const
-from hiresify_engine.envvar import ACCESS_TTL, PRODUCTION
+from hiresify_engine.envvar import PRODUCTION
 from hiresify_engine.jwt.service import JWTTokenService
 from hiresify_engine.router import api_routers, routers
 from hiresify_engine.router.util import add_secure_headers
@@ -31,8 +31,8 @@ if PRODUCTION:
 # Initialize the callable to add secure headers to a response.
 app.state.add_secure_headers = partial(add_secure_headers, production=PRODUCTION)
 
-# Initialize the JWT access token service.
-app.state.jwt = JWTTokenService(ACCESS_TTL)
+# Initialize the JWT token service.
+app.state.jwt = JWTTokenService()
 
 for router in routers:
     app.include_router(router)

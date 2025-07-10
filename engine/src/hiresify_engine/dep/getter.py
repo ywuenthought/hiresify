@@ -28,7 +28,7 @@ def get_cache(request: Request) -> CacheService:
 
 
 def get_jwt(request: Request) -> JWTTokenService:
-    """Get the JWT access token service from app.state."""
+    """Get the JWT token service from app.state."""
     app: FastAPI = request.app
     service: JWTTokenService = app.state.jwt
     return service

@@ -13,4 +13,4 @@ from ..service import JWTTokenService
 @pytest.fixture(scope="session", autouse=True)
 def service() -> ty.Generator[JWTTokenService, None, None]:
     """Create an instance of JWTTokenService used in tests."""
-    yield JWTTokenService(900)
+    yield JWTTokenService()

@@ -22,7 +22,7 @@ AddSecureHeadersDep = ty.Annotated[AddSecureHeaders, Depends(get_add_secure_head
 # The type for the cache service dependency.
 CacheServiceDep = ty.Annotated[CacheService, Depends(get_cache)]
 
-# The type for the JWT access token service dependency.
+# The type for the JWT token service dependency.
 JWTServiceDep = ty.Annotated[JWTTokenService, Depends(get_jwt)]
 
 # The type for the database repository dependency.

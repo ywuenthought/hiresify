@@ -11,10 +11,15 @@ import typing as ty
 from dataclasses import dataclass
 from datetime import datetime
 
+from .const import TokenName
+
 
 @dataclass(frozen=True)
-class AccessToken:
+class JWTToken:
     """The data model for an access token."""
+
+    #: The token name.
+    name: TokenName
 
     #: When the session was issued.
     issued_at: datetime
@@ -22,7 +27,7 @@ class AccessToken:
     #: When the session expires.
     expire_at: datetime
 
-    #: The token.
+    #: The token itself.
     token: str
 
     @classmethod
@@ -56,7 +61,7 @@ class AccessToken:
             # Only send over HTTP requests, avoiding XSS attacks.
             httponly=True,
             # The hardcoded cookie name.
-            key="access_token",
+            key=self.name,
             # Forbidden cross-site requests.
             samesite="strict",
             # Only send over HTTPS connections.

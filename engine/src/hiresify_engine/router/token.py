@@ -76,7 +76,7 @@ async def issue_token(
     response = Response(status_code=status.HTTP_201_CREATED)
     response.set_cookie(**refresh_token.to_cookie())
 
-    access_token = jwt.generate(auth.user_uid)
+    access_token = jwt.generate_access_token(auth.user_uid)
     response.set_cookie(**access_token.to_cookie())
 
     await cache.del_authorization(code)
@@ -113,7 +113,7 @@ async def refresh_token(
 
     response = Response(status_code=status.HTTP_201_CREATED)
 
-    access_token = jwt.generate(refresh_token.user.uid)
+    access_token = jwt.generate_access_token(refresh_token.user.uid)
     response.set_cookie(**access_token.to_cookie())
 
     return response
