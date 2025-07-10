@@ -13,7 +13,7 @@ function Main() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    async function refreshToken() {
+    const refreshToken = async () => {
       const resp = await fetch(tokenUrls.refresh, {
         method: 'POST',
         credentials: 'include',
@@ -22,7 +22,7 @@ function Main() {
       if (!resp.ok) {
         navigate(routes.home.root);
       }
-    }
+    };
 
     refreshToken();
   }, [navigate]);
