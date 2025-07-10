@@ -16,7 +16,7 @@ def test_access_token_round_trip(service: JWTTokenService) -> None:
     token = service.generate_access_token(user_uid)
 
     # Then
-    assert len(token.token) == 160
+    assert len(token.token) == 243
 
     # When
     sub = service.verify(token.token)
@@ -33,7 +33,7 @@ def test_refresh_token_round_trip(service: JWTTokenService) -> None:
     token = service.generate_refresh_token(user_uid)
 
     # Then
-    assert len(token.token) == 160
+    assert len(token.token) == 243
 
     # When
     sub = service.verify(token.token)

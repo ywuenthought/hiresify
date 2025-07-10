@@ -3,7 +3,7 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -102,8 +102,17 @@ async def test_create_token(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
+    token = "xyz123"
+    issued_at = datetime.now(UTC)
+    expire_at = issued_at + timedelta(seconds=1)
+
     # When
-    refresh_token = await repository.create_token(user.uid)
+    refresh_token = await repository.create_token(
+        user.uid,
+        token=token,
+        issued_at=issued_at,
+        expire_at=expire_at,
+    )
 
     # Then
     assert refresh_token.expire_at > refresh_token.issued_at
@@ -114,8 +123,17 @@ async def test_revoke_token(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
+    token = "xyz123"
+    issued_at = datetime.now(UTC)
+    expire_at = issued_at + timedelta(seconds=1)
+
     # When
-    refresh_token = await repository.create_token(user.uid)
+    refresh_token = await repository.create_token(
+        user.uid,
+        token=token,
+        issued_at=issued_at,
+        expire_at=expire_at,
+    )
 
     # Then
     assert not refresh_token.revoked
@@ -140,10 +158,24 @@ async def test_revoke_tokens(repository: Repository) -> None:
     assert not refresh_tokens
 
     # Given
-    tokens = [await repository.create_token(user.uid) for _ in range(3)]
+    issued_at = datetime.now(UTC)
+    tokens = ["xyz123", "xyz456", "xyz789"]
+
+    refresh_tokens_ = []
+    for i in range(3):
+        expire_at = issued_at + timedelta(seconds=1)
+        refresh_tokens_.append(
+            await repository.create_token(
+                user.uid,
+                token=tokens[i],
+                issued_at=issued_at,
+                expire_at=expire_at,
+            ),
+        )
+        issued_at = expire_at
 
     # Then
-    for refresh_token in tokens:
+    for refresh_token in refresh_tokens_:
         assert not refresh_token.revoked
 
     # When
@@ -153,14 +185,29 @@ async def test_revoke_tokens(repository: Repository) -> None:
     # Then
     assert len(refresh_tokens) == len(tokens)
     for i, refresh_token in enumerate(refresh_tokens):
-        assert refresh_token.token == tokens[i].token
+        assert refresh_token.token == refresh_tokens_[i].token
         assert refresh_token.revoked
 
 
 async def test_purge_tokens(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
-    refresh_tokens = [await repository.create_token(user.uid) for _ in range(3)]
+    
+    issued_at = datetime.now(UTC)
+    tokens = ["xyz123", "xyz456", "xyz789"]
+
+    refresh_tokens = []
+    for i in range(3):
+        expire_at = issued_at + timedelta(seconds=1)
+        refresh_tokens.append(
+            await repository.create_token(
+                user.uid,
+                token=tokens[i],
+                issued_at=issued_at,
+                expire_at=expire_at,
+            ),
+        )
+        issued_at = expire_at
 
     # When
     *_, refresh_token = refresh_tokens

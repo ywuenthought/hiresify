@@ -15,7 +15,7 @@ from ..repository import Repository
 @pytest.fixture(scope="session")
 async def repository() -> ty.AsyncGenerator[Repository, None]:
     """Create a temporary file-based repository for testing."""
-    async with test_repository(30) as repository:
+    async with test_repository() as repository:
         yield repository
 
 

@@ -59,10 +59,14 @@ async def issue_token(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+    refresh_token = jwt.generate_refresh_token(auth.user_uid)
 
     try:
-        refresh_token = await repo.create_token(
+        await repo.create_token(
             auth.user_uid,
+            token=refresh_token.token,
+            issued_at=refresh_token.issued_at,
+            expire_at=refresh_token.expire_at,
             device=device,
             ip=ip,
             platform=platform,

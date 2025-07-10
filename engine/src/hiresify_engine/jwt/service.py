@@ -12,7 +12,7 @@ from jose import JWTError, jwt
 
 from hiresify_engine.envvar import ACCESS_TTL, REFRESH_TTL
 
-from .const import ACCESS_TOKEN, REFRESH_TOKEN, TokenName
+from .const import ACCESS_TOKEN, REFRESH_TOKEN, TOKEN_AUDIENCE, TOKEN_ISSUER, TokenName
 from .model import JWTToken
 
 
@@ -26,33 +26,44 @@ class JWTTokenService:
 
     def generate_access_token(self, user_uid: str) -> JWTToken:
         """Generate an access token for the given user UID."""
-        return self._generate_token(user_uid, ACCESS_TOKEN)
+        return self._generate_token(user_uid, name=ACCESS_TOKEN, ttl=ACCESS_TTL)
 
     def generate_refresh_token(self, user_uid: str) -> JWTToken:
         """Generate a refresh token for the given user UID."""
-        return self._generate_token(user_uid, REFRESH_TOKEN)
+        return self._generate_token(user_uid, name=REFRESH_TOKEN, ttl=REFRESH_TTL)
 
     def verify(self, token: str) -> str | None:
         """Verify the given token and return the user UID."""
         try:
-            payload = jwt.decode(token, self._key, algorithms=[self._algorithm])
+            payload = jwt.decode(
+                token,
+                key=self._key,
+                algorithms=[self._algorithm],
+                audience=TOKEN_AUDIENCE,
+                issuer=TOKEN_ISSUER,
+            )
+
             return payload["sub"]
         except JWTError:
             return None
 
-    def _generate_token(self, user_uid: str, name: TokenName) -> JWTToken:
-        """Generate a JWT token by the given name."""
-        ttl = ACCESS_TTL if name == ACCESS_TOKEN else REFRESH_TTL
-
+    def _generate_token(self, user_uid: str, *, name: TokenName, ttl: int) -> JWTToken:
+        """Generate a token using the given user UID and metadata."""
         issued_at = datetime.now(UTC)
         expire_at = issued_at + timedelta(seconds=ttl)
 
-        claims = dict(exp=int(expire_at.timestamp()), sub=user_uid)
-        token = jwt.encode(claims, self._key, self._algorithm)
+        claims = dict(
+            aud=TOKEN_AUDIENCE,
+            exp=int(expire_at.timestamp()),
+            iat=int(issued_at.timestamp()),
+            iss=TOKEN_ISSUER,
+            sub=user_uid,
+        )
 
         return JWTToken(
             name=name,
             issued_at=issued_at,
             expire_at=expire_at,
-            token=token,
+            token=jwt.encode(claims, key=self._key, algorithm=self._algorithm),
         )
+

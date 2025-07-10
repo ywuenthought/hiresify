@@ -13,13 +13,7 @@ from fastapi import FastAPI
 
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.envvar import (
-    CACHE_TTL,
-    DATABASE_CONFIG,
-    DATABASE_URL,
-    REDIS_URL,
-    REFRESH_TTL,
-)
+from hiresify_engine.envvar import CACHE_TTL, DATABASE_CONFIG, DATABASE_URL, REDIS_URL
 
 ##########
 # lifespan
@@ -35,7 +29,7 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     app.state.cache = cache = CacheService(REDIS_URL, ttl=CACHE_TTL)
 
     # Initialize the database repository.
-    app.state.repo = repo = Repository(DATABASE_URL, refresh_ttl=REFRESH_TTL, **configs)
+    app.state.repo = repo = Repository(DATABASE_URL, **configs)
 
     # Initialize the database schema.
     await repo.init_schema()

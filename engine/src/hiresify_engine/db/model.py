@@ -5,7 +5,6 @@
 
 """Define the database schema."""
 
-import typing as ty
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -72,7 +71,7 @@ class RefreshToken(Base):
     )
 
     #: A string representation of the refresh token.
-    token: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    token: Mapped[str] = mapped_column(String(256), nullable=False, unique=True)
 
     #: The date and time when the token was issued.
     issued_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
@@ -97,22 +96,3 @@ class RefreshToken(Base):
 
     # Each refresh token belongs to one user.
     user: Mapped["User"] = relationship(back_populates="refresh_tokens")
-
-    def to_cookie(self) -> dict[str, ty.Any]:
-        """Convert the metadata to a cookie."""
-        elapsed = self.expire_at - self.issued_at
-        max_age = int(elapsed.total_seconds())
-
-        return dict(
-            expires=self.expire_at,
-            value=self.token,
-            max_age=max_age,
-            # Only send over HTTP requests, avoiding XSS attacks.
-            httponly=True,
-            # The hardcoded cookie name.
-            key="refresh_token",
-            # Forbidden cross-site requests.
-            samesite="strict",
-            # Only send over HTTPS connections.
-            secure=True,
-        )

@@ -11,6 +11,7 @@ from httpx import AsyncClient
 
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
+from hiresify_engine.jwt.service import JWTTokenService
 from hiresify_engine.tool import compute_challenge, hash_password
 
 
@@ -137,7 +138,15 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
     assert response.json()["detail"] == f"{token=} does not exist."
 
     # Given
-    refresh_token = await repo.create_token(user.uid)
+    jwt: JWTTokenService = app.state.jwt
+    refresh_token = jwt.generate_refresh_token(user.uid)
+    await repo.create_token(
+        user.uid,
+        token=refresh_token.token,
+        issued_at=refresh_token.issued_at,
+        expire_at=refresh_token.expire_at,
+    )
+
 
     token = refresh_token.token
     client.cookies.set("refresh_token", token)

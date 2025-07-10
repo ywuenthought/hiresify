@@ -12,3 +12,7 @@ TokenName = ty.Literal["access_token", "refresh_token"]
 ACCESS_TOKEN: TokenName = "access_token"
 
 REFRESH_TOKEN: TokenName = "refresh_token"
+
+TOKEN_AUDIENCE = "hiresify-app"
+
+TOKEN_ISSUER = "hiresify-oauth2"

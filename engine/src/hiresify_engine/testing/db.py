@@ -13,13 +13,13 @@ from hiresify_engine.db.repository import Repository
 
 
 @asynccontextmanager
-async def test_repository(refresh_ttl: int) -> ty.AsyncGenerator[Repository, None]:
+async def test_repository() -> ty.AsyncGenerator[Repository, None]:
     """Create a test repository in the context of a temporary database file."""
     with tempfile.NamedTemporaryFile(suffix=".db") as temp_db:
         temp_db.close()
 
         db_url = f"sqlite+aiosqlite:///{temp_db.name}"
-        repository = Repository(db_url, refresh_ttl=refresh_ttl)
+        repository = Repository(db_url)
         await repository.init_schema()
         yield repository
         await repository.dispose()
