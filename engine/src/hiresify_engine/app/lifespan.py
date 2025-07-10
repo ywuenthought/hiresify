@@ -11,29 +11,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from hiresify_engine import const
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.util import get_envvar
-
-##########
-# env vars
-##########
-
-# Load the database URL and default to an empty string.
-db_url = get_envvar(const.DATABASE_URL, str, "")
-
-# Load the database config file path and default to an empty string.
-db_config = get_envvar(const.DATABASE_CONFIG, str, "")
-
-# Load the redis server URL and default to an empty string.
-redis_url = get_envvar(const.REDIS_URL, str, "")
-
-# Load the refresh token TTL and default to 30 days.
-refresh_ttl = get_envvar(const.REFRESH_TTL, int, 30)
-
-# Load the cache TTL and default to 300 seconds.
-cache_ttl = get_envvar(const.CACHE_TTL, int, 300)
+from hiresify_engine.envvar import (
+    CACHE_TTL,
+    DATABASE_CONFIG,
+    DATABASE_URL,
+    REDIS_URL,
+    REFRESH_TTL,
+)
 
 ##########
 # lifespan
@@ -42,14 +28,14 @@ cache_ttl = get_envvar(const.CACHE_TTL, int, 300)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     """Wrap the lifespan events for the application."""
-    with open(db_config) as fp:
+    with open(DATABASE_CONFIG) as fp:
         configs = json.load(fp)
 
     # Initialize the cache store manager.
-    app.state.cache = cache = CacheService(redis_url, ttl=cache_ttl)
+    app.state.cache = cache = CacheService(REDIS_URL, ttl=CACHE_TTL)
 
     # Initialize the database repository.
-    app.state.repo = repo = Repository(db_url, refresh_ttl=refresh_ttl, **configs)
+    app.state.repo = repo = Repository(DATABASE_URL, refresh_ttl=REFRESH_TTL, **configs)
 
     # Initialize the database schema.
     await repo.init_schema()

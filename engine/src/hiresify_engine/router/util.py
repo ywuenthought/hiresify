@@ -9,8 +9,6 @@ import typing as ty
 
 from fastapi import Response
 
-from hiresify_engine.const import DEVELOPMENT, PRODUCTION
-
 # Argument `deployment` will be auto-filled on the app level.
 AddSecureHeaders = ty.Callable[..., None]
 
@@ -30,7 +28,7 @@ _STS_ITEMS = [
 ]
 
 
-def add_secure_headers(response: Response, *, deployment: str = DEVELOPMENT) -> None:
+def add_secure_headers(response: Response, *, production: bool = False) -> None:
     """Add secure headers to the given response."""
     response.headers.update(
         {
@@ -51,7 +49,7 @@ def add_secure_headers(response: Response, *, deployment: str = DEVELOPMENT) -> 
         },
     )
 
-    if deployment == PRODUCTION:
+    if production:
         # Force browsers to use HTTPS for all future requests.
         response.headers["Strict-Transport-Security"] = "; ".join(_STS_ITEMS)
 
