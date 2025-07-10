@@ -10,6 +10,7 @@ const USR_PREFIX = `${VITE_API_ORIGIN}/user`;
 
 export const tokenUrls = {
   issue: `${TOK_PREFIX}/issue`,
+  refresh: `${TOK_PREFIX}/refresh`,
   revoke: `${TOK_PREFIX}/revoke`,
 };
 

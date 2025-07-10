@@ -17,7 +17,7 @@ export default function App() {
   return (
     <Box component="main">
       <Routes>
-        <Route path="/" element={<Navigate to={routes.home.root} replace />} />
+        <Route path="/" element={<Navigate to={routes.main.root} replace />} />
         <Route path={routes.home.root} element={<Home />} />
         <Route path={routes.main.root} element={<Main />} />
         <Route

@@ -7,18 +7,25 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import LogoutButton from '@/component/LogoutButton';
-import { routes } from '@/const';
-import { getManyItems } from '@/util';
+import { routes, tokenUrls } from '@/const';
 
 function Main() {
   const navigate = useNavigate();
-  const [token] = getManyItems(['refreshToken']);
 
   useEffect(() => {
-    if (!token) {
-      navigate(routes.home.root);
+    async function refreshToken() {
+      const resp = await fetch(tokenUrls.refresh, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!resp.ok) {
+        navigate(routes.home.root);
+      }
     }
-  }, [token, navigate]);
+
+    refreshToken();
+  }, [navigate]);
 
   return (
     <Box width={150} sx={{ position: 'absolute', right: 0, top: 0 }}>

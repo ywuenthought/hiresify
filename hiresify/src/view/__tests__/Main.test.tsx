@@ -16,20 +16,45 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 
-import { routes } from '@/const';
-import { getUuid4, setManyItems } from '@/util';
+import { routes, tokenUrls } from '@/const';
+import server from '@/testing/server';
 
 import Main from '../Main';
 
 describe('Main view', () => {
+  const calledEndpoints: string[] = [];
+
+  beforeAll(() => {
+    server.listen();
+
+    server.events.on('request:start', ({ request }) =>
+      calledEndpoints.push(request.url)
+    );
+  });
+
   beforeEach(() => {
-    sessionStorage.clear();
+    server.resetHandlers();
+
+    calledEndpoints.length = 0;
     mockNavigate.mockClear();
   });
 
+  afterAll(() => {
+    server.close();
+  });
+
   it('renders something', () => {
+    // Given
+    server.use(
+      http.post(
+        tokenUrls.refresh,
+        () => new HttpResponse(null, { status: 201 })
+      )
+    );
+
     // When
     const { baseElement: root } = render(<Main />);
 
@@ -37,23 +62,37 @@ describe('Main view', () => {
     expect(root).toBeTruthy();
   });
 
-  it('navigates to home when there is no refresh token', async () => {
+  it('navigates to home when there is no valid refresh token', async () => {
+    // Given
+    server.use(
+      http.post(
+        tokenUrls.refresh,
+        () => new HttpResponse(null, { status: 400 })
+      )
+    );
+
     // When
     render(<Main />);
 
     // Then
+    await waitFor(() => expect(calledEndpoints).toEqual([tokenUrls.refresh]));
     expect(mockNavigate).toHaveBeenCalledWith(routes.home.root);
   });
 
-  it('does not navigate when there is a refresh token', async () => {
+  it('does not navigate when there is a valid refresh token', async () => {
     // Given
-    const refreshToken = getUuid4();
-    setManyItems({ refreshToken });
+    server.use(
+      http.post(
+        tokenUrls.refresh,
+        () => new HttpResponse(null, { status: 201 })
+      )
+    );
 
     // When
     render(<Main />);
 
     // Then
+    await waitFor(() => expect(calledEndpoints).toEqual([tokenUrls.refresh]));
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 });
