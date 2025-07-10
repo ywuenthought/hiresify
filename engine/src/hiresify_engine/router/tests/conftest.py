@@ -10,7 +10,6 @@ from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from hiresify_engine.envvar import CACHE_TTL
 from hiresify_engine.jwt.service import JWTTokenService
 from hiresify_engine.router.util import add_secure_headers
 from hiresify_engine.testing import TestCacheService, test_repository
@@ -33,7 +32,7 @@ async def app() -> ty.AsyncGenerator[FastAPI, None]:
     app.state.jwt = JWTTokenService()
 
     # Initialize the test cache manager.
-    app.state.cache = TestCacheService(ttl=CACHE_TTL)
+    app.state.cache = TestCacheService()
 
     # Initialize the test database repository.
     async with test_repository() as repo:

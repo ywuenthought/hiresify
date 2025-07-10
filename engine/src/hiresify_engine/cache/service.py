@@ -10,17 +10,17 @@ from uuid import uuid4
 
 from redis.asyncio import Redis
 
+from hiresify_engine.envvar import CACHE_TTL
+
 from .model import Authorization, UserSession
 
 
 class CacheService:
     """A wrapper class exposing APIs for cache service."""
 
-    def __init__(self, db_url, *, ttl: int) -> None:
+    def __init__(self, db_url) -> None:
         """Initialize a new instance of CacheService."""
         self._store = Redis.from_url(db_url, decode_responses=True)
-        # The cache entry TTL.
-        self._ttl = ttl
 
     async def dispose(self) -> None:
         """Dispose of the underlying cache store."""
@@ -49,7 +49,7 @@ class CacheService:
         )
 
         serialized = auth.serialize()
-        await self._store.set(f"auth:{auth.code}", serialized, ex=self._ttl)
+        await self._store.set(f"auth:{auth.code}", serialized, ex=CACHE_TTL)
 
         return auth
 
@@ -71,7 +71,7 @@ class CacheService:
     async def set_user_session(self, user_uid: str) -> UserSession:
         """Set a user session for the given user UID."""
         issued_at = datetime.now(UTC)
-        expire_at = issued_at + timedelta(seconds=self._ttl)
+        expire_at = issued_at + timedelta(seconds=CACHE_TTL)
 
         session = UserSession(
             user_uid=user_uid,
@@ -80,7 +80,7 @@ class CacheService:
         )
 
         serialized = session.serialize()
-        await self._store.set(f"user:{session.id}", serialized, ex=self._ttl)
+        await self._store.set(f"user:{session.id}", serialized, ex=CACHE_TTL)
 
         return session
 
@@ -98,7 +98,7 @@ class CacheService:
     async def set_csrf_token(self, redirect_uri: str) -> str:
         """Set a CSRF token for the given redirect URI."""
         token = uuid4().hex
-        await self._store.set(f"ruri:{redirect_uri}", token, ex=self._ttl)
+        await self._store.set(f"ruri:{redirect_uri}", token, ex=CACHE_TTL)
         return token
 
     async def get_csrf_token(self, redirect_uri: str) -> str | None:
