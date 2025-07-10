@@ -15,11 +15,9 @@ vi.mock('react-router-dom', async () => {
 
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { v4 as uuid4 } from 'uuid';
 
 import { routes, tokenUrls } from '@/const';
 import server from '@/testing/server';
-import { setManyItems } from '@/util';
 
 import LogoutButton from '../LogoutButton';
 
@@ -38,7 +36,6 @@ describe('LogoutButton UI component', () => {
     server.resetHandlers();
 
     calledEndpoints.length = 0;
-    setManyItems({ refreshToken: uuid4() });
     mockNavigate.mockClear();
   });
 
@@ -64,8 +61,6 @@ describe('LogoutButton UI component', () => {
 
     // Then the endpoint was hit;
     expect(calledEndpoints).toEqual([tokenUrls.revoke]);
-    // The session storage was reset;
-    expect(sessionStorage).toHaveLength(0);
     // The navigation to home was made.
     expect(mockNavigate).toHaveBeenCalledWith(routes.home.root);
   });
