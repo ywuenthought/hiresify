@@ -4,26 +4,17 @@
 
 import { Box, Stack, Typography } from '@mui/material';
 import { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import BackButton from '@/component/BackButton';
 import { routes } from '@/const';
-import { getManyItems } from '@/util';
 
 export default function RegisterCallback() {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-
-  const curToken = params.get('register_token');
-  const [preToken] = getManyItems(['registerToken']);
 
   useEffect(() => {
-    if (!preToken || curToken !== preToken) {
-      navigate(routes.home.root);
-    } else {
-      sessionStorage.clear();
-    }
-  }, [curToken, preToken, navigate]);
+    navigate(routes.home.root);
+  }, [navigate]);
 
   return (
     <Stack

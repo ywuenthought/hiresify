@@ -40,21 +40,10 @@ export function buildLoginUserUrl(): URL {
   return loginUrl;
 }
 
-type buildRegisterUserUrlProps = {
-  registerToken: string;
-};
-
-export function buildRegisterUserUrl(props: buildRegisterUserUrlProps): URL {
-  const { registerToken } = props;
-
-  // Insert a one-time token as a query parameter.
-  // This token prohibits direct visits to the callback page.
-  const callbackUrl = new URL(REGISTER_CALLBACK_URL);
-  callbackUrl.searchParams.set('register_token', registerToken);
-
+export function buildRegisterUserUrl(): URL {
   // Generate the full registration URL.
   const registerUrl = new URL(userUrls.register);
-  registerUrl.searchParams.set('redirect_uri', callbackUrl.toString());
+  registerUrl.searchParams.set('redirect_uri', REGISTER_CALLBACK_URL);
 
   return registerUrl;
 }

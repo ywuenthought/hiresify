@@ -20,9 +20,7 @@ vi.mock('react-router-dom', async () => {
 
 import { render } from '@testing-library/react';
 
-import { routes } from '@/const';
 import server from '@/testing/server';
-import { getUuid4, setManyItems } from '@/util';
 
 import RegisterCallback from '../RegisterCallback';
 
@@ -61,26 +59,12 @@ describe('RegisterCallback view', () => {
     expect(root).toBeTruthy();
   });
 
-  it('navigates to home when there is no register token', async () => {
+  it('congratulates when the registration succeeded', () => {
     // When
-    render(<RegisterCallback />);
+    const { getByTestId } = render(<RegisterCallback />);
 
     // Then
-    expect(mockNavigate).toHaveBeenCalledWith(routes.home.root);
-  });
-
-  it('congratulates when the registration succeeded', async () => {
-    // Given
-    const registerToken = getUuid4();
-
-    setManyItems({ registerToken });
-    mockParams.set('register_token', registerToken);
-
-    // When
-    const { findByTestId } = render(<RegisterCallback />);
-
-    // Then
-    const success = await findByTestId('success');
+    const success = getByTestId('success');
     expect(success).toHaveTextContent('Congratulations!');
   });
 });
