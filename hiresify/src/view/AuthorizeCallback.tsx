@@ -8,13 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import BackButton from '@/component/BackButton';
 import { AUTHORIZE_CALLBACK_URL, routes, tokenUrls } from '@/const';
-import type { JWTTokenJson } from '@/type';
-import {
-  getDetail,
-  getManyItems,
-  postWithUrlEncodedFormData,
-  setManyItems,
-} from '@/util';
+import { getDetail, getManyItems, postWithUrlEncodedFormData } from '@/util';
 
 export default function AuthorizeCallback() {
   const navigate = useNavigate();
@@ -56,15 +50,6 @@ export default function AuthorizeCallback() {
         setError(await getDetail(resp));
         return;
       }
-
-      const { accessToken, refreshToken = '' }: JWTTokenJson =
-        await resp.json();
-
-      // Reset the session storage.
-      sessionStorage.clear();
-
-      // Save the access and refresh tokens.
-      setManyItems({ accessToken, refreshToken });
 
       // Navigate to main after a successful login.
       navigate(routes.main.root);

@@ -24,8 +24,7 @@ import { http, HttpResponse } from 'msw';
 import { routes, tokenUrls } from '@/const';
 import server from '@/testing/server';
 import { generateCodeVerifier } from '@/tool/pkce';
-import type { JWTTokenJson } from '@/type';
-import { getManyItems, getManyUuids, setManyItems } from '@/util';
+import { getManyUuids, setManyItems } from '@/util';
 
 import AuthorizeCallback from '../AuthorizeCallback';
 
@@ -107,13 +106,8 @@ describe('AuthorizeCallback view', () => {
 
   it('navigates to main after a successful authorization', async () => {
     // Given
-    const [accessToken, refreshToken] = getManyUuids(2);
-    const expectedTokenJson: JWTTokenJson = { accessToken, refreshToken };
-
     server.use(
-      http.post(tokenUrls.issue, () =>
-        HttpResponse.json(expectedTokenJson, { status: 201 })
-      )
+      http.post(tokenUrls.issue, () => new HttpResponse(null, { status: 201 }))
     );
 
     const [clientId, code, state] = getManyUuids(3);
@@ -127,14 +121,7 @@ describe('AuthorizeCallback view', () => {
     render(<AuthorizeCallback />);
 
     // Then
-    await waitFor(() => expect(sessionStorage).toHaveLength(2));
-    const [storedAccessToken, storedRefreshToken] = getManyItems([
-      'accessToken',
-      'refreshToken',
-    ]);
-    expect(storedAccessToken).toBe(accessToken);
-    expect(storedRefreshToken).toBe(refreshToken);
-    expect(calledEndpoints).toEqual([tokenUrls.issue]);
+    await waitFor(() => expect(calledEndpoints).toEqual([tokenUrls.issue]));
     expect(mockNavigate).toHaveBeenCalledWith(routes.main.root);
   });
 });
