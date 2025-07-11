@@ -5,14 +5,16 @@
 
 """Export the cache service layer for user authorization."""
 
+import typing as ty
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
 from redis.asyncio import Redis
 
 from hiresify_engine.envvar import CACHE_TTL
 
-from .model import Authorization, UserSession
+from .model import Authorization, CSRFSession, UserSession
+
+T = ty.TypeVar("T", CSRFSession, UserSession)
 
 
 class CacheService:
@@ -65,42 +67,50 @@ class CacheService:
         await self._store.delete(f"auth:{code}")
 
     ##############
+    # CSRF session
+    ##############
+
+    async def set_csrf_session(self, csrf_token: str) -> CSRFSession:
+        """Set a CSRF session for the given CSRF token."""
+        return await self._set_session(CSRFSession, csrf_token=csrf_token)
+
+    async def get_csrf_session(self, session_id: str) -> CSRFSession | None:
+        """Get the CSRF session with the given session ID."""
+        return await self._get_session(CSRFSession, session_id)
+
+    ##############
     # user session
     ##############
 
     async def set_user_session(self, user_uid: str) -> UserSession:
         """Set a user session for the given user UID."""
-        issued_at = datetime.now(UTC)
-        expire_at = issued_at + timedelta(seconds=CACHE_TTL)
-
-        session = UserSession(
-            user_uid=user_uid,
-            issued_at=issued_at,
-            expire_at=expire_at,
-        )
-
-        serialized = session.serialize()
-        await self._store.set(f"user:{session.id}", serialized, ex=CACHE_TTL)
-
-        return session
+        return await self._set_session(UserSession, user_uid=user_uid)
 
     async def get_user_session(self, session_id: str) -> UserSession | None:
         """Get the user session with the given session ID."""
-        if not (serialized := await self._store.get(f"user:{session_id}")):
+        return await self._get_session(UserSession, session_id)
+
+    # -- helper functions
+
+    async def _set_session(self, cls: type[T], **metadata: ty.Any) -> T:
+        """Set a session with the given cls (class) and metadata."""
+        issued_at = datetime.now(UTC)
+        expire_at = issued_at + timedelta(seconds=CACHE_TTL)
+
+        session = cls(
+            issued_at=issued_at,
+            expire_at=expire_at,
+            **metadata,
+        )
+
+        serialized = session.serialize()
+        await self._store.set(f"{cls.type}:{session.id}", serialized, ex=CACHE_TTL)
+
+        return session
+
+    async def _get_session(self, cls: type[T], session_id: str) -> T | None:
+        """Get the session specified by the given cls (class) and session ID."""
+        if not (serialized := await self._store.get(f"{cls.type}:{session_id}")):
             return None
 
-        return UserSession.from_serialized(serialized)
-
-    ############
-    # CSRF token
-    ############
-
-    async def set_csrf_token(self, redirect_uri: str) -> str:
-        """Set a CSRF token for the given redirect URI."""
-        token = uuid4().hex
-        await self._store.set(f"ruri:{redirect_uri}", token, ex=CACHE_TTL)
-        return token
-
-    async def get_csrf_token(self, redirect_uri: str) -> str | None:
-        """Get the CSRF token with the given redirect URI."""
-        return await self._store.get(f"ruri:{redirect_uri}")
+        return cls.from_serialized(serialized)

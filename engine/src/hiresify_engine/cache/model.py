@@ -46,12 +46,9 @@ class Authorization:
         return json.dumps(asdict(self))
 
 
-@dataclass(frozen=True)
-class UserSession:
-    """The data model for a user's session."""
-
-    #: The user UID linked to this session.
-    user_uid: str
+@dataclass(frozen=True, kw_only=True)
+class _BaseSession:
+    """The base data model for a session."""
 
     #: When the session was issued.
     issued_at: datetime
@@ -99,3 +96,25 @@ class UserSession:
             # Only send over HTTPS connections.
             secure=True,
         )
+
+
+@dataclass(frozen=True, kw_only=True)
+class UserSession(_BaseSession):
+    """The data model for a user session."""
+
+    #: The user UID linked to this session.
+    user_uid: str
+
+    #: The type of this session.
+    type: ty.ClassVar[str] = "user"
+
+
+@dataclass(frozen=True, kw_only=True)
+class CSRFSession(_BaseSession):
+    """The data model for a CSRF session."""
+
+    #: The CSRF token linked to this session.
+    csrf_token: str
+
+    #: The type of this session.
+    type: ty.ClassVar[str] = "csrf"

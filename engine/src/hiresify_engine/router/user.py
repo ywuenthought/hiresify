@@ -6,6 +6,7 @@
 """Define the backend user-related endpoints."""
 
 import typing as ty
+from uuid import uuid4
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -49,14 +50,18 @@ async def register_user_page(
     request: Request,
 ) -> HTMLResponse:
     """Render the login form with a CSRF token."""
-    token = await cache.set_csrf_token(redirect_uri)
+    csrf_token = uuid4().hex
+    session = await cache.set_csrf_session(csrf_token)
+
     response = _templates.TemplateResponse(
         request,
         REGISTER_HTML.name,
-        dict(csrf_token=token, redirect_uri=redirect_uri),
+        dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
     )
 
+    response.set_cookie(**session.to_cookie())
     secure(response)
+
     return response
 
 
@@ -69,11 +74,24 @@ async def register_user(
     *,
     cache: CacheServiceDep,
     repo: RepositoryDep,
+    request: Request,
 ) -> RedirectResponse:
     """Register a user using the given user name."""
-    if csrf_token != await cache.get_csrf_token(redirect_uri):
+    if (session_id := request.cookies.get("session_id")) is None:
         raise HTTPException(
-            detail=f"{csrf_token=} is invalid or timed out.",
+            detail="No session ID was found in the cookies.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    if (session := await cache.get_csrf_session(session_id)) is None:
+        raise HTTPException(
+            detail=f"{session_id=} is invalid or timed out.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if csrf_token != session.csrf_token:
+        raise HTTPException(
+            detail=f"{csrf_token=} is invalid.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -99,14 +117,18 @@ async def login_user_page(
     request: Request,
 ) -> HTMLResponse:
     """Render the login form with a CSRF token."""
-    token = await cache.set_csrf_token(redirect_uri)
+    csrf_token = uuid4().hex
+    session = await cache.set_csrf_session(csrf_token)
+
     response = _templates.TemplateResponse(
         request,
         LOGIN_HTML.name,
-        dict(csrf_token=token, redirect_uri=redirect_uri),
+        dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
     )
 
+    response.set_cookie(**session.to_cookie())
     secure(response)
+
     return response
 
 
@@ -119,11 +141,24 @@ async def login_user(
     *,
     cache: CacheServiceDep,
     repo: RepositoryDep,
+    request: Request,
 ) -> RedirectResponse:
     """Verify a user's credentials and set up a login session."""
-    if csrf_token != await cache.get_csrf_token(redirect_uri):
+    if (session_id := request.cookies.get("session_id")) is None:
         raise HTTPException(
-            detail=f"{csrf_token=} is invalid or timed out.",
+            detail="No session ID was found in the cookies.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    if (session := await cache.get_csrf_session(session_id)) is None:
+        raise HTTPException(
+            detail=f"{session_id=} is invalid or timed out.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if csrf_token != session.csrf_token:
+        raise HTTPException(
+            detail=f"{csrf_token=} is invalid.",
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 

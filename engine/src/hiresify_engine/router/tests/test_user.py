@@ -35,12 +35,35 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint, data=data, params=prms)
 
     # Then
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No session ID was found in the cookies."
+
+    # Given
+    session_id = "session_id"
+    client.cookies.set("session_id", session_id)
+
+    # When
+    response = await client.post(endpoint, data=data, params=prms)
+
+    # Then
     assert response.status_code == 400
-    assert response.json()["detail"] == f"{csrf_token=} is invalid or timed out."
+    assert response.json()["detail"] == f"{session_id=} is invalid or timed out."
 
     # Given
     cache: CacheService = app.state.cache
-    token = await cache.set_csrf_token(redirect_uri)
+
+    token = uuid4().hex
+    session = await cache.set_csrf_session(token)
+    client.cookies.set("session_id", session.id)
+
+    # When
+    response = await client.post(endpoint, data=data, params=prms)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"{csrf_token=} is invalid."
+
+    # Given
     data.update(csrf_token=token)
 
     # When
@@ -74,20 +97,33 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint, data=data, params=prms)
 
     # Then
-    assert response.status_code == 400
-    assert response.json()["detail"] == f"{csrf_token=} is invalid or timed out."
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No session ID was found in the cookies."
 
     # Given
-    cache: CacheService = app.state.cache
-    token = await cache.set_csrf_token(redirect_uri)
-    data.update(csrf_token=token)
+    session_id = "session_id"
+    client.cookies.set("session_id", "session_id")
 
     # When
     response = await client.post(endpoint, data=data, params=prms)
 
     # Then
-    assert response.status_code == 404
-    assert response.json()["detail"] == "The input username was not found."
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"{session_id=} is invalid or timed out."
+
+    # Given
+    cache: CacheService = app.state.cache
+
+    token = uuid4().hex
+    session = await cache.set_csrf_session(token)
+    client.cookies.set("session_id", session.id)
+
+    # When
+    response = await client.post(endpoint, data=data, params=prms)
+
+    # Then
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"{csrf_token=} is invalid."
 
     # Given
     hashed_password = hash_password(password)
@@ -97,6 +133,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
 
     # The input password is incorrect.
     data.update(password="456")
+    data.update(csrf_token=token)
 
     # When
     response = await client.post(endpoint, data=data, params=prms)
@@ -114,12 +151,12 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     # Then
     assert response.status_code == 302
 
-    session_id = response.cookies.get("session_id")
-    assert session_id is not None
+    sid = response.cookies.get("session_id")
+    assert sid is not None
 
-    session = await cache.get_user_session(session_id)
-    assert session is not None
-    assert session.user_uid == user.uid
+    user_session = await cache.get_user_session(sid)
+    assert user_session is not None
+    assert user_session.user_uid == user.uid
 
 
 async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:

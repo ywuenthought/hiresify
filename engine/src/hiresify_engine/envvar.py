@@ -7,10 +7,6 @@
 
 from .util import get_envvar
 
-#############
-# envvar keys
-#############
-
 # The access token TTL (sec).
 ACCESS_TTL = get_envvar("ACCESS_TTL", int, 900)
 
