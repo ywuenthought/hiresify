@@ -10,6 +10,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { routes } from './const';
 import AuthorizeCallback from './view/AuthorizeCallback';
 import Home from './view/Home';
+import LoginCallback from './view/LoginCallback';
 import Main from './view/Main';
 import RegisterCallback from './view/RegisterCallback';
 
@@ -27,6 +28,14 @@ export default function App() {
             `${routes.home.children.callback.children.authorize.root}`
           }
           element={<AuthorizeCallback />}
+        />
+        <Route
+          path={
+            `${routes.home.root}` +
+            `${routes.home.children.callback.root}` +
+            `${routes.home.children.callback.children.login.root}`
+          }
+          element={<LoginCallback />}
         />
         <Route
           path={

@@ -17,7 +17,7 @@ export default function RegisterLink(props: LinkBaseProps) {
       href={registerUrl.toString()}
       rel="noopener noreferrer"
       underline="hover"
-      target="_blank"
+      target="_parent"
       variant="subtitle1"
       {...props}
     >

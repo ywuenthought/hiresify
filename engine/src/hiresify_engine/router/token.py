@@ -21,7 +21,7 @@ async def issue_token(
     client_id: str = Form(..., max_length=32, min_length=32),
     code: str = Form(..., max_length=32, min_length=32),
     code_verifier: str = Form(..., max_length=128, min_length=43),
-    redirect_uri: str = Form(..., max_length=128),
+    redirect_uri: str = Form(..., max_length=2048),
     device: str | None = Form(None, max_length=128),
     ip: str | None = Form(None, max_length=45),
     platform: str | None = Form(None, max_length=32),

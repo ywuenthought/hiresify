@@ -40,10 +40,10 @@ export default function AuthorizeCallback() {
       }
 
       const resp = await postWithUrlEncodedFormData(tokenUrls.issue, {
-        clientId,
+        client_id: clientId,
         code: authCode,
-        codeVerifier: verifier,
-        redirectUri: AUTHORIZE_CALLBACK_URL,
+        code_verifier: verifier,
+        redirect_uri: AUTHORIZE_CALLBACK_URL,
       });
 
       if (!resp.ok) {

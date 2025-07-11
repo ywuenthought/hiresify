@@ -15,6 +15,9 @@ from hiresify_engine.envvar import ACCESS_TTL, REFRESH_TTL
 from .const import ACCESS_TOKEN, REFRESH_TOKEN, TOKEN_AUDIENCE, TOKEN_ISSUER, TokenName
 from .model import JWTToken
 
+# Compute the total seconds of the refresh TTL.
+_REFRESH_TTL = REFRESH_TTL * 86400
+
 
 class JWTTokenService:
     """A wrapper class for managing access tokens."""
@@ -30,7 +33,8 @@ class JWTTokenService:
 
     def generate_refresh_token(self, user_uid: str) -> JWTToken:
         """Generate a refresh token for the given user UID."""
-        return self._generate_token(user_uid, name=REFRESH_TOKEN, ttl=REFRESH_TTL)
+        # Get the total seconds of the refresh TTL.
+        return self._generate_token(user_uid, name=REFRESH_TOKEN, ttl=_REFRESH_TTL)
 
     def verify(self, token: str) -> str | None:
         """Verify the given token and return the user UID."""

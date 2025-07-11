@@ -71,7 +71,7 @@ class RefreshToken(Base):
     )
 
     #: A string representation of the refresh token.
-    token: Mapped[str] = mapped_column(String(256), nullable=False, unique=True)
+    token: Mapped[str] = mapped_column(String(512), nullable=False, unique=True)
 
     #: The date and time when the token was issued.
     issued_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
