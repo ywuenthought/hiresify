@@ -3,7 +3,6 @@
 // See the LICENSE file for more details.
 
 const mockNavigate = vi.fn();
-const mockParams = new URLSearchParams();
 
 vi.mock('react-router-dom', async () => {
   const actual =
@@ -14,43 +13,14 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    useSearchParams: () => [mockParams],
   };
 });
 
 import { render } from '@testing-library/react';
 
-import server from '@/testing/server';
-
 import RegisterCallback from '../RegisterCallback';
 
 describe('RegisterCallback view', () => {
-  const calledEndpoints: string[] = [];
-
-  beforeAll(() => {
-    server.listen();
-
-    server.events.on('request:start', ({ request }) =>
-      calledEndpoints.push(request.url)
-    );
-  });
-
-  beforeEach(() => {
-    sessionStorage.clear();
-    server.resetHandlers();
-
-    calledEndpoints.length = 0;
-    mockNavigate.mockClear();
-
-    for (const key of mockParams.keys()) {
-      mockParams.delete(key);
-    }
-  });
-
-  afterAll(() => {
-    server.close();
-  });
-
   it('renders something', () => {
     // When
     const { baseElement: root } = render(<RegisterCallback />);
