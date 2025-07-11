@@ -28,11 +28,15 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     password = "12345678"
     csrf_token = uuid4().hex
 
-    data = dict(username=username, password=password, csrf_token=csrf_token)
-    prms = dict(redirect_uri=redirect_uri)
+    data = dict(
+        username=username,
+        password=password,
+        csrf_token=csrf_token,
+        redirect_uri=redirect_uri,
+    )
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 404
@@ -43,7 +47,7 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     client.cookies.set("session_id", session_id)
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 400
@@ -57,7 +61,7 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     client.cookies.set("session_id", session.id)
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 400
@@ -67,14 +71,14 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     data.update(csrf_token=token)
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 303
     assert response.headers["location"] == redirect_uri
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 409
@@ -90,11 +94,15 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     password = "12345678"
     csrf_token = uuid4().hex
 
-    data = dict(username=username, password=password, csrf_token=csrf_token)
-    prms = dict(redirect_uri=redirect_uri)
+    data = dict(
+        username=username,
+        password=password,
+        csrf_token=csrf_token,
+        redirect_uri=redirect_uri,
+    )
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 404
@@ -105,7 +113,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     client.cookies.set("session_id", "session_id")
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 400
@@ -119,7 +127,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     client.cookies.set("session_id", session.id)
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 400
@@ -136,7 +144,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     data.update(csrf_token=token)
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 401
@@ -146,7 +154,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     data.update(password=password)
 
     # When
-    response = await client.post(endpoint, data=data, params=prms)
+    response = await client.post(endpoint, data=data)
 
     # Then
     assert response.status_code == 302
