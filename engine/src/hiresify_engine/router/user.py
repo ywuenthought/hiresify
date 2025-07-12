@@ -14,7 +14,8 @@ from fastapi.templating import Jinja2Templates
 
 from hiresify_engine.const import PASSWORD_REGEX, USERNAME_REGEX
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
-from hiresify_engine.dep import AddSecureHeadersDep, CacheServiceDep, RepositoryDep
+from hiresify_engine.dep import CacheServiceDep, RepositoryDep
+from hiresify_engine.router.util import add_secure_headers
 from hiresify_engine.templates import LOGIN_HTML, REGISTER_HTML
 from hiresify_engine.tool import hash_password, verify_password
 
@@ -45,7 +46,6 @@ async def check_username(
 async def register_user_page(
     redirect_uri: str = Query(..., max_length=2048),
     *,
-    secure: AddSecureHeadersDep,
     cache: CacheServiceDep,
     request: Request,
 ) -> HTMLResponse:
@@ -60,7 +60,7 @@ async def register_user_page(
     )
 
     response.set_cookie(**session.to_cookie())
-    secure(response)
+    add_secure_headers(response)
 
     return response
 
@@ -112,7 +112,6 @@ async def register_user(
 async def login_user_page(
     redirect_uri: str = Query(..., max_length=2048),
     *,
-    secure: AddSecureHeadersDep,
     cache: CacheServiceDep,
     request: Request,
 ) -> HTMLResponse:
@@ -127,7 +126,7 @@ async def login_user_page(
     )
 
     response.set_cookie(**session.to_cookie())
-    secure(response)
+    add_secure_headers(response)
 
     return response
 
@@ -193,7 +192,6 @@ async def authorize_client(
     response_type: ty.Literal["code"] = Query(..., max_length=4, min_length=4),
     state: str = Query(..., max_length=32, min_length=32),
     *,
-    secure: AddSecureHeadersDep,
     cache: CacheServiceDep,
     request: Request,
 ) -> RedirectResponse:
@@ -220,6 +218,6 @@ async def authorize_client(
 
     url = f"{redirect_uri}?code={auth.code}&state={state}"
     response = RedirectResponse(url=url)
-    secure(response)
+    add_secure_headers(response)
 
     return response

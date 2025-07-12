@@ -5,13 +5,9 @@
 
 """Provide utility functions used across the routers."""
 
-import typing as ty
-
 from fastapi import Response
 
-# Argument `deployment` will be auto-filled on the app level.
-AddSecureHeaders = ty.Callable[..., None]
-
+from hiresify_engine.envvar import PRODUCTION
 
 _CSP_ITEMS = {
     "connect-src": ["self"],
@@ -28,7 +24,7 @@ _STS_ITEMS = [
 ]
 
 
-def add_secure_headers(response: Response, *, production: bool = False) -> None:
+def add_secure_headers(response: Response) -> None:
     """Add secure headers to the given response."""
     response.headers.update(
         {
@@ -49,7 +45,7 @@ def add_secure_headers(response: Response, *, production: bool = False) -> None:
         },
     )
 
-    if production:
+    if PRODUCTION:
         # Force browsers to use HTTPS for all future requests.
         response.headers["Strict-Transport-Security"] = "; ".join(_STS_ITEMS)
 

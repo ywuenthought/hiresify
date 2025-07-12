@@ -10,14 +10,6 @@ from fastapi import FastAPI, Request
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.jwt.service import JWTTokenService
-from hiresify_engine.router.util import AddSecureHeaders
-
-
-def get_add_secure_headers(request: Request) -> AddSecureHeaders:
-    """Get the callable to add secure headers from app.state."""
-    app: FastAPI = request.app
-    func: AddSecureHeaders = app.state.add_secure_headers
-    return func
 
 
 def get_cache(request: Request) -> CacheService:

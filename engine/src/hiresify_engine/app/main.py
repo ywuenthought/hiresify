@@ -5,8 +5,6 @@
 
 """Provide the application entry point."""
 
-from functools import partial
-
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
@@ -14,7 +12,6 @@ from hiresify_engine import const
 from hiresify_engine.envvar import PRODUCTION
 from hiresify_engine.jwt.service import JWTTokenService
 from hiresify_engine.router import api_routers, routers
-from hiresify_engine.router.util import add_secure_headers
 
 from .lifespan import lifespan
 from .middleware import HTTPSOnlyMiddleware
@@ -27,9 +24,6 @@ app = FastAPI(lifespan=lifespan)
 
 if PRODUCTION:
     app.add_middleware(HTTPSOnlyMiddleware)
-
-# Initialize the callable to add secure headers to a response.
-app.state.add_secure_headers = partial(add_secure_headers, production=PRODUCTION)
 
 # Initialize the JWT token service.
 app.state.jwt = JWTTokenService()
