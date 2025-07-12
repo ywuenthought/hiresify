@@ -9,20 +9,12 @@ from fastapi import FastAPI, Request
 
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.jwt.service import JWTTokenService
 
 
 def get_cache(request: Request) -> CacheService:
     """Get the cache service from app.state."""
     app: FastAPI = request.app
     service: CacheService = app.state.cache
-    return service
-
-
-def get_jwt(request: Request) -> JWTTokenService:
-    """Get the JWT token service from app.state."""
-    app: FastAPI = request.app
-    service: JWTTokenService = app.state.jwt
     return service
 
 

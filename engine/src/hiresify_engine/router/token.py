@@ -10,8 +10,11 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Form, HTTPException, Request, Response, status
 
 from hiresify_engine.db.exception import EntityNotFoundError
-from hiresify_engine.dep import CacheServiceDep, JWTServiceDep, RepositoryDep
+from hiresify_engine.dep import CacheServiceDep, RepositoryDep
+from hiresify_engine.jwt.service import JWTTokenService
 from hiresify_engine.tool import confirm_verifier
+
+_jwt = JWTTokenService()
 
 router = APIRouter(prefix="/token")
 
@@ -27,7 +30,6 @@ async def issue_token(
     platform: str | None = Form(None, max_length=32),
     *,
     cache: CacheServiceDep,
-    jwt: JWTServiceDep,
     repo: RepositoryDep,
 ) -> Response:
     """Issue an access token to a user identified by the given metadata."""
@@ -59,7 +61,7 @@ async def issue_token(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    refresh_token = jwt.generate_refresh_token(auth.user_uid)
+    refresh_token = _jwt.generate_refresh_token(auth.user_uid)
 
     try:
         await repo.create_token(
@@ -80,7 +82,7 @@ async def issue_token(
     response = Response(status_code=status.HTTP_201_CREATED)
     response.set_cookie(**refresh_token.to_cookie())
 
-    access_token = jwt.generate_access_token(auth.user_uid)
+    access_token = _jwt.generate_access_token(auth.user_uid)
     response.set_cookie(**access_token.to_cookie())
 
     await cache.del_authorization(code)
@@ -88,12 +90,7 @@ async def issue_token(
 
 
 @router.post("/refresh")
-async def refresh_token(
-    *,
-    jwt: JWTServiceDep,
-    repo: RepositoryDep,
-    request: Request,
-) -> Response:
+async def refresh_token(*, repo: RepositoryDep, request: Request) -> Response:
     """Refresh a user's access token if the given refresh token is active."""
     if (token := request.cookies.get("refresh_token")) is None:
         raise HTTPException(
@@ -117,7 +114,7 @@ async def refresh_token(
 
     response = Response(status_code=status.HTTP_201_CREATED)
 
-    access_token = jwt.generate_access_token(refresh_token.user.uid)
+    access_token = _jwt.generate_access_token(refresh_token.user.uid)
     response.set_cookie(**access_token.to_cookie())
 
     return response

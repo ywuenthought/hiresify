@@ -10,7 +10,6 @@ from fastapi.staticfiles import StaticFiles
 
 from hiresify_engine import const
 from hiresify_engine.envvar import PRODUCTION
-from hiresify_engine.jwt.service import JWTTokenService
 from hiresify_engine.router import api_routers, routers
 
 from .lifespan import lifespan
@@ -24,9 +23,6 @@ app = FastAPI(lifespan=lifespan)
 
 if PRODUCTION:
     app.add_middleware(HTTPSOnlyMiddleware)
-
-# Initialize the JWT token service.
-app.state.jwt = JWTTokenService()
 
 for router in routers:
     app.include_router(router)
