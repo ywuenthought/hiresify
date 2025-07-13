@@ -11,6 +11,7 @@ from itertools import count
 
 from aioboto3 import Session
 from aiobotocore.config import AioConfig
+from botocore.exceptions import BotoCoreError, ClientError
 from types_aiobotocore_s3.client import S3Client
 
 from hiresify_engine.envvar import (
@@ -37,17 +38,15 @@ class BlobService:
             signature_version="s3v4",
         )
 
-    def _create_client(self) -> ty.AsyncContextManager[S3Client]:
-        """Create an instance of S3 client as an async context manager."""
-        return self._session.client(
-            "s3",
-            aws_access_key_id=BLOB_ACCESS_KEY,
-            aws_secret_access_key=BLOB_SECRET_KEY,
-            config=self._config,
-            endpoint_url=BLOB_STORE_URL,
-            region_name=BLOB_STORE_REGION,
-            use_ssl=PRODUCTION,
-        )
+    async def init_bucket(self) -> None:
+        """Initialize the bucket in the blob store."""
+        async with self._create_client() as client:
+            resp = await client.list_buckets()
+            if all(bucket["Name"] != BUCKET_NAME for bucket in resp["Buckets"]):
+                await client.create_bucket(Bucket=BUCKET_NAME)
+
+    async def dispose(self) -> None:
+        """Dispose of resources held by the blob service."""
 
     @asynccontextmanager
     async def upload_by_parts(self, blob_key: str) -> ty.AsyncGenerator[Uploader, None]:
@@ -58,11 +57,11 @@ class BlobService:
 
         async with self._create_client() as client:
             try:
-                ctx = await client.create_multipart_upload(
+                resp = await client.create_multipart_upload(
                     Bucket=BUCKET_NAME,
                     Key=blob_key,
                 )
-                upload_id = ctx["UploadId"]
+                upload_id = resp["UploadId"]
 
                 async def uploader(body: bytes) -> None:
                     part_index = next(index)
@@ -91,7 +90,7 @@ class BlobService:
                     UploadId=upload_id,
                 )
 
-            except Exception as upload_error:
+            except (BotoCoreError, ClientError) as upload_error:
                 msg = f"The upload of media file {blob_key} failed."
 
                 if upload_id:
@@ -101,10 +100,22 @@ class BlobService:
                             Key=blob_key,
                             UploadId=upload_id,
                         )
-                    except Exception as abort_error:
+                    except (BotoCoreError, ClientError) as abort_error:
                         raise ExceptionGroup(
                             f"{msg} Aborting it also failed.",
                             [upload_error, abort_error],
                         ) from None
 
                 raise RuntimeError(msg) from upload_error
+
+    def _create_client(self) -> ty.AsyncContextManager[S3Client]:
+        """Create an instance of S3 client as an async context manager."""
+        return self._session.client(
+            "s3",
+            aws_access_key_id=BLOB_ACCESS_KEY,
+            aws_secret_access_key=BLOB_SECRET_KEY,
+            config=self._config,
+            endpoint_url=BLOB_STORE_URL,
+            region_name=BLOB_STORE_REGION,
+            use_ssl=PRODUCTION,
+        )
