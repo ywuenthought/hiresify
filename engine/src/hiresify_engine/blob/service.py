@@ -7,11 +7,9 @@
 
 import typing as ty
 from contextlib import asynccontextmanager
-from itertools import count
 
 from aioboto3 import Session
 from aiobotocore.config import AioConfig
-from botocore.exceptions import BotoCoreError, ClientError
 from types_aiobotocore_s3.client import S3Client
 
 from hiresify_engine.envvar import (
@@ -23,7 +21,7 @@ from hiresify_engine.envvar import (
     PRODUCTION,
 )
 
-from .type import Uploader
+from .model import MultipartUploadPart
 
 
 class BlobService:
@@ -32,81 +30,127 @@ class BlobService:
     def __init__(self) -> None:
         """Initialize a new instance of BlobService."""
         self._session = Session()
-        self._config = AioConfig(
+        self._configs = AioConfig(
             retries=dict(max_attempts=3),
             s3=dict(addressing_style="auto" if PRODUCTION else "path"),
             signature_version="s3v4",
         )
 
+        self._client: S3Client | None = None
+
+    @asynccontextmanager
+    async def start_session(self) -> ty.AsyncGenerator["BlobService", None]:
+        """Start an AIOHTTP TCP session for managing files."""
+        async with self._create_client() as client:
+            self._client = client
+
+            try:
+                yield self
+            finally:
+                self._client = None
+
     async def init_bucket(self) -> None:
         """Initialize the bucket in the blob store."""
-        async with self._create_client() as client:
-            resp = await client.list_buckets()
-            if all(bucket["Name"] != BUCKET_NAME for bucket in resp["Buckets"]):
-                await client.create_bucket(Bucket=BUCKET_NAME)
+        if self._client is None:
+            raise RuntimeError("S3 client has not been initialized.")
+
+        resp = await self._client.list_buckets()
+        if all(bucket["Name"] != BUCKET_NAME for bucket in resp["Buckets"]):
+            await self._client.create_bucket(Bucket=BUCKET_NAME)
 
     async def dispose(self) -> None:
         """Dispose of resources held by the blob service."""
+        if self._client is not None:
+            raise RuntimeError("S3 client is still active.")
 
-    @asynccontextmanager
-    async def upload_by_parts(self, blob_key: str) -> ty.AsyncGenerator[Uploader, None]:
-        """Upload a media (image or video) file to the blob store by parts."""
-        parts: list[tuple[int, str]] = []
-        index = count(1)
-        upload_id = None
+    #################
+    # blob management
+    #################
 
-        async with self._create_client() as client:
-            try:
-                resp = await client.create_multipart_upload(
-                    Bucket=BUCKET_NAME,
-                    Key=blob_key,
-                )
-                upload_id = resp["UploadId"]
+    async def start_upload(self, blob_key: str) -> str:
+        """Start a session for a multipart upload of a file."""
+        if self._client is None:
+            raise RuntimeError("S3 client has not been initialized.")
 
-                async def uploader(body: bytes) -> None:
-                    part_index = next(index)
-                    resp = await client.upload_part(
-                        Body=body,
-                        Bucket=BUCKET_NAME,
-                        Key=blob_key,
-                        PartNumber=part_index,
-                        UploadId=upload_id,
-                    )
-                    parts.append((part_index, resp["ETag"]))
+        resp = await self._client.create_multipart_upload(
+            Bucket=BUCKET_NAME,
+            Key=blob_key,
+        )
 
-                yield uploader
+        return resp["UploadId"]
 
-                parts.sort(key=lambda part: part[0])
-                await client.complete_multipart_upload(
-                    Bucket=BUCKET_NAME,
-                    Key=blob_key,
-                    MultipartUpload=dict(
-                        Parts=[
-                            dict(ETag=etag, PartNumber=part_index)
-                            for part_index, etag
-                            in parts
-                        ],
-                    ),
-                    UploadId=upload_id,
-                )
+    async def upload_chunk(
+        self,
+        blob_key: str,
+        data_chunk: bytes,
+        part_index: int,
+        upload_id: str,
+    ) -> None:
+        """Upload the given part of a media file."""
+        if self._client is None:
+            raise RuntimeError("S3 client has not been initialized.")
 
-            except (BotoCoreError, ClientError) as upload_error:
-                msg = f"The upload of media file {blob_key} failed."
+        await self._client.upload_part(
+            Body=data_chunk,
+            Bucket=BUCKET_NAME,
+            Key=blob_key,
+            PartNumber=part_index,
+            UploadId=upload_id,
+        )
 
-                if upload_id:
-                    try:
-                        await client.abort_multipart_upload(
-                            Bucket=BUCKET_NAME,
-                            Key=blob_key,
-                            UploadId=upload_id,
-                        )
-                    except (BotoCoreError, ClientError) as abort_error:
-                        raise ExceptionGroup(
-                            f"{msg} Aborting it also failed.",
-                            [upload_error, abort_error],
-                        ) from None
+    async def finish_upload(self, blob_key: str, upload_id: str) -> None:
+        """Finish the session for a multipart upload of a file."""
+        if self._client is None:
+            raise RuntimeError("S3 client has not been initialized.")
 
-                raise RuntimeError(msg) from upload_error
+        resp = await self._client.list_parts(
+            Bucket=BUCKET_NAME,
+            Key=blob_key,
+            UploadId=upload_id,
+        )
+
+        await self._client.complete_multipart_upload(
+            Bucket=BUCKET_NAME,
+            Key=blob_key,
+            MultipartUpload=dict(
+                Parts=[
+                    dict(ETag=part["ETag"], PartNumber=part["PartNumber"])
+                    for part
+                    in resp["Parts"]
+                ],
+            ),
+            UploadId=upload_id,
+        )
+
+    async def abort_upload(self, blob_key: str, upload_id: str) -> None:
+        """Abort the session for a multipart upload of a file."""
+        if self._client is None:
+            raise RuntimeError("S3 client has not been initialized.")
+
+        await self._client.abort_multipart_upload(
+            Bucket=BUCKET_NAME,
+            Key=blob_key,
+            UploadId=upload_id,
+        )
+
+    async def report_parts(
+        self, blob_key: str, upload_id: str,
+    ) -> list[MultipartUploadPart]:
+        """Report the parts of a file that were already uploaded."""
+        if self._client is None:
+            raise RuntimeError("S3 client has not been initialized.")
+
+        resp = await self._client.list_parts(
+            Bucket=BUCKET_NAME,
+            Key=blob_key,
+            UploadId=upload_id,
+        )
+
+        return [
+            MultipartUploadPart(etag=part["ETag"], index=part["PartNumber"])
+            for part
+            in resp["Parts"]
+        ]
 
     def _create_client(self) -> ty.AsyncContextManager[S3Client]:
         """Create an instance of S3 client as an async context manager."""
@@ -114,7 +158,7 @@ class BlobService:
             "s3",
             aws_access_key_id=BLOB_ACCESS_KEY,
             aws_secret_access_key=BLOB_SECRET_KEY,
-            config=self._config,
+            config=self._configs,
             endpoint_url=BLOB_STORE_URL,
             region_name=BLOB_STORE_REGION,
             use_ssl=PRODUCTION,
