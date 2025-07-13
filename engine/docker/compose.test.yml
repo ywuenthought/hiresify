@@ -1,0 +1,17 @@
+services:
+  minio:
+    command: server /iodata --console-address :9001
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: user
+      MINIO_ROOT_PASSWORD: 12345678
+    image: minio/minio
+    ports:
+      - 9000:9000
+      - 9001:9001
+    restart: always
+    volumes:
+      - iodata:/iodata
+
+volumes:
+  iodata:
