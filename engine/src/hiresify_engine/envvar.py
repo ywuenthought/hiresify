@@ -14,13 +14,13 @@ ACCESS_TTL = get_envvar("ACCESS_TTL", int, 900)
 BLOB_ACCESS_KEY = get_envvar("BLOB_ACCESS_KEY", str, "")
 
 # The secret key of the blob store.
-BLOB_SECRET_KEY = get_envvar("BLOB_ACCESS_KEY", str, "")
+BLOB_SECRET_KEY = get_envvar("BLOB_SECRET_KEY", str, "")
 
 # The region name of the blob store.
-BLOB_STORE_REGION = get_envvar("BLOB_ACCESS_KEY", str, "")
+BLOB_STORE_REGION = get_envvar("BLOB_STORE_REGION", str, "")
 
 # The endpoint URL of the blob store.
-BLOB_STORE_URL = get_envvar("BLOB_ACCESS_KEY", str, "")
+BLOB_STORE_URL = get_envvar("BLOB_STORE_URL", str, "")
 
 # The name of the bucket for blob storage.
 BUCKET_NAME = get_envvar("BUCKET_NAME", str, "hiresify")

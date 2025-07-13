@@ -103,21 +103,12 @@ class BlobService:
         if self._client is None:
             raise RuntimeError("S3 client has not been initialized.")
 
-        resp = await self._client.list_parts(
-            Bucket=BUCKET_NAME,
-            Key=blob_key,
-            UploadId=upload_id,
-        )
-
+        parts = await self.report_parts(blob_key, upload_id)
         await self._client.complete_multipart_upload(
             Bucket=BUCKET_NAME,
             Key=blob_key,
             MultipartUpload=dict(
-                Parts=[
-                    dict(ETag=part["ETag"], PartNumber=part["PartNumber"])
-                    for part
-                    in resp["Parts"]
-                ],
+                Parts=[dict(ETag=part.etag, PartNumber=part.index) for part in parts],
             ),
             UploadId=upload_id,
         )
@@ -146,11 +137,14 @@ class BlobService:
             UploadId=upload_id,
         )
 
-        return [
+        parts = [
             MultipartUploadPart(etag=part["ETag"], index=part["PartNumber"])
             for part
             in resp["Parts"]
         ]
+
+        parts.sort(key=lambda part: part.index)
+        return parts
 
     def _create_client(self) -> ty.AsyncContextManager[S3Client]:
         """Create an instance of S3 client as an async context manager."""
