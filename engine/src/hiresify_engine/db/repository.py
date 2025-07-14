@@ -16,7 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
 from .exception import EntityConflictError, EntityNotFoundError
-from .model import Base, RefreshToken, User
+from .model import Base, Image, RefreshToken, User, Video
+from .type import ImageFormat, VideoFormat
 from .util import abbreviate_token
 
 
@@ -228,6 +229,316 @@ class Repository:
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
         where_clause = RefreshToken.expire_at < cutoff
         stmt = delete(RefreshToken).where(where_clause)
+
+        async with self.session() as session:
+            async with session.begin():
+                result = await session.execute(stmt)
+
+                return result.rowcount
+
+    #############
+    # image files
+    #############
+
+    async def find_image(self, image_uid: str, *, eager: bool = False) -> Image:
+        """Find the image with the given image UID."""
+        options = [selectinload(Image.user)] if eager else []
+        where_clause = Image.uid == image_uid
+        stmt = select(Image).options(*options).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+
+            if not (image := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Image, uid=image_uid)
+
+            return image
+
+    async def find_images(self, user_uid: str) -> list[Image]:
+        """Find all the images for the given user UID."""
+        option = selectinload(User.images)
+        where_clause = User.uid == user_uid
+        stmt = select(User).options(option).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
+            return user.images
+
+    async def create_image(
+        self,
+        user_uid: str,
+        *,
+        file_name: str,
+        blob_key: str,
+        format: ImageFormat,
+        created_at: datetime,
+        valid_thru: datetime,
+    ) -> Image:
+        """Create an image for the given user UID."""
+        where_clause = User.uid == user_uid
+        stmt = select(User).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
+            image = Image(
+                name=file_name,
+                key=blob_key,
+                format=format,
+                created_at=created_at,
+                valid_thru=valid_thru,
+                user_id=user.id,
+            )
+
+            async with session.begin():
+                session.add(image)
+
+            await session.refresh(image)
+            return image
+
+    async def bump_image_next(self, image_uid: str) -> int:
+        """Bump the index of next part of the image with the given image UID."""
+        where_clause = Image.uid == image_uid
+        stmt = select(Image).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (image := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Image, uid=image_uid)
+
+            async with session.begin():
+                index = image.next_index + 1
+                image.next_index = index
+                return index
+
+    async def finish_image(self, image_uid: str) -> None:
+        """Finish the upload of the image with the given image UID."""
+        where_clause = Image.uid == image_uid
+        stmt = select(Image).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (image := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Image, uid=image_uid)
+
+            async with session.begin():
+                image.finished = True
+
+    async def delete_image(self, image_uid: str) -> None:
+        """Delete an image given the image UID."""
+        where_clause = Image.uid == image_uid
+        stmt = select(Image).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (image := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Image, uid=image_uid)
+
+            async with session.begin():
+                image.deleted = True
+
+    async def delete_images(self, user_uid: str) -> int:
+        """Delete all the images for the given user UID."""
+        options = [
+            selectinload(User.images),
+            with_loader_criteria(Image, Image.deleted.is_(False)),
+        ]
+
+        where_clause = User.uid == user_uid
+        stmt = select(User).options(*options).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
+            async with session.begin():
+                if not (images := user.images):
+                    return 0
+
+                for image in images:
+                    image.deleted = True
+
+                return len(images)
+
+    async def purge_images(
+        self, retention_days: int, now: datetime | None = None,
+    ) -> int:
+        """Purge all the images expired for longer than `retention_days`."""
+        cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
+        where_clause = Image.valid_thru < cutoff
+        stmt = delete(Image).where(where_clause)
+
+        async with self.session() as session:
+            async with session.begin():
+                result = await session.execute(stmt)
+
+                return result.rowcount
+
+    #############
+    # video files
+    #############
+
+    async def find_video(self, video_uid: str, *, eager: bool = False) -> Video:
+        """Find the video with the given video UID."""
+        options = [selectinload(Video.user)] if eager else []
+        where_clause = Video.uid == video_uid
+        stmt = select(Video).options(*options).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+
+            if not (video := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Video, uid=video_uid)
+
+            return video
+
+    async def find_videos(self, user_uid: str) -> list[Video]:
+        """Find all the videos for the given user UID."""
+        option = selectinload(User.videos)
+        where_clause = User.uid == user_uid
+        stmt = select(User).options(option).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
+            return user.videos
+
+    async def create_video(
+        self,
+        user_uid: str,
+        *,
+        file_name: str,
+        blob_key: str,
+        format: VideoFormat,
+        created_at: datetime,
+        valid_thru: datetime,
+    ) -> Video:
+        """Create an video for the given user UID."""
+        where_clause = User.uid == user_uid
+        stmt = select(User).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
+            video = Video(
+                name=file_name,
+                key=blob_key,
+                format=format,
+                created_at=created_at,
+                valid_thru=valid_thru,
+                user_id=user.id,
+            )
+
+            async with session.begin():
+                session.add(video)
+
+            await session.refresh(video)
+            return video
+
+    async def bump_video_next(self, video_uid: str) -> int:
+        """Bump the index of next part of the video with the given video UID."""
+        where_clause = Video.uid == video_uid
+        stmt = select(Video).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (video := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Video, uid=video_uid)
+
+            async with session.begin():
+                index = video.next_index + 1
+                video.next_index = index
+                return index
+
+    async def finish_video(self, video_uid: str) -> None:
+        """Finish the upload of the video with the given video UID."""
+        where_clause = Video.uid == video_uid
+        stmt = select(Video).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (video := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Video, uid=video_uid)
+
+            async with session.begin():
+                video.finished = True
+
+    async def delete_video(self, video_uid: str) -> None:
+        """Delete an video given the video UID."""
+        where_clause = Video.uid == video_uid
+        stmt = select(Video).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (video := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Video, uid=video_uid)
+
+            async with session.begin():
+                video.deleted = True
+
+    async def delete_videos(self, user_uid: str) -> int:
+        """Delete all the videos for the given user UID."""
+        options = [
+            selectinload(User.videos),
+            with_loader_criteria(Video, Video.deleted.is_(False)),
+        ]
+
+        where_clause = User.uid == user_uid
+        stmt = select(User).options(*options).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
+            async with session.begin():
+                if not (videos := user.videos):
+                    return 0
+
+                for video in videos:
+                    video.deleted = True
+
+                return len(videos)
+
+    async def purge_videos(
+        self, retention_days: int, now: datetime | None = None,
+    ) -> int:
+        """Purge all the videos expired for longer than `retention_days`."""
+        cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
+        where_clause = Video.valid_thru < cutoff
+        stmt = delete(Video).where(where_clause)
 
         async with self.session() as session:
             async with session.begin():

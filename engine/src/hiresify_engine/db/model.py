@@ -11,6 +11,8 @@ from uuid import uuid4
 from sqlalchemy import DateTime, ForeignKey, String, TypeDecorator
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from .type import ImageFormat, VideoFormat
+
 
 class AwareDateTime(TypeDecorator):
     """A SQLAlchemy type that ensures datetimes are always UTC-aware.
@@ -57,6 +59,16 @@ class User(Base):
         back_populates="user", cascade="all, delete-orphan",
     )
 
+    # A user can upload many images.
+    images: Mapped[list["Image"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan",
+    )
+
+    # A user can upload many videos.
+    videos: Mapped[list["Video"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan",
+    )
+
 
 class RefreshToken(Base):
     """The database model for a user's refresh token."""
@@ -96,3 +108,62 @@ class RefreshToken(Base):
 
     # Each refresh token belongs to one user.
     user: Mapped["User"] = relationship(back_populates="refresh_tokens")
+
+
+class _BlobMixin:
+    """The mixin for a blob database model."""
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    #: The UID of a blob, used externally.
+    uid: Mapped[str] = mapped_column(
+        String(32), default=lambda: uuid4().hex, unique=True,
+    )
+
+    #: Name of this blob file.
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+
+    #: The blob key to identify this blob in the blob store.
+    key: Mapped[str] = mapped_column(String(256), nullable=False)
+
+    #: The date and time when the blob was created.
+    created_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
+
+    #: The date and time when the blob is valid through.
+    valid_thru: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
+
+    #: The index of the next part of this blob to be uploaded.
+    next_index: Mapped[int] = mapped_column(default=1, nullable=False)
+
+    #: A boolean flag for whether the upload of this blob has been finished.
+    finished: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+    #: A user-facing boolean flag for whether the blob has been deleted.
+    deleted: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+    #: The user ID that this blob is associated with.
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+
+
+class Image(Base, _BlobMixin):
+    """The database model for an image uploaded by a user."""
+
+    __tablename__ = "image"
+
+    #: The format of this image file.
+    format: Mapped[ImageFormat] = mapped_column(String(8), nullable=False)
+
+    # Each image belongs to one user.
+    user: Mapped["User"] = relationship(back_populates="images")
+
+
+class Video(Base, _BlobMixin):
+    """The database model for a video uploaded by a user."""
+
+    __tablename__ = "video"
+
+    #: The format of this video file.
+    format: Mapped[VideoFormat] = mapped_column(String(8), nullable=False)
+
+    # Each video belongs to one user.
+    user: Mapped["User"] = relationship(back_populates="videos")
