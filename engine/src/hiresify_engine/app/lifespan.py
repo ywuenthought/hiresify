@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from hiresify_engine.blob.service import BlobService
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.envvar import DATABASE_CONFIG, DATABASE_URL, REDIS_URL
@@ -25,16 +26,23 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     with open(DATABASE_CONFIG) as fp:
         configs = json.load(fp)
 
+    # Initialize the blob store manager.
+    app.state.blob = blob = BlobService()
+
     # Initialize the cache store manager.
     app.state.cache = cache = CacheService(REDIS_URL)
 
     # Initialize the database repository.
     app.state.repo = repo = Repository(DATABASE_URL, **configs)
 
+    # Initialize the blob bucket.
+    await blob.init_bucket()
+
     # Initialize the database schema.
     await repo.init_schema()
 
     yield
 
+    await blob.dispose()
     await cache.dispose()
     await repo.dispose()
