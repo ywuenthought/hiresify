@@ -11,7 +11,7 @@ from uuid import uuid4
 from sqlalchemy import DateTime, ForeignKey, String, TypeDecorator
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from .type import ImageFormat, VideoFormat
+from hiresify_engine.type import ImageFormat, VideoFormat
 
 
 class AwareDateTime(TypeDecorator):

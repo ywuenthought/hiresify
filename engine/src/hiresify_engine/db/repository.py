@@ -15,9 +15,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
+from hiresify_engine.type import ImageFormat, VideoFormat
+
 from .exception import EntityConflictError, EntityNotFoundError
 from .model import Base, Image, RefreshToken, User, Video
-from .type import ImageFormat, VideoFormat
 from .util import abbreviate_token
 
 

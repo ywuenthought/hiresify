@@ -22,6 +22,9 @@ BLOB_STORE_REGION = get_envvar("BLOB_STORE_REGION", str, "")
 # The endpoint URL of the blob store.
 BLOB_STORE_URL = get_envvar("BLOB_STORE_URL", str, "")
 
+# The TTL for a blob file persisted in the blob store (day).
+BLOB_TTL = get_envvar("BLOB_TTL", int, 14)
+
 # The name of the bucket for blob storage.
 BUCKET_NAME = get_envvar("BUCKET_NAME", str, "hiresify")
 

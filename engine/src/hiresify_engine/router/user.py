@@ -10,7 +10,6 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 
 from hiresify_engine.const import PASSWORD_REGEX, USERNAME_REGEX
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
@@ -19,7 +18,7 @@ from hiresify_engine.router.util import add_secure_headers
 from hiresify_engine.templates import LOGIN_HTML, REGISTER_HTML
 from hiresify_engine.tool import hash_password, verify_password
 
-_templates = Jinja2Templates(directory=LOGIN_HTML.parent)
+from .const import templates
 
 router = APIRouter(prefix="/user")
 
@@ -53,7 +52,7 @@ async def register_user_page(
     csrf_token = uuid4().hex
     session = await cache.set_csrf_session(csrf_token)
 
-    response = _templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         REGISTER_HTML.name,
         dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
@@ -119,7 +118,7 @@ async def login_user_page(
     csrf_token = uuid4().hex
     session = await cache.set_csrf_session(csrf_token)
 
-    response = _templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         LOGIN_HTML.name,
         dict(csrf_token=csrf_token, redirect_uri=redirect_uri),

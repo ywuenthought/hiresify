@@ -3,7 +3,7 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-"""Define the types ued by the database repository."""
+"""Define and export the types ued across layers."""
 
 import typing as ty
 

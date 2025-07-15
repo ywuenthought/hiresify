@@ -11,10 +11,9 @@ from fastapi import APIRouter, Form, HTTPException, Request, Response, status
 
 from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import CacheServiceDep, RepositoryDep
-from hiresify_engine.jwt.service import JWTTokenService
 from hiresify_engine.tool import confirm_verifier
 
-_jwt = JWTTokenService()
+from .const import jwt
 
 router = APIRouter(prefix="/token")
 
@@ -61,7 +60,7 @@ async def issue_token(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    refresh_token = _jwt.generate_refresh_token(auth.user_uid)
+    refresh_token = jwt.generate_refresh_token(auth.user_uid)
 
     try:
         await repo.create_token(
@@ -82,7 +81,7 @@ async def issue_token(
     response = Response(status_code=status.HTTP_201_CREATED)
     response.set_cookie(**refresh_token.to_cookie())
 
-    access_token = _jwt.generate_access_token(auth.user_uid)
+    access_token = jwt.generate_access_token(auth.user_uid)
     response.set_cookie(**access_token.to_cookie())
 
     await cache.del_authorization(code)
@@ -114,7 +113,7 @@ async def refresh_token(*, repo: RepositoryDep, request: Request) -> Response:
 
     response = Response(status_code=status.HTTP_201_CREATED)
 
-    access_token = _jwt.generate_access_token(refresh_token.user.uid)
+    access_token = jwt.generate_access_token(refresh_token.user.uid)
     response.set_cookie(**access_token.to_cookie())
 
     return response
