@@ -21,7 +21,7 @@ from hiresify_engine.envvar import (
     PRODUCTION,
 )
 
-from .model import MultipartUploadPart
+from .model import UploadPart
 
 
 class BlobService:
@@ -103,12 +103,16 @@ class BlobService:
         if self._client is None:
             raise RuntimeError("S3 client has not been initialized.")
 
-        parts = await self.report_parts(blob_key, upload_id)
+        upload_parts = await self.report_parts(blob_key, upload_id)
         await self._client.complete_multipart_upload(
             Bucket=BUCKET_NAME,
             Key=blob_key,
             MultipartUpload=dict(
-                Parts=[dict(ETag=part.etag, PartNumber=part.index) for part in parts],
+                Parts=[
+                    dict(ETag=upload_part.etag, PartNumber=upload_part.index)
+                    for upload_part
+                    in upload_parts
+                ],
             ),
             UploadId=upload_id,
         )
@@ -124,9 +128,7 @@ class BlobService:
             UploadId=upload_id,
         )
 
-    async def report_parts(
-        self, blob_key: str, upload_id: str,
-    ) -> list[MultipartUploadPart]:
+    async def report_parts(self, blob_key: str, upload_id: str) -> list[UploadPart]:
         """Report the parts of a file that were already uploaded."""
         if self._client is None:
             raise RuntimeError("S3 client has not been initialized.")
@@ -137,14 +139,13 @@ class BlobService:
             UploadId=upload_id,
         )
 
-        parts = [
-            MultipartUploadPart(etag=part["ETag"], index=part["PartNumber"])
-            for part
-            in resp["Parts"]
-        ]
+        parts = resp["Parts"]
+        etags = [""] * len(parts)
 
-        parts.sort(key=lambda part: part.index)
-        return parts
+        for part in parts:
+            etags[part["PartNumber"] - 1] = part["ETag"]
+
+        return [UploadPart(etag=t, index=i + 1) for i, t in enumerate(etags)]
 
     def _create_client(self) -> ty.AsyncContextManager[S3Client]:
         """Create an instance of S3 client as an async context manager."""

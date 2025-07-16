@@ -8,12 +8,12 @@ from tempfile import NamedTemporaryFile
 
 import pytest
 
-from ..service import BlobService
+from hiresify_engine.testing import TestBlobService
 
 
 @pytest.fixture(scope="session")
-async def service() -> ty.AsyncGenerator[BlobService, None]:
-    service = BlobService()
+async def service() -> ty.AsyncGenerator[TestBlobService, None]:
+    service = TestBlobService()
 
     async with service.start_session() as session:
         await session.init_bucket()

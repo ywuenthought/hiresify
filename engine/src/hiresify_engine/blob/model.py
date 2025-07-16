@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class MultipartUploadPart:
+class UploadPart:
     """Wrap the metadata of a file's part in a multipart upload."""
 
     #: The E-Tag of this file part.
