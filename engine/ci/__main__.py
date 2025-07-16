@@ -8,7 +8,7 @@ import subprocess
 import click
 from click.exceptions import ClickException
 
-from .const import DEV_DOCKER_COMPOSE, DOCKER_FILE, PROJECT_ROOT, TEST_DOCKER_COMPOSE
+from .const import DEV_DOCKER_COMPOSE, DOCKER_FILE, PROJECT_ROOT
 
 
 @click.group()
@@ -45,14 +45,14 @@ def build(tag: str) -> None:
 
 @docker.group()
 @click.pass_context
-def dev_stack(ctx: click.Context) -> None:
+def stack(ctx: click.Context) -> None:
     """Manage development container stack-related CI tasks."""
     ctx.ensure_object(dict)
     ctx.obj["compose_file"] = DEV_DOCKER_COMPOSE
     ctx.obj["project_name"] = "hiresify_dev"
 
 
-@dev_stack.command("up")
+@stack.command("up")
 @click.option(
     "-t",
     "--tag",
@@ -60,7 +60,7 @@ def dev_stack(ctx: click.Context) -> None:
     envvar="TAG",
 )
 @click.pass_context
-def dev_stack_up(ctx: click.Context, tag: str) -> None:
+def stack_up(ctx: click.Context, tag: str) -> None:
     """Launch the development container stack."""
     cmd = [
         "docker",
@@ -76,7 +76,7 @@ def dev_stack_up(ctx: click.Context, tag: str) -> None:
         raise ClickException("Failed to launch the container stack.")
 
 
-@dev_stack.command("down")
+@stack.command("down")
 @click.option(
     "-t",
     "--tag",
@@ -84,7 +84,7 @@ def dev_stack_up(ctx: click.Context, tag: str) -> None:
     envvar="TAG",
 )
 @click.pass_context
-def dev_stack_down(ctx: click.Context, tag: str) -> None:
+def stack_down(ctx: click.Context, tag: str) -> None:
     """Stop the development container stack."""
     cmd = [
         "docker",
@@ -98,52 +98,6 @@ def dev_stack_down(ctx: click.Context, tag: str) -> None:
         "--volumes",
     ]
     if subprocess.run(cmd, check=False, env=dict(TAG=tag)).returncode:
-        raise ClickException("Failed to stop the container stack.")
-
-
-@docker.group()
-@click.pass_context
-def test_stack(ctx: click.Context) -> None:
-    """Manage testing container stack-related CI tasks."""
-    ctx.ensure_object(dict)
-    ctx.obj["compose_file"] = TEST_DOCKER_COMPOSE
-    ctx.obj["project_name"] = "hiresify_test"
-
-
-@test_stack.command("up")
-@click.pass_context
-def test_stack_up(ctx: click.Context) -> None:
-    """Launch the testing container stack."""
-    cmd = [
-        "docker",
-        "compose",
-        "-f",
-        str(ctx.obj["compose_file"]),
-        "-p",
-        ctx.obj["project_name"],
-        "up",
-        "-d",
-    ]
-    if subprocess.run(cmd, check=False).returncode:
-        raise ClickException("Failed to launch the container stack.")
-
-
-@test_stack.command("down")
-@click.pass_context
-def test_stack_down(ctx: click.Context) -> None:
-    """Stop the testing container stack."""
-    cmd = [
-        "docker",
-        "compose",
-        "-f",
-        str(ctx.obj["compose_file"]),
-        "-p",
-        ctx.obj["project_name"],
-        "down",
-        "--remove-orphans",
-        "--volumes",
-    ]
-    if subprocess.run(cmd, check=False).returncode:
         raise ClickException("Failed to stop the container stack.")
 
 

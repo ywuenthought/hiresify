@@ -1,4 +1,25 @@
 services:
+  minio:
+    command: server /data --console-address :9001
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: user
+      MINIO_ROOT_PASSWORD: 12345678
+      MINIO_REGION_NAME: us-east-1
+    healthcheck:
+      interval: 5s
+      retries: 5
+      start_period: 5s
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      timeout: 3s
+    image: minio/minio
+    ports:
+      - 9000:9000
+      - 9001:9001
+    restart: always
+    volumes:
+      - iodata:/data
+
   postgres:
     container_name: postgres
     environment:
@@ -8,7 +29,7 @@ services:
     healthcheck:
       interval: 5s
       retries: 5
-      start_period: 10s
+      start_period: 5s
       test: ["CMD", "psql", "-U", "user", "-d", "hiresify", "-c", "SELECT 1"]
       timeout: 3s
     image: postgres:latest
@@ -41,11 +62,17 @@ services:
       --workers 2
     container_name: fastapi
     depends_on:
+      minio:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
+      BLOB_STORE_URL: minio://minio:9000
+      BLOB_ACCESS_KEY: user
+      BLOB_SECRET_KEY: 12345678
+      BLOB_STORE_REGION: us-east-1
       DATABASE_URL: postgresql+asyncpg://user:1234@postgres:5432/hiresify
       REDIS_URL: redis://redis:6379
     image: hiresify:${TAG}
@@ -53,4 +80,5 @@ services:
       - 8000:8000
 
 volumes:
+  iodata:
   pgdata:
