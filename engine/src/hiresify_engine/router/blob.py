@@ -7,12 +7,15 @@
 
 import logging
 import typing as ty
+from datetime import UTC, datetime, timedelta
 from itertools import count
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from starlette.requests import ClientDisconnect
 
-from hiresify_engine.dep import BlobServiceDep
+from hiresify_engine.dep import BlobServiceDep, RepositoryDep
+from hiresify_engine.envvar import BLOB_TTL
+from hiresify_engine.model import Blob
 
 from .const import jwt
 from .util import generate_blob_key, verify_access_token
@@ -38,14 +41,17 @@ async def start_upload(
     return dict(blob_key=blob_key, uploadid=uploadid)
 
 
-@router.post("/upload")
+@router.post("/upload", response_model=Blob)
 async def upload_bytes(
+    filename: str = Form(..., max_length=256),
     blob_key: str = Form(..., max_length=256),
+    part_ind: int = Form(..., max_digits=100),
     uploadid: str = Form(..., max_length=128),
     *,
     blob: BlobServiceDep,
+    repo: RepositoryDep,
     request: Request,
-) -> None:
+) -> Blob:
     """Receive, process, and upload a stream of bytes."""
     user_uid = verify_access_token(request, jwt)
     dir_name, _ = blob_key.split("/")
@@ -57,8 +63,7 @@ async def upload_bytes(
         )
 
     async with blob.start_session() as session:
-        *_, last_part = await session.report_parts(blob_key, uploadid)
-        counter = count(last_part.index)
+        counter = count(part_ind)
 
         try:
             async for chunk in request.stream():
@@ -69,7 +74,31 @@ async def upload_bytes(
                     part_index=part_index,
                     uploadid=uploadid,
                 )
-        except ClientDisconnect:
-            logger.error("Upload stream disconnected.", exc_info=True)
+
+        except ClientDisconnect as e:
+            await session.abort_upload(blob_key, uploadid)
+            raise HTTPException(
+                detail="Upload stream disconnected.",
+                status_code=499,
+            ) from e
+
         else:
             await session.finish_upload(blob_key, uploadid)
+
+            created_at = datetime.now(UTC)
+            valid_thru = created_at + timedelta(days=BLOB_TTL)
+
+            await repo.create_blob(
+                user_uid,
+                blob_key=blob_key,
+                filename=filename,
+                created_at=created_at,
+                valid_thru=valid_thru,
+            )
+
+            return Blob(
+                blob_key=blob_key,
+                filename=filename,
+                created_at=created_at,
+                valid_thru=valid_thru,
+            )

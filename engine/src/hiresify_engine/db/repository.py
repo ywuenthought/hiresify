@@ -15,10 +15,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
-from hiresify_engine.type import ImageFormat, VideoFormat
-
 from .exception import EntityConflictError, EntityNotFoundError
-from .model import Base, Image, RefreshToken, User, Video
+from .model import Base, Blob, RefreshToken, User
 from .util import abbreviate_token
 
 
@@ -58,30 +56,12 @@ class Repository:
     # user management
     #################
 
-    async def find_user(
-        self, username: str,
-        *,
-        with_tokens: bool = False,
-        with_images: bool = False,
-        with_videos: bool = False,
-    ) -> User:
+    async def find_user(self, username: str, *, eager: bool = False) -> User:
         """Find the user with the given user name."""
-        options = []
-        if with_tokens:
-            options += [
-                selectinload(User.refresh_tokens),
-                with_loader_criteria(RefreshToken, RefreshToken.revoked.is_(False)),
-            ]
-        if with_images:
-            options += [
-                selectinload(User.images),
-                with_loader_criteria(Image, Image.deleted.is_(False)),
-            ]
-        if with_videos:
-            options += [
-                selectinload(User.videos),
-                with_loader_criteria(Video, Video.deleted.is_(False)),
-            ]
+        options = [
+            selectinload(User.blobs),
+            with_loader_criteria(Blob, Blob.deleted.is_(False)),
+        ] if eager else []
 
         where_clause = User.username == username
         stmt = select(User).options(*options).where(where_clause)
@@ -272,28 +252,28 @@ class Repository:
                 return result.rowcount
 
     #############
-    # image files
+    # blob files
     #############
 
-    async def find_image(self, image_uid: str, *, eager: bool = False) -> Image:
-        """Find the image with the given image UID."""
-        options = [selectinload(Image.user)] if eager else []
-        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
-        stmt = select(Image).options(*options).where(where_clause)
+    async def find_blob(self, blob_uid: str, *, eager: bool = False) -> Blob:
+        """Find the blob with the given blob UID."""
+        options = [selectinload(Blob.user)] if eager else []
+        where_clause = and_(Blob.uid == blob_uid, Blob.deleted.is_(False))
+        stmt = select(Blob).options(*options).where(where_clause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
 
-            if not (image := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Image, uid=image_uid)
+            if not (blob := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Blob, uid=blob_uid)
 
-            return image
+            return blob
 
-    async def find_images(self, user_uid: str) -> list[Image]:
-        """Find all the images for the given user UID."""
+    async def find_blobs(self, user_uid: str) -> list[Blob]:
+        """Find all the blobs for the given user UID."""
         options = [
-            selectinload(User.images),
-            with_loader_criteria(Image, Image.deleted.is_(False)),
+            selectinload(User.blobs),
+            with_loader_criteria(Blob, Blob.deleted.is_(False)),
         ]
         where_clause = User.uid == user_uid
         stmt = select(User).options(*options).where(where_clause)
@@ -304,19 +284,18 @@ class Repository:
             if not (user := result.scalar_one_or_none()):
                 raise EntityNotFoundError(User, uid=user_uid)
 
-            return user.images
+            return user.blobs
 
-    async def create_image(
+    async def create_blob(
         self,
         user_uid: str,
         *,
         blob_key: str,
         filename: str,
-        file_fmt: ImageFormat,
         created_at: datetime,
         valid_thru: datetime,
-    ) -> Image:
-        """Create an image for the given user UID."""
+    ) -> Blob:
+        """Create a blob for the given user UID."""
         where_clause = User.uid == user_uid
         stmt = select(User).where(where_clause)
 
@@ -327,41 +306,40 @@ class Repository:
             if not (user := result.scalar_one_or_none()):
                 raise EntityNotFoundError(User, uid=user_uid)
 
-            image = Image(
+            blob = Blob(
                 blob_key=blob_key,
                 filename=filename,
-                file_fmt=file_fmt,
                 created_at=created_at,
                 valid_thru=valid_thru,
                 user_id=user.id,
             )
 
             async with session.begin():
-                session.add(image)
+                session.add(blob)
 
-            await session.refresh(image)
-            return image
+            await session.refresh(blob)
+            return blob
 
-    async def delete_image(self, image_uid: str) -> None:
-        """Delete an image given the image UID."""
-        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
-        stmt = select(Image).where(where_clause)
+    async def delete_blob(self, blob_uid: str) -> None:
+        """Delete an blob given the blob UID."""
+        where_clause = and_(Blob.uid == blob_uid, Blob.deleted.is_(False))
+        stmt = select(Blob).where(where_clause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
             await session.commit()
 
-            if not (image := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Image, uid=image_uid)
+            if not (blob := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Blob, uid=blob_uid)
 
             async with session.begin():
-                image.deleted = True
+                blob.deleted = True
 
-    async def delete_images(self, user_uid: str) -> int:
-        """Delete all the images for the given user UID."""
+    async def delete_blobs(self, user_uid: str) -> int:
+        """Delete all the blobs for the given user UID."""
         options = [
-            selectinload(User.images),
-            with_loader_criteria(Image, Image.deleted.is_(False)),
+            selectinload(User.blobs),
+            with_loader_criteria(Blob, Blob.deleted.is_(False)),
         ]
 
         where_clause = User.uid == user_uid
@@ -375,147 +353,21 @@ class Repository:
                 raise EntityNotFoundError(User, uid=user_uid)
 
             async with session.begin():
-                if not (images := user.images):
+                if not (blobs := user.blobs):
                     return 0
 
-                for image in images:
-                    image.deleted = True
+                for blob in blobs:
+                    blob.deleted = True
 
-                return len(images)
+                return len(blobs)
 
-    async def purge_images(
+    async def purge_blobs(
         self, retention_days: int, now: datetime | None = None,
     ) -> int:
-        """Purge all the images expired for longer than `retention_days`."""
+        """Purge all the blobs expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
-        where_clause = or_(Image.valid_thru < cutoff, Image.deleted.is_(True))
-        stmt = delete(Image).where(where_clause)
-
-        async with self.session() as session:
-            async with session.begin():
-                result = await session.execute(stmt)
-
-                return result.rowcount
-
-    #############
-    # video files
-    #############
-
-    async def find_video(self, video_uid: str, *, eager: bool = False) -> Video:
-        """Find the video with the given video UID."""
-        options = [selectinload(Video.user)] if eager else []
-        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
-        stmt = select(Video).options(*options).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-
-            if not (video := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Video, uid=video_uid)
-
-            return video
-
-    async def find_videos(self, user_uid: str) -> list[Video]:
-        """Find all the videos for the given user UID."""
-        options = [
-            selectinload(User.videos),
-            with_loader_criteria(Video, Video.deleted.is_(False)),
-        ]
-        where_clause = User.uid == user_uid
-        stmt = select(User).options(*options).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-
-            if not (user := result.scalar_one_or_none()):
-                raise EntityNotFoundError(User, uid=user_uid)
-
-            return user.videos
-
-    async def create_video(
-        self,
-        user_uid: str,
-        *,
-        blob_key: str,
-        filename: str,
-        file_fmt: VideoFormat,
-        created_at: datetime,
-        valid_thru: datetime,
-    ) -> Video:
-        """Create an video for the given user UID."""
-        where_clause = User.uid == user_uid
-        stmt = select(User).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (user := result.scalar_one_or_none()):
-                raise EntityNotFoundError(User, uid=user_uid)
-
-            video = Video(
-                blob_key=blob_key,
-                filename=filename,
-                file_fmt=file_fmt,
-                created_at=created_at,
-                valid_thru=valid_thru,
-                user_id=user.id,
-            )
-
-            async with session.begin():
-                session.add(video)
-
-            await session.refresh(video)
-            return video
-
-    async def delete_video(self, video_uid: str) -> None:
-        """Delete an video given the video UID."""
-        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
-        stmt = select(Video).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (video := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Video, uid=video_uid)
-
-            async with session.begin():
-                video.deleted = True
-
-    async def delete_videos(self, user_uid: str) -> int:
-        """Delete all the videos for the given user UID."""
-        options = [
-            selectinload(User.videos),
-            with_loader_criteria(Video, Video.deleted.is_(False)),
-        ]
-
-        where_clause = User.uid == user_uid
-        stmt = select(User).options(*options).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (user := result.scalar_one_or_none()):
-                raise EntityNotFoundError(User, uid=user_uid)
-
-            async with session.begin():
-                if not (videos := user.videos):
-                    return 0
-
-                for video in videos:
-                    video.deleted = True
-
-                return len(videos)
-
-    async def purge_videos(
-        self, retention_days: int, now: datetime | None = None,
-    ) -> int:
-        """Purge all the videos expired for longer than `retention_days`."""
-        cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
-        where_clause = or_(Video.valid_thru < cutoff, Video.deleted.is_(True))
-        stmt = delete(Video).where(where_clause)
+        where_clause = or_(Blob.valid_thru < cutoff, Blob.deleted.is_(True))
+        stmt = delete(Blob).where(where_clause)
 
         async with self.session() as session:
             async with session.begin():

@@ -9,56 +9,27 @@ from datetime import datetime
 
 from pydantic.dataclasses import dataclass
 
-from .type import ImageFormat, VideoFormat
-
 
 @dataclass(frozen=True)
 class User:
     """The domain model for identifying a user."""
 
-    # A user can upload many images.
-    images: list["Image"]
-
-    # A user can upload many videos.
-    videos: list["Video"]
+    # A user can upload many blobs.
+    blobs: list["Blob"]
 
 
-class _BlobMixin:
-    """The mixin for a blob domain model."""
+@dataclass(frozen=True)
+class Blob:
+    """The domain model for a persisted blob file."""
 
     #: Name of this blob file.
-    name: str
+    filename: str
 
     #: The blob key to identify this blob in the blob store.
-    key: str
+    blob_key: str
 
     #: The date and time when the blob was created.
     created_at: datetime
 
     #: The date and time when the blob is valid through.
     valid_thru: datetime
-
-    #: The index of the next part of this blob to be uploaded.
-    next_index: int
-
-    #: A boolean flag for whether the upload of this blob has been finished.
-    finished: bool
-
-    #: A user-facing boolean flag for whether the blob has been deleted.
-    deleted: bool
-
-
-@dataclass(frozen=True)
-class Image(_BlobMixin):
-    """The domain model for an image uploaded by a user."""
-
-    #: The format of this image file.
-    format: ImageFormat
-
-
-@dataclass(frozen=True)
-class Video(_BlobMixin):
-    """The domain model for a video uploaded by a user."""
-
-    #: The format of this video file.
-    format: VideoFormat

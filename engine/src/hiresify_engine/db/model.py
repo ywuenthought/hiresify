@@ -11,8 +11,6 @@ from uuid import uuid4
 from sqlalchemy import DateTime, ForeignKey, String, TypeDecorator
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from hiresify_engine.type import ImageFormat, VideoFormat
-
 
 class AwareDateTime(TypeDecorator):
     """A SQLAlchemy type that ensures datetimes are always UTC-aware.
@@ -59,13 +57,8 @@ class User(Base):
         back_populates="user", cascade="all, delete-orphan",
     )
 
-    # A user can upload many images.
-    images: Mapped[list["Image"]] = relationship(
-        back_populates="user", cascade="all, delete-orphan",
-    )
-
-    # A user can upload many videos.
-    videos: Mapped[list["Video"]] = relationship(
+    # A user can upload many blobs.
+    blobs: Mapped[list["Blob"]] = relationship(
         back_populates="user", cascade="all, delete-orphan",
     )
 
@@ -110,8 +103,10 @@ class RefreshToken(Base):
     user: Mapped["User"] = relationship(back_populates="refresh_tokens")
 
 
-class _BlobMixin:
-    """The mixin for a blob database model."""
+class Blob(Base):
+    """The database model for a blob file uploaded by a user."""
+
+    __tablename__ = "blob"
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
@@ -138,26 +133,5 @@ class _BlobMixin:
     #: The user ID that this blob is associated with.
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
-
-class Image(Base, _BlobMixin):
-    """The database model for an image uploaded by a user."""
-
-    __tablename__ = "image"
-
-    #: The format of this image file.
-    file_fmt: Mapped[ImageFormat] = mapped_column(String(8), nullable=False)
-
-    # Each image belongs to one user.
-    user: Mapped["User"] = relationship(back_populates="images")
-
-
-class Video(Base, _BlobMixin):
-    """The database model for a video uploaded by a user."""
-
-    __tablename__ = "video"
-
-    #: The format of this video file.
-    file_fmt: Mapped[VideoFormat] = mapped_column(String(8), nullable=False)
-
-    # Each video belongs to one user.
-    user: Mapped["User"] = relationship(back_populates="videos")
+    # Each blob belongs to one user.
+    user: Mapped["User"] = relationship(back_populates="blobs")

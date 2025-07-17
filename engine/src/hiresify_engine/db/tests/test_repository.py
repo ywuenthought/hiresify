@@ -215,11 +215,11 @@ async def test_purge_tokens(repository: Repository) -> None:
     # Then
     assert not refresh_tokens
 
-#############
-# image files
-#############
+############
+# blob files
+############
 
-async def test_create_image(repository: Repository) -> None:
+async def test_create_blob(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
@@ -227,21 +227,20 @@ async def test_create_image(repository: Repository) -> None:
     valid_thru = created_at + timedelta(seconds=1)
 
     # When
-    image = await repository.create_image(
+    blob = await repository.create_blob(
         user.uid,
         blob_key=uuid4().hex,
-        filename="image.jpg",
-        file_fmt="jpg",
+        filename="blob.bin",
         created_at=created_at,
         valid_thru=valid_thru,
     )
 
     # Then
-    assert image.valid_thru > image.created_at
-    assert not image.deleted
+    assert blob.valid_thru > blob.created_at
+    assert not blob.deleted
 
 
-async def test_delete_image(repository: Repository) -> None:
+async def test_delete_blob(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
@@ -249,49 +248,47 @@ async def test_delete_image(repository: Repository) -> None:
     valid_thru = created_at + timedelta(seconds=1)
 
     # When
-    image = await repository.create_image(
+    blob = await repository.create_blob(
         user.uid,
         blob_key=uuid4().hex,
-        filename="image.jpg",
-        file_fmt="jpg",
+        filename="blob.bin",
         created_at=created_at,
         valid_thru=valid_thru,
     )
 
     # Then
-    assert not image.deleted
+    assert not blob.deleted
 
     # When
-    await repository.delete_image(image.uid)
+    await repository.delete_blob(blob.uid)
 
     # Then
     with pytest.raises(EntityNotFoundError):
-        await repository.find_image(image.uid)
+        await repository.find_blob(blob.uid)
 
 
-async def test_delete_images(repository: Repository) -> None:
+async def test_delete_blobs(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
     # When
-    images = await repository.find_images(user.uid)
+    blobs = await repository.find_blobs(user.uid)
 
     # Then
-    assert not images
+    assert not blobs
 
     # Given
     created_at = datetime.now(UTC)
-    filenames = [f"image{i}.jpg" for i in range(1, 4)]
+    filenames = [f"blob{i}.bin" for i in range(1, 4)]
 
-    pre_images = []
+    pre_blobs = []
     for filename in filenames:
         valid_thru = created_at + timedelta(seconds=1)
-        pre_images.append(
-            await repository.create_image(
+        pre_blobs.append(
+            await repository.create_blob(
                 user.uid,
                 blob_key=uuid4().hex,
                 filename=filename,
-                file_fmt="jpg",
                 created_at=created_at,
                 valid_thru=valid_thru,
             ),
@@ -299,33 +296,32 @@ async def test_delete_images(repository: Repository) -> None:
         created_at = valid_thru
 
     # Then
-    for image in pre_images:
-        assert not image.deleted
+    for blob in pre_blobs:
+        assert not blob.deleted
 
     # When
-    await repository.delete_images(user.uid)
-    cur_images = await repository.find_images(user.uid)
+    await repository.delete_blobs(user.uid)
+    cur_blobs = await repository.find_blobs(user.uid)
 
     # Then
-    assert not cur_images
+    assert not cur_blobs
 
 
-async def test_purge_images(repository: Repository) -> None:
+async def test_purge_blobs(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
     
     created_at = datetime.now(UTC)
-    filenames = [f"image{i}.jpg" for i in range(1, 4)]
+    filenames = [f"blob{i}.bin" for i in range(1, 4)]
 
-    images = []
+    blobs = []
     for filename in filenames:
         valid_thru = created_at + timedelta(seconds=1)
-        images.append(
-            await repository.create_image(
+        blobs.append(
+            await repository.create_blob(
                 user.uid,
                 blob_key=uuid4().hex,
                 filename=filename,
-                file_fmt="jpg",
                 created_at=created_at,
                 valid_thru=valid_thru,
             ),
@@ -333,134 +329,9 @@ async def test_purge_images(repository: Repository) -> None:
         created_at = valid_thru
 
     # When
-    *_, image = images
-    await repository.purge_images(1, image.valid_thru + timedelta(days=2))
-    images = await repository.find_images(user.uid)
+    *_, blob = blobs
+    await repository.purge_blobs(1, blob.valid_thru + timedelta(days=2))
+    blobs = await repository.find_blobs(user.uid)
 
     # Then
-    assert not images
-
-#############
-# video files
-#############
-
-async def test_create_video(repository: Repository) -> None:
-    # Given
-    user = await repository.register_user("ywu", "123")
-
-    created_at = datetime.now(UTC)
-    valid_thru = created_at + timedelta(seconds=1)
-
-    # When
-    video = await repository.create_video(
-        user.uid,
-        blob_key=uuid4().hex,
-        filename="video.mp4",
-        file_fmt="mp4",
-        created_at=created_at,
-        valid_thru=valid_thru,
-    )
-
-    # Then
-    assert video.valid_thru > video.created_at
-    assert not video.deleted
-
-
-async def test_delete_video(repository: Repository) -> None:
-    # Given
-    user = await repository.register_user("ywu", "123")
-
-    created_at = datetime.now(UTC)
-    valid_thru = created_at + timedelta(seconds=1)
-
-    # When
-    video = await repository.create_video(
-        user.uid,
-        blob_key=uuid4().hex,
-        filename="video.mp4",
-        file_fmt="mp4",
-        created_at=created_at,
-        valid_thru=valid_thru,
-    )
-
-    # Then
-    assert not video.deleted
-
-    # When
-    await repository.delete_video(video.uid)
-
-    # Then
-    with pytest.raises(EntityNotFoundError):
-        await repository.find_video(video.uid)
-
-
-async def test_delete_videos(repository: Repository) -> None:
-    # Given
-    user = await repository.register_user("ywu", "123")
-
-    # When
-    videos = await repository.find_videos(user.uid)
-
-    # Then
-    assert not videos
-
-    # Given
-    created_at = datetime.now(UTC)
-    filenames = [f"video{i}.mp4" for i in range(1, 4)]
-
-    pre_videos = []
-    for filename in filenames:
-        valid_thru = created_at + timedelta(seconds=1)
-        pre_videos.append(
-            await repository.create_video(
-                user.uid,
-                blob_key=uuid4().hex,
-                filename=filename,
-                file_fmt="mp4",
-                created_at=created_at,
-                valid_thru=valid_thru,
-            ),
-        )
-        created_at = valid_thru
-
-    # Then
-    for video in pre_videos:
-        assert not video.deleted
-
-    # When
-    await repository.delete_videos(user.uid)
-    cur_videos = await repository.find_videos(user.uid)
-
-    # Then
-    assert not cur_videos
-
-
-async def test_purge_videos(repository: Repository) -> None:
-    # Given
-    user = await repository.register_user("ywu", "123")
-    
-    created_at = datetime.now(UTC)
-    filenames = [f"video{i}.mp4" for i in range(1, 4)]
-
-    videos = []
-    for filename in filenames:
-        valid_thru = created_at + timedelta(seconds=1)
-        videos.append(
-            await repository.create_video(
-                user.uid,
-                blob_key=uuid4().hex,
-                filename=filename,
-                file_fmt="mp4",
-                created_at=created_at,
-                valid_thru=valid_thru,
-            ),
-        )
-        created_at = valid_thru
-
-    # When
-    *_, video = videos
-    await repository.purge_videos(1, video.valid_thru + timedelta(days=2))
-    videos = await repository.find_videos(user.uid)
-
-    # Then
-    assert not videos
+    assert not blobs
