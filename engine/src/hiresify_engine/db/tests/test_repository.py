@@ -233,9 +233,9 @@ async def test_create_image(repository: Repository) -> None:
     # When
     image = await repository.create_image(
         user.uid,
-        file_name="image.jpg",
         blob_key=uuid4().hex,
-        format="jpg",
+        filename="image.jpg",
+        file_fmt="jpg",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -256,9 +256,9 @@ async def test_bump_image_index(repository: Repository) -> None:
     # When
     image = await repository.create_image(
         user.uid,
-        file_name="image.jpg",
         blob_key=uuid4().hex,
-        format="jpg",
+        filename="image.jpg",
+        file_fmt="jpg",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -285,9 +285,9 @@ async def test_finish_image(repository: Repository) -> None:
     # When
     image = await repository.create_image(
         user.uid,
-        file_name="image.jpg",
         blob_key=uuid4().hex,
-        format="jpg",
+        filename="image.jpg",
+        file_fmt="jpg",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -313,9 +313,9 @@ async def test_delete_image(repository: Repository) -> None:
     # When
     image = await repository.create_image(
         user.uid,
-        file_name="image.jpg",
         blob_key=uuid4().hex,
-        format="jpg",
+        filename="image.jpg",
+        file_fmt="jpg",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -343,17 +343,17 @@ async def test_delete_images(repository: Repository) -> None:
 
     # Given
     created_at = datetime.now(UTC)
-    file_names = [f"image{i}.jpg" for i in range(1, 4)]
+    filenames = [f"image{i}.jpg" for i in range(1, 4)]
 
     pre_images = []
-    for file_name in file_names:
+    for filename in filenames:
         valid_thru = created_at + timedelta(seconds=1)
         pre_images.append(
             await repository.create_image(
                 user.uid,
-                file_name=file_name,
                 blob_key=uuid4().hex,
-                format="jpg",
+                filename=filename,
+                file_fmt="jpg",
                 created_at=created_at,
                 valid_thru=valid_thru,
             ),
@@ -372,7 +372,7 @@ async def test_delete_images(repository: Repository) -> None:
     assert len(cur_images) == len(pre_images)
 
     for cur_image, pre_image in zip(cur_images, pre_images, strict=False):
-        assert cur_image.name == pre_image.name
+        assert cur_image.filename == pre_image.filename
         assert cur_image.deleted
 
 
@@ -381,17 +381,17 @@ async def test_purge_images(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
     
     created_at = datetime.now(UTC)
-    file_names = [f"image{i}.jpg" for i in range(1, 4)]
+    filenames = [f"image{i}.jpg" for i in range(1, 4)]
 
     images = []
-    for file_name in file_names:
+    for filename in filenames:
         valid_thru = created_at + timedelta(seconds=1)
         images.append(
             await repository.create_image(
                 user.uid,
-                file_name=file_name,
                 blob_key=uuid4().hex,
-                format="jpg",
+                filename=filename,
+                file_fmt="jpg",
                 created_at=created_at,
                 valid_thru=valid_thru,
             ),
@@ -420,9 +420,9 @@ async def test_create_video(repository: Repository) -> None:
     # When
     video = await repository.create_video(
         user.uid,
-        file_name="video.mp4",
         blob_key=uuid4().hex,
-        format="mp4",
+        filename="video.mp4",
+        file_fmt="mp4",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -443,9 +443,9 @@ async def test_bump_video_index(repository: Repository) -> None:
     # When
     video = await repository.create_video(
         user.uid,
-        file_name="video.mp4",
         blob_key=uuid4().hex,
-        format="mp4",
+        filename="video.mp4",
+        file_fmt="mp4",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -472,9 +472,9 @@ async def test_finish_video(repository: Repository) -> None:
     # When
     video = await repository.create_video(
         user.uid,
-        file_name="video.mp4",
         blob_key=uuid4().hex,
-        format="mp4",
+        filename="video.mp4",
+        file_fmt="mp4",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -500,9 +500,9 @@ async def test_delete_video(repository: Repository) -> None:
     # When
     video = await repository.create_video(
         user.uid,
-        file_name="video.mp4",
         blob_key=uuid4().hex,
-        format="mp4",
+        filename="video.mp4",
+        file_fmt="mp4",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -530,17 +530,17 @@ async def test_delete_videos(repository: Repository) -> None:
 
     # Given
     created_at = datetime.now(UTC)
-    file_names = [f"video{i}.mp4" for i in range(1, 4)]
+    filenames = [f"video{i}.mp4" for i in range(1, 4)]
 
     pre_videos = []
-    for file_name in file_names:
+    for filename in filenames:
         valid_thru = created_at + timedelta(seconds=1)
         pre_videos.append(
             await repository.create_video(
                 user.uid,
-                file_name=file_name,
                 blob_key=uuid4().hex,
-                format="mp4",
+                filename=filename,
+                file_fmt="mp4",
                 created_at=created_at,
                 valid_thru=valid_thru,
             ),
@@ -559,7 +559,7 @@ async def test_delete_videos(repository: Repository) -> None:
     assert len(cur_videos) == len(pre_videos)
 
     for cur_video, pre_video in zip(cur_videos, pre_videos, strict=False):
-        assert cur_video.name == pre_video.name
+        assert cur_video.filename == pre_video.filename
         assert cur_video.deleted
 
 
@@ -568,17 +568,17 @@ async def test_purge_videos(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
     
     created_at = datetime.now(UTC)
-    file_names = [f"video{i}.mp4" for i in range(1, 4)]
+    filenames = [f"video{i}.mp4" for i in range(1, 4)]
 
     videos = []
-    for file_name in file_names:
+    for filename in filenames:
         valid_thru = created_at + timedelta(seconds=1)
         videos.append(
             await repository.create_video(
                 user.uid,
-                file_name=file_name,
                 blob_key=uuid4().hex,
-                format="mp4",
+                filename=filename,
+                file_fmt="mp4",
                 created_at=created_at,
                 valid_thru=valid_thru,
             ),

@@ -8,7 +8,7 @@
 import typing as ty
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Form, Request, status
+from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import PlainTextResponse
 
 from hiresify_engine.dep import BlobServiceDep, RepositoryDep
@@ -23,9 +23,9 @@ router = APIRouter(prefix="/blob")
 
 @router.get("/upload")
 async def start_upload(
-    file_fmt: ty.Annotated[ImageFormat | VideoFormat, Form(..., max_length=8)],
-    file_name: str = Form(..., max_length=256),
     blob_key: str = Form(..., max_length=256),
+    filename: str = Form(..., max_length=256),
+    file_fmt: ty.Literal["jpg", "mp4", "png"] = Form(..., max_length=8),
     *,
     blob: BlobServiceDep,
     repo: RepositoryDep,
@@ -34,20 +34,26 @@ async def start_upload(
     """Start a multipart upload of the given file."""
     user_uid = verify_access_token(request, jwt)
 
-    creator = (
-        repo.create_image
-        if file_fmt in ty.get_args(ImageFormat)
-        else repo.create_video
-    )
+    creator = None
+    if file_fmt in ty.get_args(ImageFormat):
+        creator = repo.create_image
+    if file_fmt in ty.get_args(VideoFormat):
+        creator = repo.create_video  # type: ignore[assignment]
+
+    if not creator:
+        raise HTTPException(
+            detail=f"{file_fmt=} is not supported.",
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        )
 
     created_at = datetime.now(UTC)
     valid_thru = created_at + timedelta(days=BLOB_TTL)
 
     await creator(
         user_uid,
-        file_name=file_name,
         blob_key=blob_key,
-        format=file_fmt,  # type: ignore[arg-type]
+        filename=filename,
+        file_fmt=file_fmt,  # type: ignore[arg-type]
         created_at=created_at,
         valid_thru=valid_thru,
     )

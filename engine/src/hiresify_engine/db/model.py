@@ -121,10 +121,10 @@ class _BlobMixin:
     )
 
     #: Name of this blob file.
-    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    filename: Mapped[str] = mapped_column(String(256), nullable=False)
 
     #: The blob key to identify this blob in the blob store.
-    key: Mapped[str] = mapped_column(String(256), nullable=False)
+    blob_key: Mapped[str] = mapped_column(String(256), nullable=False)
 
     #: The date and time when the blob was created.
     created_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
@@ -151,7 +151,7 @@ class Image(Base, _BlobMixin):
     __tablename__ = "image"
 
     #: The format of this image file.
-    format: Mapped[ImageFormat] = mapped_column(String(8), nullable=False)
+    file_fmt: Mapped[ImageFormat] = mapped_column(String(8), nullable=False)
 
     # Each image belongs to one user.
     user: Mapped["User"] = relationship(back_populates="images")
@@ -163,7 +163,7 @@ class Video(Base, _BlobMixin):
     __tablename__ = "video"
 
     #: The format of this video file.
-    format: Mapped[VideoFormat] = mapped_column(String(8), nullable=False)
+    file_fmt: Mapped[VideoFormat] = mapped_column(String(8), nullable=False)
 
     # Each video belongs to one user.
     user: Mapped["User"] = relationship(back_populates="videos")

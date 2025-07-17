@@ -273,9 +273,9 @@ class Repository:
         self,
         user_uid: str,
         *,
-        file_name: str,
         blob_key: str,
-        format: ImageFormat,
+        filename: str,
+        file_fmt: ImageFormat,
         created_at: datetime,
         valid_thru: datetime,
     ) -> Image:
@@ -291,9 +291,9 @@ class Repository:
                 raise EntityNotFoundError(User, uid=user_uid)
 
             image = Image(
-                name=file_name,
-                key=blob_key,
-                format=format,
+                blob_key=blob_key,
+                filename=filename,
+                file_fmt=file_fmt,
                 created_at=created_at,
                 valid_thru=valid_thru,
                 user_id=user.id,
@@ -428,9 +428,9 @@ class Repository:
         self,
         user_uid: str,
         *,
-        file_name: str,
         blob_key: str,
-        format: VideoFormat,
+        filename: str,
+        file_fmt: VideoFormat,
         created_at: datetime,
         valid_thru: datetime,
     ) -> Video:
@@ -446,9 +446,9 @@ class Repository:
                 raise EntityNotFoundError(User, uid=user_uid)
 
             video = Video(
-                name=file_name,
-                key=blob_key,
-                format=format,
+                blob_key=blob_key,
+                filename=filename,
+                file_fmt=file_fmt,
                 created_at=created_at,
                 valid_thru=valid_thru,
                 user_id=user.id,
