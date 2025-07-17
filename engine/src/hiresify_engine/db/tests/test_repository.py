@@ -142,10 +142,10 @@ async def test_revoke_token(repository: Repository) -> None:
     # When
     token = refresh_token.token
     await repository.revoke_token(token)
-    refresh_token = await repository.find_token(token)
 
     # Then
-    assert refresh_token.revoked
+    with pytest.raises(EntityNotFoundError):
+        await repository.find_token(token)
 
 
 async def test_revoke_tokens(repository: Repository) -> None:
@@ -184,11 +184,7 @@ async def test_revoke_tokens(repository: Repository) -> None:
     cur_tokens = await repository.find_tokens(user.uid)
 
     # Then
-    assert len(cur_tokens) == len(pre_tokens)
-
-    for cur_token, pre_token in zip(cur_tokens, pre_tokens, strict=False):
-        assert cur_token.token == pre_token.token
-        assert cur_token.revoked
+    assert not cur_tokens
 
 
 async def test_purge_tokens(repository: Repository) -> None:
@@ -316,6 +312,47 @@ async def test_finish_image_upload(repository: Repository) -> None:
     assert image.finished
 
 
+async def test_abort_image_upload(repository: Repository) -> None:
+    # Given
+    user = await repository.register_user("ywu", "123")
+
+    created_at = datetime.now(UTC)
+    valid_thru = created_at + timedelta(seconds=1)
+
+    # When
+    image = await repository.create_image(
+        user.uid,
+        blob_key=uuid4().hex,
+        filename="image.jpg",
+        file_fmt="jpg",
+        created_at=created_at,
+        valid_thru=valid_thru,
+    )
+
+    # Then
+    assert image.uploadid is None
+    assert not image.aborted
+
+    # Given
+    uploadid = uuid4().hex
+
+    # When
+    await repository.start_image_upload(image.uid, uploadid)
+    image = await repository.find_image(image.uid)
+
+    # Then
+    assert image.uploadid == uploadid
+    assert not image.aborted
+
+    # When
+    await repository.abort_image_upload(image.uid)
+    image = await repository.find_image(image.uid)
+
+    # Then
+    assert image.uploadid is None
+    assert image.aborted
+
+
 async def test_delete_image(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
@@ -338,10 +375,10 @@ async def test_delete_image(repository: Repository) -> None:
 
     # When
     await repository.delete_image(image.uid)
-    image = await repository.find_image(image.uid)
 
     # Then
-    assert image.deleted
+    with pytest.raises(EntityNotFoundError):
+        await repository.find_image(image.uid)
 
 
 async def test_delete_images(repository: Repository) -> None:
@@ -382,11 +419,7 @@ async def test_delete_images(repository: Repository) -> None:
     cur_images = await repository.find_images(user.uid)
 
     # Then
-    assert len(cur_images) == len(pre_images)
-
-    for cur_image, pre_image in zip(cur_images, pre_images, strict=False):
-        assert cur_image.filename == pre_image.filename
-        assert cur_image.deleted
+    assert not cur_images
 
 
 async def test_purge_images(repository: Repository) -> None:
@@ -516,6 +549,47 @@ async def test_finish_video_upload(repository: Repository) -> None:
     assert video.finished
 
 
+async def test_abort_video_upload(repository: Repository) -> None:
+    # Given
+    user = await repository.register_user("ywu", "123")
+
+    created_at = datetime.now(UTC)
+    valid_thru = created_at + timedelta(seconds=1)
+
+    # When
+    video = await repository.create_video(
+        user.uid,
+        blob_key=uuid4().hex,
+        filename="video.mp4",
+        file_fmt="mp4",
+        created_at=created_at,
+        valid_thru=valid_thru,
+    )
+
+    # Then
+    assert video.uploadid is None
+    assert not video.aborted
+
+    # Given
+    uploadid = uuid4().hex
+
+    # When
+    await repository.start_video_upload(video.uid, uploadid)
+    video = await repository.find_video(video.uid)
+
+    # Then
+    assert video.uploadid == uploadid
+    assert not video.aborted
+
+    # When
+    await repository.abort_video_upload(video.uid)
+    video = await repository.find_video(video.uid)
+
+    # Then
+    assert video.uploadid is None
+    assert video.aborted
+
+
 async def test_delete_video(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
@@ -538,10 +612,10 @@ async def test_delete_video(repository: Repository) -> None:
 
     # When
     await repository.delete_video(video.uid)
-    video = await repository.find_video(video.uid)
 
     # Then
-    assert video.deleted
+    with pytest.raises(EntityNotFoundError):
+        await repository.find_video(video.uid)
 
 
 async def test_delete_videos(repository: Repository) -> None:
@@ -582,11 +656,7 @@ async def test_delete_videos(repository: Repository) -> None:
     cur_videos = await repository.find_videos(user.uid)
 
     # Then
-    assert len(cur_videos) == len(pre_videos)
-
-    for cur_video, pre_video in zip(cur_videos, pre_videos, strict=False):
-        assert cur_video.filename == pre_video.filename
-        assert cur_video.deleted
+    assert not cur_videos
 
 
 async def test_purge_videos(repository: Repository) -> None:

@@ -10,7 +10,7 @@ import typing as ty
 from collections import abc
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload, with_loader_criteria
@@ -73,11 +73,20 @@ class Repository:
         """Find the user with the given user name."""
         options = []
         if with_tokens:
-            options.append(selectinload(User.refresh_tokens))
+            options += [
+                selectinload(User.refresh_tokens),
+                with_loader_criteria(RefreshToken, RefreshToken.revoked.is_(False)),
+            ]
         if with_images:
-            options.append(selectinload(User.images))
+            options += [
+                selectinload(User.images),
+                with_loader_criteria(Image, Image.deleted.is_(False)),
+            ]
         if with_videos:
-            options.append(selectinload(User.videos))
+            options += [
+                selectinload(User.videos),
+                with_loader_criteria(Video, Video.deleted.is_(False)),
+            ]
 
         where_clause = User.username == username
         stmt = select(User).options(*options).where(where_clause)
@@ -141,7 +150,10 @@ class Repository:
     async def find_token(self, token: str, *, eager: bool = False) -> RefreshToken:
         """Find the refresh token with the given token string."""
         options = [selectinload(RefreshToken.user)] if eager else []
-        where_clause = RefreshToken.token == token
+        where_clause = and_(
+            RefreshToken.token == token,
+            RefreshToken.revoked.is_(False),
+        )
         stmt = select(RefreshToken).options(*options).where(where_clause)
 
         async with self.session() as session:
@@ -154,9 +166,12 @@ class Repository:
 
     async def find_tokens(self, user_uid: str) -> list[RefreshToken]:
         """Find all the refresh tokens for the given user UID."""
-        option = selectinload(User.refresh_tokens)
+        options = [
+            selectinload(User.refresh_tokens),
+            with_loader_criteria(RefreshToken, RefreshToken.revoked.is_(False)),
+        ]
         where_clause = User.uid == user_uid
-        stmt = select(User).options(option).where(where_clause)
+        stmt = select(User).options(*options).where(where_clause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -202,7 +217,10 @@ class Repository:
 
     async def revoke_token(self, token: str) -> None:
         """Revoke a refresh token given its token string."""
-        where_clause = RefreshToken.token == token
+        where_clause = and_(
+            RefreshToken.token == token,
+            RefreshToken.revoked.is_(False),
+        )
         stmt = select(RefreshToken).where(where_clause)
 
         async with self.session() as session:
@@ -246,7 +264,10 @@ class Repository:
     ) -> int:
         """Purge all the refresh tokens expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
-        where_clause = RefreshToken.expire_at < cutoff
+        where_clause = or_(
+            RefreshToken.expire_at < cutoff,
+            RefreshToken.revoked.is_(True),
+        )
         stmt = delete(RefreshToken).where(where_clause)
 
         async with self.session() as session:
@@ -262,7 +283,7 @@ class Repository:
     async def find_image(self, image_uid: str, *, eager: bool = False) -> Image:
         """Find the image with the given image UID."""
         options = [selectinload(Image.user)] if eager else []
-        where_clause = Image.uid == image_uid
+        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
         stmt = select(Image).options(*options).where(where_clause)
 
         async with self.session() as session:
@@ -275,9 +296,12 @@ class Repository:
 
     async def find_images(self, user_uid: str) -> list[Image]:
         """Find all the images for the given user UID."""
-        option = selectinload(User.images)
+        options = [
+            selectinload(User.images),
+            with_loader_criteria(Image, Image.deleted.is_(False)),
+        ]
         where_clause = User.uid == user_uid
-        stmt = select(User).options(option).where(where_clause)
+        stmt = select(User).options(*options).where(where_clause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -325,7 +349,7 @@ class Repository:
 
     async def bump_image_next(self, image_uid: str) -> int:
         """Bump the index of next part of the image with the given image UID."""
-        where_clause = Image.uid == image_uid
+        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
         stmt = select(Image).where(where_clause)
 
         async with self.session() as session:
@@ -342,7 +366,7 @@ class Repository:
 
     async def start_image_upload(self, image_uid: str, uploadid: str) -> None:
         """Start an upload of the image with the given image UID."""
-        where_clause = Image.uid == image_uid
+        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
         stmt = select(Image).where(where_clause)
 
         async with self.session() as session:
@@ -362,7 +386,7 @@ class Repository:
 
     async def finish_image_upload(self, image_uid: str) -> None:
         """Finish the upload of the image with the given image UID."""
-        where_clause = Image.uid == image_uid
+        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
         stmt = select(Image).where(where_clause)
 
         async with self.session() as session:
@@ -381,7 +405,7 @@ class Repository:
 
     async def abort_image_upload(self, image_uid: str) -> None:
         """Abort the upload of the image with the given image UID."""
-        where_clause = Image.uid == image_uid
+        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
         stmt = select(Image).where(where_clause)
 
         async with self.session() as session:
@@ -400,7 +424,7 @@ class Repository:
 
     async def finish_image(self, image_uid: str) -> None:
         """Finish the upload of the image with the given image UID."""
-        where_clause = Image.uid == image_uid
+        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
         stmt = select(Image).where(where_clause)
 
         async with self.session() as session:
@@ -415,7 +439,7 @@ class Repository:
 
     async def delete_image(self, image_uid: str) -> None:
         """Delete an image given the image UID."""
-        where_clause = Image.uid == image_uid
+        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
         stmt = select(Image).where(where_clause)
 
         async with self.session() as session:
@@ -459,7 +483,7 @@ class Repository:
     ) -> int:
         """Purge all the images expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
-        where_clause = Image.valid_thru < cutoff
+        where_clause = or_(Image.valid_thru < cutoff, Image.deleted.is_(True))
         stmt = delete(Image).where(where_clause)
 
         async with self.session() as session:
@@ -475,7 +499,7 @@ class Repository:
     async def find_video(self, video_uid: str, *, eager: bool = False) -> Video:
         """Find the video with the given video UID."""
         options = [selectinload(Video.user)] if eager else []
-        where_clause = Video.uid == video_uid
+        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
         stmt = select(Video).options(*options).where(where_clause)
 
         async with self.session() as session:
@@ -488,9 +512,12 @@ class Repository:
 
     async def find_videos(self, user_uid: str) -> list[Video]:
         """Find all the videos for the given user UID."""
-        option = selectinload(User.videos)
+        options = [
+            selectinload(User.videos),
+            with_loader_criteria(Video, Video.deleted.is_(False)),
+        ]
         where_clause = User.uid == user_uid
-        stmt = select(User).options(option).where(where_clause)
+        stmt = select(User).options(*options).where(where_clause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -538,7 +565,7 @@ class Repository:
 
     async def bump_video_next(self, video_uid: str) -> int:
         """Bump the index of next part of the video with the given video UID."""
-        where_clause = Video.uid == video_uid
+        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
         stmt = select(Video).where(where_clause)
 
         async with self.session() as session:
@@ -555,7 +582,7 @@ class Repository:
 
     async def start_video_upload(self, video_uid: str, uploadid: str) -> None:
         """Start an upload of the video with the given video UID."""
-        where_clause = Video.uid == video_uid
+        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
         stmt = select(Video).where(where_clause)
 
         async with self.session() as session:
@@ -575,7 +602,7 @@ class Repository:
 
     async def finish_video_upload(self, video_uid: str) -> None:
         """Finish the upload of the video with the given video UID."""
-        where_clause = Video.uid == video_uid
+        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
         stmt = select(Video).where(where_clause)
 
         async with self.session() as session:
@@ -594,7 +621,7 @@ class Repository:
 
     async def abort_video_upload(self, video_uid: str) -> None:
         """Abort the upload of the video with the given video UID."""
-        where_clause = Video.uid == video_uid
+        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
         stmt = select(Video).where(where_clause)
 
         async with self.session() as session:
@@ -613,7 +640,7 @@ class Repository:
 
     async def delete_video(self, video_uid: str) -> None:
         """Delete an video given the video UID."""
-        where_clause = Video.uid == video_uid
+        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
         stmt = select(Video).where(where_clause)
 
         async with self.session() as session:
@@ -657,7 +684,7 @@ class Repository:
     ) -> int:
         """Purge all the videos expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
-        where_clause = Video.valid_thru < cutoff
+        where_clause = or_(Video.valid_thru < cutoff, Video.deleted.is_(True))
         stmt = delete(Video).where(where_clause)
 
         async with self.session() as session:

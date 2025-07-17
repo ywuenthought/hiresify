@@ -165,5 +165,5 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint)
 
     # Then
-    assert response.status_code == 408
-    assert response.json()["detail"] == f"{token=} was revoked or timed out."
+    assert response.status_code == 400
+    assert response.json()["detail"] == f"{token=} does not exist."
