@@ -5,6 +5,8 @@
 
 """Provide utility functions used across the routers."""
 
+from uuid import uuid4
+
 from fastapi import HTTPException, Request, Response, status
 
 from hiresify_engine.envvar import PRODUCTION
@@ -49,6 +51,11 @@ def add_secure_headers(response: Response) -> None:
     if PRODUCTION:
         # Force browsers to use HTTPS for all future requests.
         response.headers["Strict-Transport-Security"] = "; ".join(_STS_ITEMS)
+
+
+def generate_blob_key(user_uid: str, file_fmt: str) -> str:
+    """Generate a blob key with the given user UID and file format."""
+    return f"{user_uid}/{uuid4().hex}.{file_fmt}"
 
 
 def verify_access_token(request: Request, jwt: JWTTokenService) -> str:

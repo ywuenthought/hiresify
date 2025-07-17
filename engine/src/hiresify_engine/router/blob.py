@@ -5,60 +5,71 @@
 
 """Define the backend upload-related endpoints."""
 
+import logging
 import typing as ty
-from datetime import UTC, datetime, timedelta
+from itertools import count
 
-from fastapi import APIRouter, Form, HTTPException, Request, status
-from fastapi.responses import PlainTextResponse
+from fastapi import APIRouter, Form, HTTPException, Query, Request, status
+from starlette.requests import ClientDisconnect
 
-from hiresify_engine.dep import BlobServiceDep, RepositoryDep
-from hiresify_engine.envvar import BLOB_TTL
-from hiresify_engine.type import ImageFormat, VideoFormat
+from hiresify_engine.dep import BlobServiceDep
 
 from .const import jwt
-from .util import verify_access_token
+from .util import generate_blob_key, verify_access_token
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/blob")
 
 
-@router.get("/upload")
+@router.get("/upload", status_code=status.HTTP_201_CREATED)
 async def start_upload(
-    blob_key: str = Form(..., max_length=256),
-    filename: str = Form(..., max_length=256),
-    file_fmt: ty.Literal["jpg", "mp4", "png"] = Form(..., max_length=8),
+    file_fmt: ty.Literal["jpg", "mp4", "png"] = Query(..., max_length=8),
     *,
     blob: BlobServiceDep,
-    repo: RepositoryDep,
     request: Request,
-) -> PlainTextResponse:
+) -> dict[str, str]:
     """Start a multipart upload of the given file."""
     user_uid = verify_access_token(request, jwt)
-
-    creator = None
-    if file_fmt in ty.get_args(ImageFormat):
-        creator = repo.create_image
-    if file_fmt in ty.get_args(VideoFormat):
-        creator = repo.create_video  # type: ignore[assignment]
-
-    if not creator:
-        raise HTTPException(
-            detail=f"{file_fmt=} is not supported.",
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-        )
-
-    created_at = datetime.now(UTC)
-    valid_thru = created_at + timedelta(days=BLOB_TTL)
-
-    await creator(
-        user_uid,
-        blob_key=blob_key,
-        filename=filename,
-        file_fmt=file_fmt,  # type: ignore[arg-type]
-        created_at=created_at,
-        valid_thru=valid_thru,
-    )
+    blob_key = generate_blob_key(user_uid, file_fmt)
 
     async with blob.start_session() as session:
-        upload_id = await session.start_upload(blob_key)
+        uploadid = await session.start_upload(blob_key)
 
-    return PlainTextResponse(upload_id, status_code=status.HTTP_201_CREATED)
+    return dict(blob_key=blob_key, uploadid=uploadid)
+
+
+@router.post("/upload")
+async def upload_bytes(
+    blob_key: str = Form(..., max_length=256),
+    uploadid: str = Form(..., max_length=128),
+    *,
+    blob: BlobServiceDep,
+    request: Request,
+) -> None:
+    """Receive, process, and upload a stream of bytes."""
+    user_uid = verify_access_token(request, jwt)
+    dir_name, _ = blob_key.split("/")
+
+    if dir_name != user_uid:
+        raise HTTPException(
+            detail="Mismatch was found between blob key and user UID.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    async with blob.start_session() as session:
+        *_, last_part = await session.report_parts(blob_key, uploadid)
+        counter = count(last_part.index)
+
+        try:
+            async for chunk in request.stream():
+                part_index = next(counter)
+                await session.upload_chunk(
+                    blob_key=blob_key,
+                    data_chunk=chunk,
+                    part_index=part_index,
+                    uploadid=uploadid,
+                )
+        except ClientDisconnect:
+            logger.error("Upload stream disconnected.", exc_info=True)
+        else:
+            await session.finish_upload(blob_key, uploadid)
