@@ -17,12 +17,7 @@ from sqlalchemy.orm import selectinload, with_loader_criteria
 
 from hiresify_engine.type import ImageFormat, VideoFormat
 
-from .exception import (
-    EntityConflictError,
-    EntityNotFoundError,
-    UploadConflictError,
-    UploadNotFoundError,
-)
+from .exception import EntityConflictError, EntityNotFoundError
 from .model import Base, Image, RefreshToken, User, Video
 from .util import abbreviate_token
 
@@ -347,96 +342,6 @@ class Repository:
             await session.refresh(image)
             return image
 
-    async def bump_image_next(self, image_uid: str) -> int:
-        """Bump the index of next part of the image with the given image UID."""
-        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
-        stmt = select(Image).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (image := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Image, uid=image_uid)
-
-            async with session.begin():
-                index = image.next_index + 1
-                image.next_index = index
-                return index
-
-    async def start_image_upload(self, image_uid: str, uploadid: str) -> None:
-        """Start an upload of the image with the given image UID."""
-        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
-        stmt = select(Image).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (image := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Image, uid=image_uid)
-
-            if image.uploadid:
-                raise UploadConflictError(image.uid)
-
-            async with session.begin():
-                image.uploadid = uploadid
-                image.finished = False
-                image.aborted = False
-
-    async def finish_image_upload(self, image_uid: str) -> None:
-        """Finish the upload of the image with the given image UID."""
-        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
-        stmt = select(Image).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (image := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Image, uid=image_uid)
-
-            if not image.uploadid:
-                raise UploadNotFoundError(image.uid)
-
-            async with session.begin():
-                image.uploadid = None
-                image.finished = True
-
-    async def abort_image_upload(self, image_uid: str) -> None:
-        """Abort the upload of the image with the given image UID."""
-        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
-        stmt = select(Image).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (image := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Image, uid=image_uid)
-
-            if not image.uploadid:
-                raise UploadNotFoundError(image.uid)
-
-            async with session.begin():
-                image.uploadid = None
-                image.aborted = True
-
-    async def finish_image(self, image_uid: str) -> None:
-        """Finish the upload of the image with the given image UID."""
-        where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
-        stmt = select(Image).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (image := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Image, uid=image_uid)
-
-            async with session.begin():
-                image.finished = True
-
     async def delete_image(self, image_uid: str) -> None:
         """Delete an image given the image UID."""
         where_clause = and_(Image.uid == image_uid, Image.deleted.is_(False))
@@ -562,81 +467,6 @@ class Repository:
 
             await session.refresh(video)
             return video
-
-    async def bump_video_next(self, video_uid: str) -> int:
-        """Bump the index of next part of the video with the given video UID."""
-        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
-        stmt = select(Video).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (video := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Video, uid=video_uid)
-
-            async with session.begin():
-                index = video.next_index + 1
-                video.next_index = index
-                return index
-
-    async def start_video_upload(self, video_uid: str, uploadid: str) -> None:
-        """Start an upload of the video with the given video UID."""
-        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
-        stmt = select(Video).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (video := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Video, uid=video_uid)
-
-            if video.uploadid:
-                raise UploadConflictError(video.uid)
-
-            async with session.begin():
-                video.uploadid = uploadid
-                video.finished = False
-                video.aborted = False
-
-    async def finish_video_upload(self, video_uid: str) -> None:
-        """Finish the upload of the video with the given video UID."""
-        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
-        stmt = select(Video).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (video := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Video, uid=video_uid)
-
-            if not video.uploadid:
-                raise UploadNotFoundError(video.uid)
-
-            async with session.begin():
-                video.uploadid = None
-                video.finished = True
-
-    async def abort_video_upload(self, video_uid: str) -> None:
-        """Abort the upload of the video with the given video UID."""
-        where_clause = and_(Video.uid == video_uid, Video.deleted.is_(False))
-        stmt = select(Video).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (video := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Video, uid=video_uid)
-
-            if not video.uploadid:
-                raise UploadNotFoundError(video.uid)
-
-            async with session.begin():
-                video.uploadid = None
-                video.aborted = True
 
     async def delete_video(self, video_uid: str) -> None:
         """Delete an video given the video UID."""
