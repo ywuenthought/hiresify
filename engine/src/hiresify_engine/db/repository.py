@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
 from .exception import EntityConflictError, EntityNotFoundError
-from .model import Base, Blob, RefreshToken, User
+from .model import Base, Blob, RefreshToken, Upload, User
 from .util import abbreviate_token
 
 
@@ -374,3 +374,118 @@ class Repository:
                 result = await session.execute(stmt)
 
                 return result.rowcount
+
+    ##############
+    # upload blobs
+    ##############
+
+    async def find_upload(self, uploadid: str, *, eager: bool = False) -> Upload:
+        """Find the upload with the given upload UID."""
+        options = [selectinload(Upload.user)] if eager else []
+        where_clause = and_(
+            Upload.uploadid == uploadid,
+            Upload.finished.is_(False),
+            Upload.canceled.is_(False),
+        )
+        stmt = select(Upload).options(*options).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+
+            if not (upload := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Upload, upload_id=uploadid)
+
+            return upload
+
+    async def start_upload(
+        self,
+        user_uid: str,
+        *,
+        uploadid: str,
+        blob_key: str,
+        created_at: datetime,
+        valid_thru: datetime,
+    ) -> Upload:
+        """Start an upload of a blob for the given user UID."""
+        where_clause = User.uid == user_uid
+        stmt = select(User).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
+            upload = Upload(
+                uploadid=uploadid,
+                blob_key=blob_key,
+                created_at=created_at,
+                valid_thru=valid_thru,
+                user_id=user.id,
+            )
+
+            async with session.begin():
+                session.add(upload)
+
+            await session.refresh(upload)
+            return upload
+
+    async def finish_upload(self, uploadid: str) -> None:
+        """Finish an upload with the given upload ID."""
+        where_clause = and_(
+            Upload.uploadid == uploadid,
+            Upload.finished.is_(False),
+            Upload.canceled.is_(False),
+        )
+        stmt = select(Upload).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (upload := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Upload, upload_id=uploadid)
+
+            async with session.begin():
+                upload.finished = True
+
+    async def cancel_upload(self, uploadid: str) -> None:
+        """Cancel an upload with the given upload ID."""
+        where_clause = and_(
+            Upload.uploadid == uploadid,
+            Upload.finished.is_(False),
+            Upload.canceled.is_(False),
+        )
+        stmt = select(Upload).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (upload := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Upload, upload_id=uploadid)
+
+            async with session.begin():
+                upload.canceled = True
+
+    async def purge_uploads(
+        self, retention_days: int, now: datetime | None = None,
+    ) -> ty.Sequence[Upload]:
+        """Purge all the uploads expired for longer than `retention_days`."""
+        cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
+        where_clause = or_(
+            Upload.valid_thru < cutoff,
+            Upload.finished.is_(True),
+            Upload.canceled.is_(True),
+        )
+        select_stmt = select(Upload).where(where_clause)
+        delete_stmt = delete(Upload).where(where_clause)
+
+        async with self.session() as session:
+            async with session.begin():
+                result = await session.execute(select_stmt)
+                uploads = result.scalars().all()
+                result = await session.execute(delete_stmt)
+
+                return uploads

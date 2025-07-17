@@ -8,14 +8,22 @@
 import logging
 import typing as ty
 from datetime import UTC, datetime, timedelta
-from itertools import count
 
-from fastapi import APIRouter, Form, HTTPException, Query, Request, status
-from starlette.requests import ClientDisconnect
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    HTTPException,
+    Path,
+    Request,
+    UploadFile,
+    status,
+)
+from fastapi.responses import PlainTextResponse
 
+from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import BlobServiceDep, RepositoryDep
-from hiresify_engine.envvar import BLOB_TTL
-from hiresify_engine.model import Blob
+from hiresify_engine.envvar import UPLOAD_TTL
 
 from .const import jwt
 from .util import generate_blob_key, verify_access_token
@@ -24,81 +32,62 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/blob")
 
 
-@router.get("/upload", status_code=status.HTTP_201_CREATED)
+@router.get("/upload/{ffmt}")
 async def start_upload(
-    file_fmt: ty.Literal["jpg", "mp4", "png"] = Query(..., max_length=8),
-    *,
-    blob: BlobServiceDep,
-    request: Request,
-) -> dict[str, str]:
-    """Start a multipart upload of the given file."""
-    user_uid = verify_access_token(request, jwt)
-    blob_key = generate_blob_key(user_uid, file_fmt)
-
-    async with blob.start_session() as session:
-        uploadid = await session.start_upload(blob_key)
-
-    return dict(blob_key=blob_key, uploadid=uploadid)
-
-
-@router.post("/upload", response_model=Blob)
-async def upload_bytes(
-    filename: str = Form(..., max_length=256),
-    blob_key: str = Form(..., max_length=256),
-    part_ind: int = Form(..., max_digits=100),
-    uploadid: str = Form(..., max_length=128),
+    ffmt: ty.Literal["jpg", "mp4", "png"] = Path(..., max_length=8),
     *,
     blob: BlobServiceDep,
     repo: RepositoryDep,
     request: Request,
-) -> Blob:
-    """Receive, process, and upload a stream of bytes."""
+) -> PlainTextResponse:
+    """Start a multipart upload of the given file."""
     user_uid = verify_access_token(request, jwt)
-    dir_name, _ = blob_key.split("/")
-
-    if dir_name != user_uid:
-        raise HTTPException(
-            detail="Mismatch was found between blob key and user UID.",
-            status_code=status.HTTP_403_FORBIDDEN,
-        )
+    blob_key = generate_blob_key(user_uid, ffmt)
 
     async with blob.start_session() as session:
-        counter = count(part_ind)
+        uploadid = await session.start_upload(blob_key)
 
-        try:
-            async for chunk in request.stream():
-                part_index = next(counter)
-                await session.upload_chunk(
-                    blob_key=blob_key,
-                    data_chunk=chunk,
-                    part_index=part_index,
-                    uploadid=uploadid,
-                )
+    created_at = datetime.now(UTC)
+    valid_thru = created_at + timedelta(days=UPLOAD_TTL)
 
-        except ClientDisconnect as e:
-            await session.abort_upload(blob_key, uploadid)
-            raise HTTPException(
-                detail="Upload stream disconnected.",
-                status_code=499,
-            ) from e
+    await repo.start_upload(
+        user_uid,
+        uploadid=uploadid,
+        blob_key=blob_key,
+        created_at=created_at,
+        valid_thru=valid_thru,
+    )
 
-        else:
-            await session.finish_upload(blob_key, uploadid)
+    return PlainTextResponse(uploadid, status_code=status.HTTP_201_CREATED)
 
-            created_at = datetime.now(UTC)
-            valid_thru = created_at + timedelta(days=BLOB_TTL)
 
-            await repo.create_blob(
-                user_uid,
-                blob_key=blob_key,
-                filename=filename,
-                created_at=created_at,
-                valid_thru=valid_thru,
-            )
+@router.post("/upload/{part}")
+async def upload_chunk(
+    file: UploadFile = File(...),  # noqa: B008
+    part: int = Path(..., examples=[1], ge=1),
+    upload_id: str = Form(..., max_length=128),
+    *,
+    blob: BlobServiceDep,
+    repo: RepositoryDep,
+    request: Request,
+) -> None:
+    """Receive, process, and upload a chunk of blob."""
+    verify_access_token(request, jwt)
 
-            return Blob(
-                blob_key=blob_key,
-                filename=filename,
-                created_at=created_at,
-                valid_thru=valid_thru,
-            )
+    try:
+        upload = await repo.find_upload(upload_id)
+    except EntityNotFoundError as e:
+        raise HTTPException(
+            detail=f"{upload_id=} was not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        ) from e
+
+    chunk = await file.read()
+
+    async with blob.start_session() as session:
+        await session.upload_chunk(
+            blob_key=upload.blob_key,
+            data_chunk=chunk,
+            part_index=part,
+            upload_id=upload_id,
+        )

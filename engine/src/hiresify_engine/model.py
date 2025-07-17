@@ -22,11 +22,11 @@ class User:
 class Blob:
     """The domain model for a persisted blob file."""
 
-    #: Name of this blob file.
-    filename: str
+    #: The UID of this blob.
+    uid: str
 
-    #: The blob key to identify this blob in the blob store.
-    blob_key: str
+    #: The name of this blob file.
+    filename: str
 
     #: The date and time when the blob was created.
     created_at: datetime

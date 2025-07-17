@@ -23,7 +23,7 @@ BLOB_STORE_REGION = get_envvar("BLOB_STORE_REGION", str, "")
 BLOB_STORE_URL = get_envvar("BLOB_STORE_URL", str, "")
 
 # The TTL for a blob file persisted in the blob store (day).
-BLOB_TTL = get_envvar("BLOB_TTL", int, 14)
+BLOB_TTL = get_envvar("BLOB_TTL", int, 30)
 
 # The name of the bucket for blob storage.
 BUCKET_NAME = get_envvar("BUCKET_NAME", str, "hiresify")
@@ -45,3 +45,6 @@ REDIS_URL = get_envvar("REDIS_URL", str, "")
 
 # The refresh token TTL (day).
 REFRESH_TTL = get_envvar("REFRESH_TTL", int, 30)
+
+# The TTL for an upload of a blob file (day).
+UPLOAD_TTL = get_envvar("UPLOAD_TTL", int, 7)
