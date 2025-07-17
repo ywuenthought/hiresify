@@ -84,7 +84,7 @@ class BlobService:
         blob_key: str,
         data_chunk: bytes,
         part_index: int,
-        upload_id: str,
+        uploadid: str,
     ) -> None:
         """Upload the given part of a media file."""
         if self._client is None:
@@ -95,15 +95,15 @@ class BlobService:
             Bucket=BUCKET_NAME,
             Key=blob_key,
             PartNumber=part_index,
-            UploadId=upload_id,
+            UploadId=uploadid,
         )
 
-    async def finish_upload(self, blob_key: str, upload_id: str) -> None:
+    async def finish_upload(self, blob_key: str, uploadid: str) -> None:
         """Finish the session for a multipart upload of a file."""
         if self._client is None:
             raise RuntimeError("S3 client has not been initialized.")
 
-        upload_parts = await self.report_parts(blob_key, upload_id)
+        upload_parts = await self.report_parts(blob_key, uploadid)
         await self._client.complete_multipart_upload(
             Bucket=BUCKET_NAME,
             Key=blob_key,
@@ -114,10 +114,10 @@ class BlobService:
                     in upload_parts
                 ],
             ),
-            UploadId=upload_id,
+            UploadId=uploadid,
         )
 
-    async def abort_upload(self, blob_key: str, upload_id: str) -> None:
+    async def abort_upload(self, blob_key: str, uploadid: str) -> None:
         """Abort the session for a multipart upload of a file."""
         if self._client is None:
             raise RuntimeError("S3 client has not been initialized.")
@@ -125,10 +125,10 @@ class BlobService:
         await self._client.abort_multipart_upload(
             Bucket=BUCKET_NAME,
             Key=blob_key,
-            UploadId=upload_id,
+            UploadId=uploadid,
         )
 
-    async def report_parts(self, blob_key: str, upload_id: str) -> list[UploadPart]:
+    async def report_parts(self, blob_key: str, uploadid: str) -> list[UploadPart]:
         """Report the parts of a file that were already uploaded."""
         if self._client is None:
             raise RuntimeError("S3 client has not been initialized.")
@@ -136,7 +136,7 @@ class BlobService:
         resp = await self._client.list_parts(
             Bucket=BUCKET_NAME,
             Key=blob_key,
-            UploadId=upload_id,
+            UploadId=uploadid,
         )
 
         parts = resp["Parts"]

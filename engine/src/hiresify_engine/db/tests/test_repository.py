@@ -275,7 +275,7 @@ async def test_bump_image_index(repository: Repository) -> None:
     assert image.next_index == 2
 
 
-async def test_finish_image(repository: Repository) -> None:
+async def test_finish_image_upload(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
@@ -293,13 +293,26 @@ async def test_finish_image(repository: Repository) -> None:
     )
 
     # Then
+    assert image.uploadid is None
     assert not image.finished
 
+    # Given
+    uploadid = uuid4().hex
+
     # When
-    await repository.finish_image(image.uid)
+    await repository.start_image_upload(image.uid, uploadid)
     image = await repository.find_image(image.uid)
 
     # Then
+    assert image.uploadid == uploadid
+    assert not image.finished
+
+    # When
+    await repository.finish_image_upload(image.uid)
+    image = await repository.find_image(image.uid)
+
+    # Then
+    assert image.uploadid is None
     assert image.finished
 
 
@@ -462,7 +475,7 @@ async def test_bump_video_index(repository: Repository) -> None:
     assert video.next_index == 2
 
 
-async def test_finish_video(repository: Repository) -> None:
+async def test_finish_video_upload(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
@@ -480,13 +493,26 @@ async def test_finish_video(repository: Repository) -> None:
     )
 
     # Then
+    assert video.uploadid is None
     assert not video.finished
 
+    # Given
+    uploadid = uuid4().hex
+
     # When
-    await repository.finish_video(video.uid)
+    await repository.start_video_upload(video.uid, uploadid)
     video = await repository.find_video(video.uid)
 
     # Then
+    assert video.uploadid == uploadid
+    assert not video.finished
+
+    # When
+    await repository.finish_video_upload(video.uid)
+    video = await repository.find_video(video.uid)
+
+    # Then
+    assert video.uploadid is None
     assert video.finished
 
 

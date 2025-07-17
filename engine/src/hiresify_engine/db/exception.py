@@ -30,3 +30,19 @@ class EntityConflictError(Exception):
             f"{' '.join(f'{key}={value}' for key, value in identifiers.items())} "
             "conflicts with an existing entity.",
         )
+
+
+class UploadConflictError(Exception):
+    """Raised when starting an upload of a blob that's already being uploaded."""
+
+    def __init__(self, blob_uid: str) -> None:
+        """Initialize a new instance of UploadConflictError."""
+        super().__init__(f"There is an existing upload for {blob_uid=}.")
+
+
+class UploadNotFoundError(Exception):
+    """Raised when aborting or finishing a nonexisting blob upload."""
+
+    def __init__(self, blob_uid: str) -> None:
+        """Initialize a new instance of UploadNotFoundError."""
+        super().__init__(f"There is no upload for {blob_uid=}.")

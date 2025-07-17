@@ -21,7 +21,7 @@ async def test_upload_file(media: str, service: BlobService) -> None:
 
     # When
     async with service.start_session() as session:
-        upload_id = await session.start_upload(blob_key)
+        uploadid = await session.start_upload(blob_key)
 
         tasks = []
         with open(media, "rb") as fp:
@@ -33,17 +33,17 @@ async def test_upload_file(media: str, service: BlobService) -> None:
                         blob_key=blob_key,
                         data_chunk=chunk,
                         part_index=part_index,
-                        upload_id=upload_id,
+                        uploadid=uploadid,
                     ),
                 )
                 tasks.append(task)
 
         await asyncio.gather(*tasks)
-        await session.finish_upload(blob_key, upload_id)
+        await session.finish_upload(blob_key, uploadid)
 
         # Then
         with pytest.raises(Exception):
-            await session.report_parts(blob_key, upload_id)
+            await session.report_parts(blob_key, uploadid)
 
 
 async def test_abort_upload(media: str, service: BlobService) -> None:
@@ -53,25 +53,25 @@ async def test_abort_upload(media: str, service: BlobService) -> None:
 
     # When
     async with service.start_session() as session:
-        upload_id = await session.start_upload(blob_key)
+        uploadid = await session.start_upload(blob_key)
 
         with open(media, "rb") as fp:
             await session.upload_chunk(
                 blob_key=blob_key,
                 data_chunk=fp.read(chunk_size),
                 part_index=1,
-                upload_id=upload_id,
+                uploadid=uploadid,
             )
 
-        parts = await session.report_parts(blob_key, upload_id)
+        parts = await session.report_parts(blob_key, uploadid)
 
         # Then
         assert len(parts) == 1
         assert parts[0].index == 1
 
         # When
-        await session.abort_upload(blob_key, upload_id)
+        await session.abort_upload(blob_key, uploadid)
 
         # Then
         with pytest.raises(Exception):
-            await session.report_parts(blob_key, upload_id)
+            await session.report_parts(blob_key, uploadid)

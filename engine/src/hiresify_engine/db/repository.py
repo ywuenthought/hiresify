@@ -17,7 +17,12 @@ from sqlalchemy.orm import selectinload, with_loader_criteria
 
 from hiresify_engine.type import ImageFormat, VideoFormat
 
-from .exception import EntityConflictError, EntityNotFoundError
+from .exception import (
+    EntityConflictError,
+    EntityNotFoundError,
+    UploadConflictError,
+    UploadNotFoundError,
+)
 from .model import Base, Image, RefreshToken, User, Video
 from .util import abbreviate_token
 
@@ -58,9 +63,22 @@ class Repository:
     # user management
     #################
 
-    async def find_user(self, username: str, *, eager: bool = False) -> User:
+    async def find_user(
+        self, username: str,
+        *,
+        with_tokens: bool = False,
+        with_images: bool = False,
+        with_videos: bool = False,
+    ) -> User:
         """Find the user with the given user name."""
-        options = [selectinload(User.refresh_tokens)] if eager else []
+        options = []
+        if with_tokens:
+            options.append(selectinload(User.refresh_tokens))
+        if with_images:
+            options.append(selectinload(User.images))
+        if with_videos:
+            options.append(selectinload(User.videos))
+
         where_clause = User.username == username
         stmt = select(User).options(*options).where(where_clause)
 
@@ -322,6 +340,64 @@ class Repository:
                 image.next_index = index
                 return index
 
+    async def start_image_upload(self, image_uid: str, uploadid: str) -> None:
+        """Start an upload of the image with the given image UID."""
+        where_clause = Image.uid == image_uid
+        stmt = select(Image).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (image := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Image, uid=image_uid)
+
+            if image.uploadid:
+                raise UploadConflictError(image.uid)
+
+            async with session.begin():
+                image.uploadid = uploadid
+                image.finished = False
+                image.aborted = False
+
+    async def finish_image_upload(self, image_uid: str) -> None:
+        """Finish the upload of the image with the given image UID."""
+        where_clause = Image.uid == image_uid
+        stmt = select(Image).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (image := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Image, uid=image_uid)
+
+            if not image.uploadid:
+                raise UploadNotFoundError(image.uid)
+
+            async with session.begin():
+                image.uploadid = None
+                image.finished = True
+
+    async def abort_image_upload(self, image_uid: str) -> None:
+        """Abort the upload of the image with the given image UID."""
+        where_clause = Image.uid == image_uid
+        stmt = select(Image).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (image := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Image, uid=image_uid)
+
+            if not image.uploadid:
+                raise UploadNotFoundError(image.uid)
+
+            async with session.begin():
+                image.uploadid = None
+                image.aborted = True
+
     async def finish_image(self, image_uid: str) -> None:
         """Finish the upload of the image with the given image UID."""
         where_clause = Image.uid == image_uid
@@ -477,7 +553,27 @@ class Repository:
                 video.next_index = index
                 return index
 
-    async def finish_video(self, video_uid: str) -> None:
+    async def start_video_upload(self, video_uid: str, uploadid: str) -> None:
+        """Start an upload of the video with the given video UID."""
+        where_clause = Video.uid == video_uid
+        stmt = select(Video).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (video := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Video, uid=video_uid)
+
+            if video.uploadid:
+                raise UploadConflictError(video.uid)
+
+            async with session.begin():
+                video.uploadid = uploadid
+                video.finished = False
+                video.aborted = False
+
+    async def finish_video_upload(self, video_uid: str) -> None:
         """Finish the upload of the video with the given video UID."""
         where_clause = Video.uid == video_uid
         stmt = select(Video).where(where_clause)
@@ -489,8 +585,31 @@ class Repository:
             if not (video := result.scalar_one_or_none()):
                 raise EntityNotFoundError(Video, uid=video_uid)
 
+            if not video.uploadid:
+                raise UploadNotFoundError(video.uid)
+
             async with session.begin():
+                video.uploadid = None
                 video.finished = True
+
+    async def abort_video_upload(self, video_uid: str) -> None:
+        """Abort the upload of the video with the given video UID."""
+        where_clause = Video.uid == video_uid
+        stmt = select(Video).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (video := result.scalar_one_or_none()):
+                raise EntityNotFoundError(Video, uid=video_uid)
+
+            if not video.uploadid:
+                raise UploadNotFoundError(video.uid)
+
+            async with session.begin():
+                video.uploadid = None
+                video.aborted = True
 
     async def delete_video(self, video_uid: str) -> None:
         """Delete an video given the video UID."""

@@ -120,11 +120,15 @@ class _BlobMixin:
         String(32), default=lambda: uuid4().hex, unique=True,
     )
 
-    #: Name of this blob file.
-    filename: Mapped[str] = mapped_column(String(256), nullable=False)
-
     #: The blob key to identify this blob in the blob store.
     blob_key: Mapped[str] = mapped_column(String(256), nullable=False)
+
+    #: The upload ID to identify the current upload process of this blob.
+    # None means that there is no active upload for now.
+    uploadid: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    #: Name of this blob file.
+    filename: Mapped[str] = mapped_column(String(256), nullable=False)
 
     #: The date and time when the blob was created.
     created_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
@@ -137,6 +141,9 @@ class _BlobMixin:
 
     #: A boolean flag for whether the upload of this blob has been finished.
     finished: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+    #: A boolean flag for whether the upload of this blob has been aborted.
+    aborted: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     #: A user-facing boolean flag for whether the blob has been deleted.
     deleted: Mapped[bool] = mapped_column(default=False, nullable=False)
