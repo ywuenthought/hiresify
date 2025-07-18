@@ -161,12 +161,6 @@ class Upload(Base):
     #: The date and time when the upload is valid through.
     valid_thru: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
 
-    #: A boolean flag for whether this upload has been finished.
-    finished: Mapped[bool] = mapped_column(default=False, nullable=False)
-
-    #: A boolean flag for whether this upload has been canceled.
-    canceled: Mapped[bool] = mapped_column(default=False, nullable=False)
-
     #: The user ID that this upload is associated with.
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 

@@ -382,11 +382,7 @@ class Repository:
     async def find_upload(self, uid: str, *, eager: bool = False) -> Upload:
         """Find the upload with the given upload UID."""
         options = [selectinload(Upload.user)] if eager else []
-        where_clause = and_(
-            Upload.uid == uid,
-            Upload.finished.is_(False),
-            Upload.canceled.is_(False),
-        )
+        where_clause = Upload.uid == uid
         stmt = select(Upload).options(*options).where(where_clause)
 
         async with self.session() as session:
@@ -431,61 +427,27 @@ class Repository:
             await session.refresh(upload)
             return upload
 
-    async def finish_upload(self, uid: str) -> None:
-        """Finish an upload with the given upload ID."""
-        where_clause = and_(
-            Upload.uid == uid,
-            Upload.finished.is_(False),
-            Upload.canceled.is_(False),
-        )
-        stmt = select(Upload).where(where_clause)
+    async def remove_upload(self, uid: str) -> None:
+        """Remove an upload with the given upload ID.
+
+        An upload is removable when it's either finished or canceled.
+        """
+        where_clause = and_(Upload.uid == uid)
+        stmt = delete(Upload).where(where_clause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (upload := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Upload, uid=uid)
-
             async with session.begin():
-                upload.finished = True
-
-    async def cancel_upload(self, uid: str) -> None:
-        """Cancel an upload with the given upload ID."""
-        where_clause = and_(
-            Upload.uid == uid,
-            Upload.finished.is_(False),
-            Upload.canceled.is_(False),
-        )
-        stmt = select(Upload).where(where_clause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (upload := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Upload, uid=uid)
-
-            async with session.begin():
-                upload.canceled = True
+                await session.execute(stmt)
 
     async def purge_uploads(
         self, retention_days: int, now: datetime | None = None,
     ) -> ty.Sequence[Upload]:
         """Purge all the uploads expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
-        where_clause = or_(
-            Upload.valid_thru < cutoff,
-            Upload.finished.is_(True),
-            Upload.canceled.is_(True),
-        )
-        select_stmt = select(Upload).where(where_clause)
-        delete_stmt = delete(Upload).where(where_clause)
+        where_clause = Upload.valid_thru < cutoff
+        stmt = delete(Upload).where(where_clause)
 
         async with self.session() as session:
             async with session.begin():
-                result = await session.execute(select_stmt)
-                uploads = result.scalars().all()
-                result = await session.execute(delete_stmt)
-
-                return uploads
+                result = await session.execute(stmt)
+                return result.scalars().all()

@@ -99,9 +99,9 @@ async def upload_chunk(
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    if upload.finished or upload.canceled or upload.valid_thru <= datetime.now(UTC):
+    if upload.valid_thru <= datetime.now(UTC):
         raise HTTPException(
-            detail=f"{upload_id=} was finished, canceled, or timed out.",
+            detail=f"{upload_id=} timed out.",
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
@@ -136,9 +136,9 @@ async def finish_upload(
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    if upload.finished or upload.canceled or upload.valid_thru <= datetime.now(UTC):
+    if upload.valid_thru <= datetime.now(UTC):
         raise HTTPException(
-            detail=f"{upload_id=} was finished, canceled, or timed out.",
+            detail=f"{upload_id=} timed out.",
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
@@ -149,7 +149,7 @@ async def finish_upload(
     created_at = datetime.now(UTC)
     valid_thru = created_at + timedelta(days=UPLOAD_TTL)
 
-    await repo.finish_upload(upload_id)
+    await repo.remove_upload(upload_id)
     blob_obj = await repo.create_blob(
         user_uid,
         blob_key=blob_key,
@@ -186,13 +186,14 @@ async def cancel_upload(
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    if upload.finished or upload.canceled or upload.valid_thru <= datetime.now(UTC):
+    if upload.valid_thru <= datetime.now(UTC):
         raise HTTPException(
-            detail=f"{upload_id=} was finished, canceled, or timed out.",
+            detail=f"{upload_id=} timed out.",
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
+    blob_key = upload.blob_key
     async with blob.start_session() as session:
-        await session.cancel_upload(blob_key=upload.blob_key, upload_id=upload_id)
+        await session.cancel_upload(blob_key=blob_key, upload_id=upload_id)
 
-    await repo.cancel_upload(upload_id)
+    await repo.remove_upload(upload_id)
