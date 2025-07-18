@@ -89,9 +89,6 @@ class RefreshToken(Base):
     #: The date and time when the token was set to expire.
     expire_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
 
-    #: A boolean flag for whether the token has been revoked.
-    revoked: Mapped[bool] = mapped_column(default=False, nullable=False)
-
     #: The user agent or device name for this token.
     device: Mapped[str] = mapped_column(String(128), nullable=True)
 

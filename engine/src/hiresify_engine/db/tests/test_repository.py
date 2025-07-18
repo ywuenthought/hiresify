@@ -117,7 +117,6 @@ async def test_create_token(repository: Repository) -> None:
 
     # Then
     assert refresh_token.expire_at > refresh_token.issued_at
-    assert not refresh_token.revoked
 
 
 async def test_revoke_token(repository: Repository) -> None:
@@ -128,16 +127,12 @@ async def test_revoke_token(repository: Repository) -> None:
     issued_at = datetime.now(UTC)
     expire_at = issued_at + timedelta(seconds=1)
 
-    # When
     refresh_token = await repository.create_token(
         user.uid,
         token=token,
         issued_at=issued_at,
         expire_at=expire_at,
     )
-
-    # Then
-    assert not refresh_token.revoked
 
     # When
     token = refresh_token.token
@@ -152,39 +147,25 @@ async def test_revoke_tokens(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
+    issued_at = datetime.now(UTC)
+    tokens = [f"token{i}" for i in range(1, 4)]
+
+    for token in tokens:
+        expire_at = issued_at + timedelta(seconds=1)
+        await repository.create_token(
+            user.uid,
+            token=token,
+            issued_at=issued_at,
+            expire_at=expire_at,
+        )
+        issued_at = expire_at
+
     # When
+    await repository.revoke_tokens(user.uid)
     refresh_tokens = await repository.find_tokens(user.uid)
 
     # Then
     assert not refresh_tokens
-
-    # Given
-    issued_at = datetime.now(UTC)
-    tokens = [f"token{i}" for i in range(1, 4)]
-
-    pre_tokens = []
-    for token in tokens:
-        expire_at = issued_at + timedelta(seconds=1)
-        pre_tokens.append(
-            await repository.create_token(
-                user.uid,
-                token=token,
-                issued_at=issued_at,
-                expire_at=expire_at,
-            ),
-        )
-        issued_at = expire_at
-
-    # Then
-    for refresh_token in pre_tokens:
-        assert not refresh_token.revoked
-
-    # When
-    await repository.revoke_tokens(user.uid)
-    cur_tokens = await repository.find_tokens(user.uid)
-
-    # Then
-    assert not cur_tokens
 
 
 async def test_purge_tokens(repository: Repository) -> None:
@@ -194,21 +175,17 @@ async def test_purge_tokens(repository: Repository) -> None:
     issued_at = datetime.now(UTC)
     tokens = [f"token{i}" for i in range(1, 4)]
 
-    refresh_tokens = []
     for token in tokens:
         expire_at = issued_at + timedelta(seconds=1)
-        refresh_tokens.append(
-            await repository.create_token(
-                user.uid,
-                token=token,
-                issued_at=issued_at,
-                expire_at=expire_at,
-            ),
+        refresh_token = await repository.create_token(
+            user.uid,
+            token=token,
+            issued_at=issued_at,
+            expire_at=expire_at,
         )
         issued_at = expire_at
 
     # When
-    *_, refresh_token = refresh_tokens
     await repository.purge_tokens(1, refresh_token.expire_at + timedelta(days=2))
     refresh_tokens = await repository.find_tokens(user.uid)
 

@@ -109,7 +109,7 @@ async def refresh_token(
             status_code=status.HTTP_400_BAD_REQUEST,
         ) from e
 
-    if refresh_token.revoked or refresh_token.expire_at <= datetime.now(UTC):
+    if refresh_token.expire_at <= datetime.now(UTC):
         raise HTTPException(
             detail=f"{token=} was revoked or timed out.",
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
@@ -128,10 +128,4 @@ async def revoke_token(*, repo: RepositoryDep, request: Request) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    try:
-        await repo.revoke_token(token)
-    except EntityNotFoundError as e:
-        raise HTTPException(
-            detail="The refresh token was not found.",
-            status_code=status.HTTP_404_NOT_FOUND,
-        ) from e
+    await repo.revoke_token(token)
