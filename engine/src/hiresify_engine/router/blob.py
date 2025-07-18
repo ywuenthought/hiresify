@@ -6,6 +6,7 @@
 """Define the backend upload-related endpoints."""
 
 import logging
+import os
 import typing as ty
 from datetime import UTC, datetime, timedelta
 
@@ -19,11 +20,11 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import PlainTextResponse
 
 from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import BlobServiceDep, RepositoryDep
 from hiresify_engine.envvar import UPLOAD_TTL
+from hiresify_engine.model import Blob
 
 from .const import jwt
 from .util import generate_blob_key, verify_access_token
@@ -32,33 +33,33 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/blob")
 
 
-@router.get("/upload/{ffmt}")
+@router.get("/upload/{file_type}", status_code=status.HTTP_201_CREATED)
 async def start_upload(
-    ffmt: ty.Literal["jpg", "mp4", "png"] = Path(..., max_length=8),
+    file_type: ty.Literal["jpeg", "jpg", "mp4", "png"] = Path(...),
     *,
     blob: BlobServiceDep,
     repo: RepositoryDep,
     request: Request,
-) -> PlainTextResponse:
+) -> str:
     """Start a multipart upload of the given file."""
     user_uid = verify_access_token(request, jwt)
-    blob_key = generate_blob_key(user_uid, ffmt)
+    blob_key = generate_blob_key(user_uid, file_type)
 
     async with blob.start_session() as session:
-        uploadid = await session.start_upload(blob_key)
+        upload_id = await session.start_upload(blob_key)
 
     created_at = datetime.now(UTC)
     valid_thru = created_at + timedelta(days=UPLOAD_TTL)
 
     await repo.start_upload(
         user_uid,
-        uploadid=uploadid,
+        uid=upload_id,
         blob_key=blob_key,
         created_at=created_at,
         valid_thru=valid_thru,
     )
 
-    return PlainTextResponse(uploadid, status_code=status.HTTP_201_CREATED)
+    return upload_id
 
 
 @router.post("/upload/{part}")
@@ -82,6 +83,12 @@ async def upload_chunk(
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
+    if upload.finished or upload.canceled or upload.valid_thru <= datetime.now(UTC):
+        raise HTTPException(
+            detail=f"{upload_id=} was finished, canceled, or timed out.",
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
+        )
+
     chunk = await file.read()
 
     async with blob.start_session() as session:
@@ -91,3 +98,87 @@ async def upload_chunk(
             part_index=part,
             upload_id=upload_id,
         )
+
+
+@router.put("/upload", response_model=Blob)
+async def finish_upload(
+    upload_id: str = Form(..., max_length=128),
+    file_name: str = Form(..., max_length=256),
+    *,
+    blob: BlobServiceDep,
+    repo: RepositoryDep,
+    request: Request,
+) -> Blob:
+    """Finish the upload specified by the given upload ID."""
+    user_uid = verify_access_token(request, jwt)
+
+    try:
+        upload = await repo.find_upload(upload_id)
+    except EntityNotFoundError as e:
+        raise HTTPException(
+            detail=f"{upload_id=} was not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        ) from e
+
+    if upload.finished or upload.canceled or upload.valid_thru <= datetime.now(UTC):
+        raise HTTPException(
+            detail=f"{upload_id=} was finished, canceled, or timed out.",
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
+        )
+
+    blob_key = upload.blob_key
+    async with blob.start_session() as session:
+        await session.finish_upload(blob_key=blob_key, upload_id=upload_id)
+
+    created_at = datetime.now(UTC)
+    valid_thru = created_at + timedelta(days=UPLOAD_TTL)
+
+    await repo.finish_upload(upload_id)
+    blob_obj = await repo.create_blob(
+        user_uid,
+        blob_key=blob_key,
+        file_name=file_name,
+        created_at=created_at,
+        valid_thru=valid_thru,
+    )
+
+    _, ext = os.path.splitext(blob_key)
+    return Blob(
+        uid=blob_obj.uid,
+        file_name=file_name,
+        # Exclude the leading dot.
+        file_type=ext[1:],
+        created_at=created_at,
+        valid_thru=valid_thru,
+    )
+
+
+@router.delete("/upload", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_upload(
+    upload_id: str = Form(..., max_length=128),
+    *,
+    blob: BlobServiceDep,
+    repo: RepositoryDep,
+    request: Request,
+) -> None:
+    """Finish the upload specified by the given upload ID."""
+    verify_access_token(request, jwt)
+
+    try:
+        upload = await repo.find_upload(upload_id)
+    except EntityNotFoundError as e:
+        raise HTTPException(
+            detail=f"{upload_id=} was not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        ) from e
+
+    if upload.finished or upload.canceled or upload.valid_thru <= datetime.now(UTC):
+        raise HTTPException(
+            detail=f"{upload_id=} was finished, canceled, or timed out.",
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
+        )
+
+    async with blob.start_session() as session:
+        await session.cancel_upload(blob_key=upload.blob_key, upload_id=upload_id)
+
+    await repo.cancel_upload(upload_id)

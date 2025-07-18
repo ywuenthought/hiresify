@@ -53,9 +53,9 @@ def add_secure_headers(response: Response) -> None:
         response.headers["Strict-Transport-Security"] = "; ".join(_STS_ITEMS)
 
 
-def generate_blob_key(user_uid: str, file_fmt: str) -> str:
-    """Generate a blob key with the given user UID and file format."""
-    return f"{user_uid}/{uuid4().hex}.{file_fmt}"
+def generate_blob_key(user_uid: str, file_type: str) -> str:
+    """Generate a blob key with the given user UID and file type."""
+    return f"{user_uid}/{uuid4().hex}.{file_type}"
 
 
 def verify_access_token(request: Request, jwt: JWTTokenService) -> str:

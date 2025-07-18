@@ -117,8 +117,8 @@ class BlobService:
             UploadId=upload_id,
         )
 
-    async def abort_upload(self, blob_key: str, upload_id: str) -> None:
-        """Abort the session for a multipart upload of a file."""
+    async def cancel_upload(self, blob_key: str, upload_id: str) -> None:
+        """Cancel the session for a multipart upload of a file."""
         if self._client is None:
             raise RuntimeError("S3 client has not been initialized.")
 

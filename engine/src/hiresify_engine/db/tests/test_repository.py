@@ -230,7 +230,7 @@ async def test_create_blob(repository: Repository) -> None:
     blob = await repository.create_blob(
         user.uid,
         blob_key=uuid4().hex,
-        filename="blob.bin",
+        file_name="blob.bin",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -251,7 +251,7 @@ async def test_delete_blob(repository: Repository) -> None:
     blob = await repository.create_blob(
         user.uid,
         blob_key=uuid4().hex,
-        filename="blob.bin",
+        file_name="blob.bin",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -279,16 +279,16 @@ async def test_delete_blobs(repository: Repository) -> None:
 
     # Given
     created_at = datetime.now(UTC)
-    filenames = [f"blob{i}.bin" for i in range(1, 4)]
+    file_names = [f"blob{i}.bin" for i in range(1, 4)]
 
     pre_blobs = []
-    for filename in filenames:
+    for file_name in file_names:
         valid_thru = created_at + timedelta(seconds=1)
         pre_blobs.append(
             await repository.create_blob(
                 user.uid,
                 blob_key=uuid4().hex,
-                filename=filename,
+                file_name=file_name,
                 created_at=created_at,
                 valid_thru=valid_thru,
             ),
@@ -312,16 +312,16 @@ async def test_purge_blobs(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
     
     created_at = datetime.now(UTC)
-    filenames = [f"blob{i}.bin" for i in range(1, 4)]
+    file_names = [f"blob{i}.bin" for i in range(1, 4)]
 
     blobs = []
-    for filename in filenames:
+    for file_name in file_names:
         valid_thru = created_at + timedelta(seconds=1)
         blobs.append(
             await repository.create_blob(
                 user.uid,
                 blob_key=uuid4().hex,
-                filename=filename,
+                file_name=file_name,
                 created_at=created_at,
                 valid_thru=valid_thru,
             ),

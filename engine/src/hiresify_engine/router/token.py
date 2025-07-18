@@ -18,7 +18,7 @@ from .const import jwt
 router = APIRouter(prefix="/token")
 
 
-@router.post("/issue")
+@router.post("/issue", status_code=status.HTTP_201_CREATED)
 async def issue_token(
     client_id: str = Form(..., max_length=32, min_length=32),
     code: str = Form(..., max_length=32, min_length=32),
@@ -30,7 +30,8 @@ async def issue_token(
     *,
     cache: CacheServiceDep,
     repo: RepositoryDep,
-) -> Response:
+    response: Response,
+) -> None:
     """Issue an access token to a user identified by the given metadata."""
     if not (auth := await cache.get_authorization(code)):
         raise HTTPException(
@@ -78,18 +79,21 @@ async def issue_token(
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    response = Response(status_code=status.HTTP_201_CREATED)
     response.set_cookie(**refresh_token.to_cookie())
 
     access_token = jwt.generate_access_token(auth.user_uid)
     response.set_cookie(**access_token.to_cookie())
 
     await cache.del_authorization(code)
-    return response
 
 
-@router.post("/refresh")
-async def refresh_token(*, repo: RepositoryDep, request: Request) -> Response:
+@router.post("/refresh", status_code=status.HTTP_201_CREATED)
+async def refresh_token(
+    *,
+    repo: RepositoryDep,
+    request: Request,
+    response: Response,
+) -> None:
     """Refresh a user's access token if the given refresh token is active."""
     if (token := request.cookies.get("refresh_token")) is None:
         raise HTTPException(
@@ -111,12 +115,8 @@ async def refresh_token(*, repo: RepositoryDep, request: Request) -> Response:
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
-    response = Response(status_code=status.HTTP_201_CREATED)
-
     access_token = jwt.generate_access_token(refresh_token.user.uid)
     response.set_cookie(**access_token.to_cookie())
-
-    return response
 
 
 @router.post("/revoke", status_code=status.HTTP_204_NO_CONTENT)

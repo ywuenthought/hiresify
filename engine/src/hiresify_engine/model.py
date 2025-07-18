@@ -26,7 +26,10 @@ class Blob:
     uid: str
 
     #: The name of this blob file.
-    filename: str
+    file_name: str
+
+    #: The type of this blob file.
+    file_type: str
 
     #: The date and time when the blob was created.
     created_at: datetime

@@ -291,7 +291,7 @@ class Repository:
         user_uid: str,
         *,
         blob_key: str,
-        filename: str,
+        file_name: str,
         created_at: datetime,
         valid_thru: datetime,
     ) -> Blob:
@@ -308,7 +308,7 @@ class Repository:
 
             blob = Blob(
                 blob_key=blob_key,
-                filename=filename,
+                file_name=file_name,
                 created_at=created_at,
                 valid_thru=valid_thru,
                 user_id=user.id,
@@ -379,11 +379,11 @@ class Repository:
     # upload blobs
     ##############
 
-    async def find_upload(self, uploadid: str, *, eager: bool = False) -> Upload:
+    async def find_upload(self, uid: str, *, eager: bool = False) -> Upload:
         """Find the upload with the given upload UID."""
         options = [selectinload(Upload.user)] if eager else []
         where_clause = and_(
-            Upload.uploadid == uploadid,
+            Upload.uid == uid,
             Upload.finished.is_(False),
             Upload.canceled.is_(False),
         )
@@ -393,7 +393,7 @@ class Repository:
             result = await session.execute(stmt)
 
             if not (upload := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Upload, upload_id=uploadid)
+                raise EntityNotFoundError(Upload, uid=uid)
 
             return upload
 
@@ -401,7 +401,7 @@ class Repository:
         self,
         user_uid: str,
         *,
-        uploadid: str,
+        uid: str,
         blob_key: str,
         created_at: datetime,
         valid_thru: datetime,
@@ -418,7 +418,7 @@ class Repository:
                 raise EntityNotFoundError(User, uid=user_uid)
 
             upload = Upload(
-                uploadid=uploadid,
+                uid=uid,
                 blob_key=blob_key,
                 created_at=created_at,
                 valid_thru=valid_thru,
@@ -431,10 +431,10 @@ class Repository:
             await session.refresh(upload)
             return upload
 
-    async def finish_upload(self, uploadid: str) -> None:
+    async def finish_upload(self, uid: str) -> None:
         """Finish an upload with the given upload ID."""
         where_clause = and_(
-            Upload.uploadid == uploadid,
+            Upload.uid == uid,
             Upload.finished.is_(False),
             Upload.canceled.is_(False),
         )
@@ -445,15 +445,15 @@ class Repository:
             await session.commit()
 
             if not (upload := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Upload, upload_id=uploadid)
+                raise EntityNotFoundError(Upload, uid=uid)
 
             async with session.begin():
                 upload.finished = True
 
-    async def cancel_upload(self, uploadid: str) -> None:
+    async def cancel_upload(self, uid: str) -> None:
         """Cancel an upload with the given upload ID."""
         where_clause = and_(
-            Upload.uploadid == uploadid,
+            Upload.uid == uid,
             Upload.finished.is_(False),
             Upload.canceled.is_(False),
         )
@@ -464,7 +464,7 @@ class Repository:
             await session.commit()
 
             if not (upload := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Upload, upload_id=uploadid)
+                raise EntityNotFoundError(Upload, uid=uid)
 
             async with session.begin():
                 upload.canceled = True

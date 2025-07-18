@@ -215,7 +215,7 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     response = await client.get(endpoint, params=prms)
 
     # Then
-    assert response.status_code == 307
+    assert response.status_code == 303
 
     url: str = response.headers.get("location")
     assert url.startswith(redirect_uri)

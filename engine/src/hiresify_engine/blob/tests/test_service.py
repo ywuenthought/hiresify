@@ -46,7 +46,7 @@ async def test_upload_file(media: str, service: BlobService) -> None:
             await session.report_parts(blob_key, upload_id)
 
 
-async def test_abort_upload(media: str, service: BlobService) -> None:
+async def test_cancel_upload(media: str, service: BlobService) -> None:
     # Given
     chunk_size = 16 * 1024 * 1024  # bytes
     blob_key = uuid4().hex
@@ -70,7 +70,7 @@ async def test_abort_upload(media: str, service: BlobService) -> None:
         assert parts[0].index == 1
 
         # When
-        await session.abort_upload(blob_key, upload_id)
+        await session.cancel_upload(blob_key, upload_id)
 
         # Then
         with pytest.raises(Exception):

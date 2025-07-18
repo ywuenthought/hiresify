@@ -188,7 +188,7 @@ async def authorize_client(
     code_challenge: str = Query(..., max_length=43, min_length=43),
     code_challenge_method: str = Query(..., max_length=10, min_length=4),
     redirect_uri: str = Query(..., max_length=2048),
-    response_type: ty.Literal["code"] = Query(..., max_length=4, min_length=4),
+    response_type: ty.Literal["code"] = Query(...),
     state: str = Query(..., max_length=32, min_length=32),
     *,
     cache: CacheServiceDep,
@@ -216,7 +216,7 @@ async def authorize_client(
     )
 
     url = f"{redirect_uri}?code={auth.code}&state={state}"
-    response = RedirectResponse(url=url)
+    response = RedirectResponse(status_code=status.HTTP_303_SEE_OTHER, url=url)
     add_secure_headers(response)
 
     return response
