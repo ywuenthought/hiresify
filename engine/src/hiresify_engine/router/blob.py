@@ -89,7 +89,7 @@ async def upload_chunk(
     request: Request,
 ) -> None:
     """Receive, process, and upload a chunk of blob."""
-    verify_access_token(request, jwt)
+    user_uid = verify_access_token(request, jwt)
 
     try:
         upload = await repo.find_upload(upload_id)
@@ -98,6 +98,12 @@ async def upload_chunk(
             detail=f"{upload_id=} was not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
+
+    if upload.user.uid != user_uid:
+        raise HTTPException(
+            detail=f"{upload_id=} can't be continued.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
 
     if upload.valid_thru <= datetime.now(UTC):
         raise HTTPException(
@@ -135,6 +141,12 @@ async def finish_upload(
             detail=f"{upload_id=} was not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
+
+    if upload.user.uid != user_uid:
+        raise HTTPException(
+            detail=f"{upload_id=} can't be finished.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
 
     if upload.valid_thru <= datetime.now(UTC):
         raise HTTPException(
@@ -176,15 +188,21 @@ async def cancel_upload(
     request: Request,
 ) -> None:
     """Finish the upload specified by the given upload ID."""
-    verify_access_token(request, jwt)
+    user_uid = verify_access_token(request, jwt)
 
     try:
-        upload = await repo.find_upload(upload_id)
+        upload = await repo.find_upload(upload_id, eager=True)
     except EntityNotFoundError as e:
         raise HTTPException(
             detail=f"{upload_id=} was not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
+
+    if upload.user.uid != user_uid:
+        raise HTTPException(
+            detail=f"{upload_id=} can't be canceled.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
 
     if upload.valid_thru <= datetime.now(UTC):
         raise HTTPException(
@@ -197,3 +215,27 @@ async def cancel_upload(
         await session.cancel_upload(blob_key=blob_key, upload_id=upload_id)
 
     await repo.remove_upload(upload_id)
+
+
+@router.delete("/delete", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_blob(
+    blob_uid: str = Form(..., max_length=32, min_length=32),
+    *,
+    blob: BlobServiceDep,
+    repo: RepositoryDep,
+    request: Request,
+) -> None:
+    """Finish the upload specified by the given upload ID."""
+    user_uid = verify_access_token(request, jwt)
+    blob_obj = await repo.find_blob(blob_uid, eager=True)
+
+    if blob_obj.user.uid != user_uid:
+        raise HTTPException(
+            detail=f"{blob_uid=} can't be deleted.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    async with blob.start_session() as session:
+        await session.delete_blob(blob_obj.blob_key)
+
+    await repo.delete_blob(blob_uid)

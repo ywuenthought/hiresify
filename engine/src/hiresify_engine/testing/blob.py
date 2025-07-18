@@ -34,6 +34,8 @@ class _Blob:
 
     key: str
 
+    deleted: bool = False
+
     uploads: dict[str, "_MultipartUpload"] = field(default_factory=dict)
 
 
@@ -120,6 +122,11 @@ class MockBlobStore:
         """Upload an individual part of a blob file."""
         uploads = self._store.buckets[Bucket].blobs[Key].uploads
         uploads[UploadId] = replace(uploads[UploadId], next_index=PartNumber + 1)
+
+    async def delete_object(self, Bucket: str, Key: str) -> None:
+        """Delete the blob specified by the given bucket and blob key."""
+        blobs = self._store.buckets[Bucket].blobs
+        blobs[Key] = replace(blobs[Key], deleted=True)
 
 
 class TestBlobService(BlobService):

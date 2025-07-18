@@ -147,6 +147,13 @@ class BlobService:
 
         return [UploadPart(etag=t, index=i + 1) for i, t in enumerate(etags)]
 
+    async def delete_blob(self, blob_key: str) -> None:
+        """Delete the blob given its blob key."""
+        if self._client is None:
+            raise RuntimeError("S3 client has not been initialized.")
+
+        await self._client.delete_object(Bucket=BUCKET_NAME, Key=blob_key)
+
     def _create_client(self) -> ty.AsyncContextManager[S3Client]:
         """Create an instance of S3 client as an async context manager."""
         return self._session.client(
