@@ -127,12 +127,21 @@ async def test_revoke_token(repository: Repository) -> None:
     issued_at = datetime.now(UTC)
     expire_at = issued_at + timedelta(seconds=1)
 
-    refresh_token = await repository.create_token(
+    await repository.create_token(
         user.uid,
         token=token,
         issued_at=issued_at,
         expire_at=expire_at,
     )
+
+    # When
+    refresh_token = await repository.find_token(token)
+
+    # Then
+    assert refresh_token.token == token
+    assert refresh_token.issued_at == issued_at
+    assert refresh_token.expire_at == expire_at
+    assert refresh_token.user_id == user.id
 
     # When
     token = refresh_token.token
@@ -161,6 +170,12 @@ async def test_revoke_tokens(repository: Repository) -> None:
         issued_at = expire_at
 
     # When
+    refresh_tokens = await repository.find_tokens(user.uid)
+
+    # Then
+    assert len(refresh_tokens) == len(tokens)
+
+    # When
     await repository.revoke_tokens(user.uid)
     refresh_tokens = await repository.find_tokens(user.uid)
 
@@ -184,6 +199,12 @@ async def test_purge_tokens(repository: Repository) -> None:
             expire_at=expire_at,
         )
         issued_at = expire_at
+
+    # When
+    refresh_tokens = await repository.find_tokens(user.uid)
+
+    # Then
+    assert len(refresh_tokens) == len(tokens)
 
     # When
     await repository.purge_tokens(1, refresh_token.expire_at + timedelta(days=2))
@@ -220,16 +241,29 @@ async def test_delete_blob(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
+    blob_key = uuid4().hex
+    file_name = "blob.bin"
+
     created_at = datetime.now(UTC)
     valid_thru = created_at + timedelta(seconds=1)
 
     blob = await repository.create_blob(
         user.uid,
-        blob_key=uuid4().hex,
-        file_name="blob.bin",
+        blob_key=blob_key,
+        file_name=file_name,
         created_at=created_at,
         valid_thru=valid_thru,
     )
+
+    # When
+    blob = await repository.find_blob(blob.uid)
+
+    # Then
+    assert blob.blob_key == blob_key
+    assert blob.file_name == file_name
+    assert blob.created_at == created_at
+    assert blob.valid_thru == valid_thru
+    assert blob.user_id == user.id
 
     # When
     await repository.delete_blob(blob.uid)
@@ -258,6 +292,12 @@ async def test_delete_blobs(repository: Repository) -> None:
         created_at = valid_thru
 
     # When
+    blobs = await repository.find_blobs(user.uid)
+
+    # Then
+    assert len(blobs) == len(file_names)
+
+    # When
     await repository.delete_blobs(user.uid)
     blobs = await repository.find_blobs(user.uid)
 
@@ -284,8 +324,110 @@ async def test_purge_blobs(repository: Repository) -> None:
         created_at = valid_thru
 
     # When
+    blobs = await repository.find_blobs(user.uid)
+
+    # Then
+    assert len(blobs) == len(file_names)
+
+    # When
     await repository.purge_blobs(1, blob.valid_thru + timedelta(days=2))
     blobs = await repository.find_blobs(user.uid)
 
     # Then
     assert not blobs
+
+##############
+# upload blobs
+##############
+
+async def test_start_upload(repository: Repository) -> None:
+    # Given
+    user = await repository.register_user("ywu", "123")
+
+    upload_id = "upload-id"
+    blob_key = uuid4().hex
+
+    created_at = datetime.now(UTC)
+    valid_thru = created_at + timedelta(seconds=1)
+
+    # When
+    upload = await repository.start_upload(
+        user.uid,
+        uid=upload_id,
+        blob_key=blob_key,
+        created_at=created_at,
+        valid_thru=valid_thru,
+    )
+
+    # Then
+    assert upload.valid_thru > upload.created_at
+
+
+async def test_remove_upload(repository: Repository) -> None:
+    # Given
+    user = await repository.register_user("ywu", "123")
+
+    upload_id = "upload-id"
+    blob_key = uuid4().hex
+
+    created_at = datetime.now(UTC)
+    valid_thru = created_at + timedelta(seconds=1)
+
+    await repository.start_upload(
+        user.uid,
+        uid=upload_id,
+        blob_key=blob_key,
+        created_at=created_at,
+        valid_thru=valid_thru,
+    )
+
+    # When
+    upload = await repository.find_upload(upload_id)
+
+    # Then
+    assert upload.uid == upload_id
+    assert upload.blob_key == blob_key
+    assert upload.created_at == created_at
+    assert upload.valid_thru == valid_thru
+    assert upload.user_id == user.id
+
+    # When
+    await repository.remove_upload(upload_id)
+
+    # Then
+    with pytest.raises(EntityNotFoundError):
+        await repository.find_upload(upload_id)
+
+
+async def test_purge_uploads(repository: Repository) -> None:
+    # Given
+    user = await repository.register_user("ywu", "123")
+
+    upload_id = "upload-id"
+
+    created_at = datetime.now(UTC)
+    blob_keys = [f"{user.uid}/main/{uuid4().hex}.sub" for _ in range(1, 4)]
+
+    for blob_key in blob_keys:
+        valid_thru = created_at + timedelta(seconds=1)
+        upload = await repository.start_upload(
+            user.uid,
+            uid=upload_id,
+            blob_key=blob_key,
+            created_at=created_at,
+            valid_thru=valid_thru,
+        )
+        created_at = valid_thru
+
+    # When
+    uploads = await repository.find_uploads(user.uid)
+
+    # Then
+    assert len(uploads) == len(blob_keys)
+
+    # When
+    await repository.purge_uploads(1, upload.valid_thru + timedelta(days=2))
+    uploads = await repository.find_uploads(user.uid)
+
+    # Then
+    assert not uploads

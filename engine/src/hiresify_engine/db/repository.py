@@ -351,6 +351,20 @@ class Repository:
 
             return upload
 
+    async def find_uploads(self, user_uid: str) -> list[Upload]:
+        """Find all the uploads for the given user UID."""
+        option = selectinload(User.uploads)
+        where_clause = User.uid == user_uid
+        stmt = select(User).options(option).where(where_clause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+
+            if not (user := result.scalar_one_or_none()):
+                raise EntityNotFoundError(User, uid=user_uid)
+
+            return user.uploads
+
     async def start_upload(
         self,
         user_uid: str,
@@ -403,9 +417,12 @@ class Repository:
         """Purge all the uploads expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
         where_clause = Upload.valid_thru < cutoff
-        stmt = delete(Upload).where(where_clause)
+        select_stmt = select(Upload).where(where_clause)
+        delete_stmt = delete(Upload).where(where_clause)
 
         async with self.session() as session:
             async with session.begin():
-                result = await session.execute(stmt)
-                return result.scalars().all()
+                result = await session.execute(select_stmt)
+                uploads = result.scalars().all()
+                await session.execute(delete_stmt)
+                return uploads
