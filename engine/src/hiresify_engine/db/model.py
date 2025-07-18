@@ -129,9 +129,6 @@ class Blob(Base):
     #: The date and time when the blob is valid through.
     valid_thru: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
 
-    #: A user-facing boolean flag for whether the blob has been deleted.
-    deleted: Mapped[bool] = mapped_column(default=False, nullable=False)
-
     #: The user ID that this blob is associated with.
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 

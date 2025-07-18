@@ -214,7 +214,6 @@ async def test_create_blob(repository: Repository) -> None:
 
     # Then
     assert blob.valid_thru > blob.created_at
-    assert not blob.deleted
 
 
 async def test_delete_blob(repository: Repository) -> None:
@@ -224,7 +223,6 @@ async def test_delete_blob(repository: Repository) -> None:
     created_at = datetime.now(UTC)
     valid_thru = created_at + timedelta(seconds=1)
 
-    # When
     blob = await repository.create_blob(
         user.uid,
         blob_key=uuid4().hex,
@@ -232,9 +230,6 @@ async def test_delete_blob(repository: Repository) -> None:
         created_at=created_at,
         valid_thru=valid_thru,
     )
-
-    # Then
-    assert not blob.deleted
 
     # When
     await repository.delete_blob(blob.uid)
@@ -248,40 +243,26 @@ async def test_delete_blobs(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
+    created_at = datetime.now(UTC)
+    file_names = [f"blob{i}.bin" for i in range(1, 4)]
+
+    for file_name in file_names:
+        valid_thru = created_at + timedelta(seconds=1)
+        await repository.create_blob(
+            user.uid,
+            blob_key=uuid4().hex,
+            file_name=file_name,
+            created_at=created_at,
+            valid_thru=valid_thru,
+        )
+        created_at = valid_thru
+
     # When
+    await repository.delete_blobs(user.uid)
     blobs = await repository.find_blobs(user.uid)
 
     # Then
     assert not blobs
-
-    # Given
-    created_at = datetime.now(UTC)
-    file_names = [f"blob{i}.bin" for i in range(1, 4)]
-
-    pre_blobs = []
-    for file_name in file_names:
-        valid_thru = created_at + timedelta(seconds=1)
-        pre_blobs.append(
-            await repository.create_blob(
-                user.uid,
-                blob_key=uuid4().hex,
-                file_name=file_name,
-                created_at=created_at,
-                valid_thru=valid_thru,
-            ),
-        )
-        created_at = valid_thru
-
-    # Then
-    for blob in pre_blobs:
-        assert not blob.deleted
-
-    # When
-    await repository.delete_blobs(user.uid)
-    cur_blobs = await repository.find_blobs(user.uid)
-
-    # Then
-    assert not cur_blobs
 
 
 async def test_purge_blobs(repository: Repository) -> None:
@@ -291,22 +272,18 @@ async def test_purge_blobs(repository: Repository) -> None:
     created_at = datetime.now(UTC)
     file_names = [f"blob{i}.bin" for i in range(1, 4)]
 
-    blobs = []
     for file_name in file_names:
         valid_thru = created_at + timedelta(seconds=1)
-        blobs.append(
-            await repository.create_blob(
-                user.uid,
-                blob_key=uuid4().hex,
-                file_name=file_name,
-                created_at=created_at,
-                valid_thru=valid_thru,
-            ),
+        blob = await repository.create_blob(
+            user.uid,
+            blob_key=uuid4().hex,
+            file_name=file_name,
+            created_at=created_at,
+            valid_thru=valid_thru,
         )
         created_at = valid_thru
 
     # When
-    *_, blob = blobs
     await repository.purge_blobs(1, blob.valid_thru + timedelta(days=2))
     blobs = await repository.find_blobs(user.uid)
 

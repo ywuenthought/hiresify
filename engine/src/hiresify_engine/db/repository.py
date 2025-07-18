@@ -10,10 +10,10 @@ import typing as ty
 from collections import abc
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import and_, delete, or_, select
+from sqlalchemy import and_, delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import selectinload, with_loader_criteria
+from sqlalchemy.orm import selectinload
 
 from .exception import EntityConflictError, EntityNotFoundError
 from .model import Base, Blob, RefreshToken, Upload, User
@@ -58,10 +58,7 @@ class Repository:
 
     async def find_user(self, username: str, *, eager: bool = False) -> User:
         """Find the user with the given user name."""
-        options = [
-            selectinload(User.blobs),
-            with_loader_criteria(Blob, Blob.deleted.is_(False)),
-        ] if eager else []
+        options = [selectinload(User.blobs)] if eager else []
 
         where_clause = User.username == username
         stmt = select(User).options(*options).where(where_clause)
@@ -234,7 +231,7 @@ class Repository:
     async def find_blob(self, blob_uid: str, *, eager: bool = False) -> Blob:
         """Find the blob with the given blob UID."""
         options = [selectinload(Blob.user)] if eager else []
-        where_clause = and_(Blob.uid == blob_uid, Blob.deleted.is_(False))
+        where_clause = Blob.uid == blob_uid
         stmt = select(Blob).options(*options).where(where_clause)
 
         async with self.session() as session:
@@ -247,12 +244,9 @@ class Repository:
 
     async def find_blobs(self, user_uid: str) -> list[Blob]:
         """Find all the blobs for the given user UID."""
-        options = [
-            selectinload(User.blobs),
-            with_loader_criteria(Blob, Blob.deleted.is_(False)),
-        ]
+        option = selectinload(User.blobs)
         where_clause = User.uid == user_uid
-        stmt = select(User).options(*options).where(where_clause)
+        stmt = select(User).options(option).where(where_clause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -298,51 +292,39 @@ class Repository:
 
     async def delete_blob(self, blob_uid: str) -> None:
         """Delete an blob given the blob UID."""
-        where_clause = and_(Blob.uid == blob_uid, Blob.deleted.is_(False))
-        stmt = select(Blob).where(where_clause)
+        where_clause = Blob.uid == blob_uid
+        stmt = delete(Blob).where(where_clause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (blob := result.scalar_one_or_none()):
-                raise EntityNotFoundError(Blob, uid=blob_uid)
-
             async with session.begin():
-                blob.deleted = True
+                await session.execute(stmt)
 
     async def delete_blobs(self, user_uid: str) -> int:
         """Delete all the blobs for the given user UID."""
-        options = [
-            selectinload(User.blobs),
-            with_loader_criteria(Blob, Blob.deleted.is_(False)),
-        ]
-
         where_clause = User.uid == user_uid
-        stmt = select(User).options(*options).where(where_clause)
+        select_stmt = select(User).where(where_clause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
+            result = await session.execute(select_stmt)
             await session.commit()
 
             if not (user := result.scalar_one_or_none()):
                 raise EntityNotFoundError(User, uid=user_uid)
 
+            where_clause = Blob.user_id == user.id
+            delete_stmt = delete(Blob).where(where_clause)
+
             async with session.begin():
-                if not (blobs := user.blobs):
-                    return 0
+                result = await session.execute(delete_stmt)
 
-                for blob in blobs:
-                    blob.deleted = True
-
-                return len(blobs)
+                return result.rowcount
 
     async def purge_blobs(
         self, retention_days: int, now: datetime | None = None,
     ) -> int:
         """Purge all the blobs expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
-        where_clause = or_(Blob.valid_thru < cutoff, Blob.deleted.is_(True))
+        where_clause = Blob.valid_thru < cutoff
         stmt = delete(Blob).where(where_clause)
 
         async with self.session() as session:
