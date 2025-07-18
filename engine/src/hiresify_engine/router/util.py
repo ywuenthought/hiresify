@@ -5,6 +5,7 @@
 
 """Provide utility functions used across the routers."""
 
+import os
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, Response, status
@@ -53,9 +54,17 @@ def add_secure_headers(response: Response) -> None:
         response.headers["Strict-Transport-Security"] = "; ".join(_STS_ITEMS)
 
 
-def generate_blob_key(user_uid: str, file_type: str) -> str:
-    """Generate a blob key with the given user UID and file type."""
-    return f"{user_uid}/{uuid4().hex}.{file_type}"
+def generate_blob_key(user_uid: str, mime_type: str) -> str:
+    """Generate a blob key with the given user UID and MIME type."""
+    main, sub = mime_type.split("/")
+    return f"{user_uid}/{main}/{uuid4().hex}.{sub}"
+
+
+def restore_mime_type(blob_key: str) -> str:
+    """Rstore the MIME type from the given blob key."""
+    _, main, name = blob_key.split("/")
+    _, ext = os.path.splitext(name)
+    return f"{main}/{ext[1:]}"
 
 
 def verify_access_token(request: Request, jwt: JWTTokenService) -> str:

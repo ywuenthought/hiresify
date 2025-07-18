@@ -6,8 +6,6 @@
 """Define the backend upload-related endpoints."""
 
 import logging
-import os
-import typing as ty
 from datetime import UTC, datetime, timedelta
 
 from fastapi import (
@@ -20,22 +18,23 @@ from fastapi import (
     UploadFile,
     status,
 )
+from magic import from_buffer
 
 from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import BlobServiceDep, RepositoryDep
 from hiresify_engine.envvar import UPLOAD_TTL
 from hiresify_engine.model import Blob
 
-from .const import jwt
-from .util import generate_blob_key, verify_access_token
+from .const import jwt, mime_types
+from .util import generate_blob_key, restore_mime_type, verify_access_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/blob")
 
 
-@router.get("/upload/{file_type}", status_code=status.HTTP_201_CREATED)
+@router.get("/upload", status_code=status.HTTP_201_CREATED)
 async def start_upload(
-    file_type: ty.Literal["jpeg", "jpg", "mp4", "png"] = Path(...),
+    file: UploadFile = File(...),  # noqa: B008
     *,
     blob: BlobServiceDep,
     repo: RepositoryDep,
@@ -43,7 +42,24 @@ async def start_upload(
 ) -> str:
     """Start a multipart upload of the given file."""
     user_uid = verify_access_token(request, jwt)
-    blob_key = generate_blob_key(user_uid, file_type)
+
+    try:
+        head = await file.read(4096)
+    except (OSError, ValueError) as e:
+        raise HTTPException(
+            detail=f"Failed to read file chunk: {e!s}",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        ) from e
+    finally:
+        await file.close()
+
+    if (mime_type := from_buffer(head, mime=True)) not in mime_types:
+        raise HTTPException(
+            detail=f"{mime_type=} is not supported",
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        )
+
+    blob_key = generate_blob_key(user_uid, mime_type)
 
     async with blob.start_session() as session:
         upload_id = await session.start_upload(blob_key)
@@ -142,12 +158,10 @@ async def finish_upload(
         valid_thru=valid_thru,
     )
 
-    _, ext = os.path.splitext(blob_key)
     return Blob(
         uid=blob_obj.uid,
         file_name=file_name,
-        # Exclude the leading dot.
-        file_type=ext[1:],
+        mime_type=restore_mime_type(blob_key),
         created_at=created_at,
         valid_thru=valid_thru,
     )

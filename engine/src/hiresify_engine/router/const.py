@@ -13,3 +13,9 @@ from hiresify_engine.templates import LOGIN_HTML
 jwt = JWTTokenService()
 
 templates = Jinja2Templates(directory=LOGIN_HTML.parent)
+
+mime_types = {
+    "image/jpeg",
+    "image/png",
+    "video/mp4",
+}
