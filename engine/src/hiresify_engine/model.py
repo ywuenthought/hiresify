@@ -11,14 +11,6 @@ from pydantic.dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class User:
-    """The domain model for identifying a user."""
-
-    # A user can upload many blobs.
-    blobs: list["Blob"]
-
-
-@dataclass(frozen=True)
 class Blob:
     """The domain model for a persisted blob file."""
 

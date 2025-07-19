@@ -217,6 +217,24 @@ async def cancel_upload(
     await repo.remove_upload(upload_id)
 
 
+@router.get("/fetch", response_model=list[Blob])
+async def fetch_blobs(*, repo: RepositoryDep, request: Request) -> list[Blob]:
+    """Fetch all the blobs associated with a user from the database."""
+    user_uid = verify_access_token(request, jwt)
+    blobs = await repo.find_blobs(user_uid)
+
+    return [
+        Blob(
+            uid=blob.uid,
+            file_name=blob.file_name,
+            mime_type=restore_mime_type(blob.blob_key),
+            created_at=blob.created_at,
+            valid_thru=blob.valid_thru,
+        )
+        for blob in blobs
+    ]
+
+
 @router.delete("/delete", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_blob(
     blob_uid: str = Form(..., max_length=32, min_length=32),
