@@ -13,12 +13,12 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import and_, delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import selectinload, with_loader_criteria
+from sqlalchemy.orm import selectinload
 
-from hiresify_engine.model import Blob
+from hiresify_engine.model import Blob, Upload
 
 from .exception import EntityConflictError, EntityNotFoundError
-from .mapper import to_blob
+from .mapper import to_blob, to_upload
 from .model import Base, BlobORM, RefreshTokenORM, UploadORM, UserORM
 from .util import abbreviate_token
 
@@ -63,8 +63,8 @@ class Repository:
         """Find the user with the given user name."""
         options = [selectinload(UserORM.blobs)] if eager else []
 
-        where_clause = UserORM.username == username
-        stmt = select(UserORM).options(*options).where(where_clause)
+        whereclause = UserORM.username == username
+        stmt = select(UserORM).options(*options).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -90,8 +90,8 @@ class Repository:
 
     async def update_password(self, username: str, password: str) -> None:
         """Update a user's password given the user name and the new hashed password."""
-        where_clause = UserORM.username == username
-        stmt = select(UserORM).where(where_clause)
+        whereclause = UserORM.username == username
+        stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -105,8 +105,8 @@ class Repository:
 
     async def delete_user(self, username: str) -> None:
         """Delete a user by the given user name."""
-        where_clause = UserORM.username == username
-        stmt = select(UserORM).where(where_clause)
+        whereclause = UserORM.username == username
+        stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -125,8 +125,8 @@ class Repository:
     async def find_token(self, token: str, *, eager: bool = False) -> RefreshTokenORM:
         """Find the refresh token with the given token string."""
         options = [selectinload(RefreshTokenORM.user)] if eager else []
-        where_clause = RefreshTokenORM.token == token
-        stmt = select(RefreshTokenORM).options(*options).where(where_clause)
+        whereclause = RefreshTokenORM.token == token
+        stmt = select(RefreshTokenORM).options(*options).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -141,8 +141,8 @@ class Repository:
     async def find_tokens(self, user_uid: str) -> list[RefreshTokenORM]:
         """Find all the refresh tokens for the given user UID."""
         option = selectinload(UserORM.refresh_tokens)
-        where_clause = UserORM.uid == user_uid
-        stmt = select(UserORM).options(option).where(where_clause)
+        whereclause = UserORM.uid == user_uid
+        stmt = select(UserORM).options(option).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -162,8 +162,8 @@ class Repository:
         **metadata: ty.Any,
     ) -> RefreshTokenORM:
         """Create a refresh token for the given user UID."""
-        where_clause = UserORM.uid == user_uid
-        stmt = select(UserORM).where(where_clause)
+        whereclause = UserORM.uid == user_uid
+        stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -188,8 +188,8 @@ class Repository:
 
     async def revoke_token(self, token: str) -> None:
         """Revoke a refresh token given its token string."""
-        where_clause = RefreshTokenORM.token == token
-        stmt = delete(RefreshTokenORM).where(where_clause)
+        whereclause = RefreshTokenORM.token == token
+        stmt = delete(RefreshTokenORM).where(whereclause)
 
         async with self.session() as session:
             async with session.begin():
@@ -197,8 +197,8 @@ class Repository:
 
     async def revoke_tokens(self, user_uid: str) -> int:
         """Revoke all the refresh tokens for the given user UID."""
-        where_clause = UserORM.uid == user_uid
-        select_stmt = select(UserORM).where(where_clause)
+        whereclause = UserORM.uid == user_uid
+        select_stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(select_stmt)
@@ -207,8 +207,8 @@ class Repository:
             if not (user := result.scalar_one_or_none()):
                 raise EntityNotFoundError(UserORM, uid=user_uid)
 
-            where_clause = RefreshTokenORM.user_id == user.id
-            delete_stmt = delete(RefreshTokenORM).where(where_clause)
+            whereclause = RefreshTokenORM.user_id == user.id
+            delete_stmt = delete(RefreshTokenORM).where(whereclause)
 
             async with session.begin():
                 result = await session.execute(delete_stmt)
@@ -220,8 +220,8 @@ class Repository:
     ) -> int:
         """Purge all the refresh tokens expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
-        where_clause = RefreshTokenORM.expire_at < cutoff
-        stmt = delete(RefreshTokenORM).where(where_clause)
+        whereclause = RefreshTokenORM.expire_at < cutoff
+        stmt = delete(RefreshTokenORM).where(whereclause)
 
         async with self.session() as session:
             async with session.begin():
@@ -235,12 +235,12 @@ class Repository:
 
     async def find_blob(self, user_uid, *, blob_uid: str) -> tuple[Blob, str]:
         """Find the specified blob and its blob key for the given user UID."""
-        options = [
-            selectinload(BlobORM.user),
-            with_loader_criteria(UserORM, UserORM.uid == user_uid),
-        ]
-        where_clause = BlobORM.uid == blob_uid
-        stmt = select(BlobORM).options(*options).where(where_clause)
+        option = selectinload(BlobORM.user)
+        whereclause = and_(
+            BlobORM.uid == blob_uid,
+            BlobORM.user.has(UserORM.uid == user_uid),
+        )
+        stmt = select(BlobORM).join(BlobORM.user).options(option).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -253,8 +253,8 @@ class Repository:
     async def find_blobs(self, user_uid: str) -> list[Blob]:
         """Find all the blob for the given user UID."""
         option = selectinload(UserORM.blobs)
-        where_clause = UserORM.uid == user_uid
-        stmt = select(UserORM).options(option).where(where_clause)
+        whereclause = UserORM.uid == user_uid
+        stmt = select(UserORM).options(option).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -274,8 +274,8 @@ class Repository:
         valid_thru: datetime,
     ) -> Blob:
         """Create a blob for the given user UID."""
-        where_clause = UserORM.uid == user_uid
-        stmt = select(UserORM).where(where_clause)
+        whereclause = UserORM.uid == user_uid
+        stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -300,8 +300,8 @@ class Repository:
 
     async def delete_blob(self, blob_uid: str) -> None:
         """Delete an blob given the blob UID."""
-        where_clause = BlobORM.uid == blob_uid
-        stmt = delete(BlobORM).where(where_clause)
+        whereclause = BlobORM.uid == blob_uid
+        stmt = delete(BlobORM).where(whereclause)
 
         async with self.session() as session:
             async with session.begin():
@@ -309,8 +309,8 @@ class Repository:
 
     async def delete_blobs(self, user_uid: str) -> int:
         """Delete all the blobs for the given user UID."""
-        where_clause = UserORM.uid == user_uid
-        select_stmt = select(UserORM).where(where_clause)
+        whereclause = UserORM.uid == user_uid
+        select_stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(select_stmt)
@@ -319,8 +319,8 @@ class Repository:
             if not (user := result.scalar_one_or_none()):
                 raise EntityNotFoundError(UserORM, uid=user_uid)
 
-            where_clause = BlobORM.user_id == user.id
-            delete_stmt = delete(BlobORM).where(where_clause)
+            whereclause = BlobORM.user_id == user.id
+            delete_stmt = delete(BlobORM).where(whereclause)
 
             async with session.begin():
                 result = await session.execute(delete_stmt)
@@ -332,8 +332,8 @@ class Repository:
     ) -> int:
         """Purge all the blobs expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
-        where_clause = BlobORM.valid_thru < cutoff
-        stmt = delete(BlobORM).where(where_clause)
+        whereclause = BlobORM.valid_thru < cutoff
+        stmt = delete(BlobORM).where(whereclause)
 
         async with self.session() as session:
             async with session.begin():
@@ -342,28 +342,31 @@ class Repository:
                 return result.rowcount
 
     ##############
-    # upload blobs
+    # blob uploads
     ##############
 
-    async def find_upload(self, uid: str, *, eager: bool = False) -> UploadORM:
-        """Find the upload with the given upload UID."""
-        options = [selectinload(UploadORM.user)] if eager else []
-        where_clause = UploadORM.uid == uid
-        stmt = select(UploadORM).options(*options).where(where_clause)
+    async def find_upload(self, user_uid: str, *, upload_id: str) -> Upload:
+        """Find the specified blob upload for the given user UID."""
+        option = selectinload(UploadORM.user)
+        whereclause = and_(
+            UploadORM.uid == upload_id,
+            UploadORM.user.has(UserORM.uid == user_uid),
+        )
+        stmt = select(UploadORM).join(UploadORM.user).options(option).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
 
             if not (upload := result.scalar_one_or_none()):
-                raise EntityNotFoundError(UploadORM, uid=uid)
+                raise EntityNotFoundError(UploadORM, uid=upload_id)
 
-            return upload
+            return to_upload(upload)
 
-    async def find_uploads(self, user_uid: str) -> list[UploadORM]:
+    async def find_uploads(self, user_uid: str) -> list[Upload]:
         """Find all the uploads for the given user UID."""
         option = selectinload(UserORM.uploads)
-        where_clause = UserORM.uid == user_uid
-        stmt = select(UserORM).options(option).where(where_clause)
+        whereclause = UserORM.uid == user_uid
+        stmt = select(UserORM).options(option).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -371,7 +374,7 @@ class Repository:
             if not (user := result.scalar_one_or_none()):
                 raise EntityNotFoundError(UserORM, uid=user_uid)
 
-            return user.uploads
+            return [to_upload(upload) for upload in user.uploads]
 
     async def start_upload(
         self,
@@ -381,10 +384,10 @@ class Repository:
         blob_key: str,
         created_at: datetime,
         valid_thru: datetime,
-    ) -> UploadORM:
+    ) -> Upload:
         """Start an upload of a blob for the given user UID."""
-        where_clause = UserORM.uid == user_uid
-        stmt = select(UserORM).where(where_clause)
+        whereclause = UserORM.uid == user_uid
+        stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -405,15 +408,15 @@ class Repository:
                 session.add(upload)
 
             await session.refresh(upload)
-            return upload
+            return to_upload(upload)
 
     async def remove_upload(self, uid: str) -> None:
         """Remove an upload with the given upload ID.
 
         An upload is removable when it's either finished or canceled.
         """
-        where_clause = and_(UploadORM.uid == uid)
-        stmt = delete(UploadORM).where(where_clause)
+        whereclause = and_(UploadORM.uid == uid)
+        stmt = delete(UploadORM).where(whereclause)
 
         async with self.session() as session:
             async with session.begin():
@@ -421,16 +424,16 @@ class Repository:
 
     async def purge_uploads(
         self, retention_days: int, now: datetime | None = None,
-    ) -> ty.Sequence[UploadORM]:
+    ) -> list[Upload]:
         """Purge all the uploads expired for longer than `retention_days`."""
         cutoff = (now or datetime.now(UTC)) - timedelta(days=retention_days)
-        where_clause = UploadORM.valid_thru < cutoff
-        select_stmt = select(UploadORM).where(where_clause)
-        delete_stmt = delete(UploadORM).where(where_clause)
+        whereclause = UploadORM.valid_thru < cutoff
+        select_stmt = select(UploadORM).where(whereclause)
+        delete_stmt = delete(UploadORM).where(whereclause)
 
         async with self.session() as session:
             async with session.begin():
                 result = await session.execute(select_stmt)
                 uploads = result.scalars().all()
                 await session.execute(delete_stmt)
-                return uploads
+                return [to_upload(upload) for upload in uploads]

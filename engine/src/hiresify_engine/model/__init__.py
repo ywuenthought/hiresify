@@ -6,5 +6,6 @@
 """Export all the domain models to be used across modules."""
 
 from .blob import Blob
+from .upload import Upload
 
-__all__ = ["Blob"]
+__all__ = ["Blob", "Upload"]

@@ -92,22 +92,16 @@ async def upload_chunk(
     user_uid = verify_access_token(request, jwt)
 
     try:
-        upload = await repo.find_upload(upload_id)
+        upload = await repo.find_upload(user_uid, upload_id=upload_id)
     except EntityNotFoundError as e:
         raise HTTPException(
-            detail=f"{upload_id=} was not found.",
+            detail=f"upload={upload_id} was not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    if upload.user.uid != user_uid:
+    if not upload.is_valid():
         raise HTTPException(
-            detail=f"{upload_id=} can't be continued.",
-            status_code=status.HTTP_403_FORBIDDEN,
-        )
-
-    if upload.valid_thru <= datetime.now(UTC):
-        raise HTTPException(
-            detail=f"{upload_id=} timed out.",
+            detail=f"upload={upload_id} timed out.",
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
@@ -135,22 +129,16 @@ async def finish_upload(
     user_uid = verify_access_token(request, jwt)
 
     try:
-        upload = await repo.find_upload(upload_id)
+        upload = await repo.find_upload(user_uid, upload_id=upload_id)
     except EntityNotFoundError as e:
         raise HTTPException(
-            detail=f"{upload_id=} was not found.",
+            detail=f"upload={upload_id} was not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    if upload.user.uid != user_uid:
+    if not upload.is_valid():
         raise HTTPException(
-            detail=f"{upload_id=} can't be finished.",
-            status_code=status.HTTP_403_FORBIDDEN,
-        )
-
-    if upload.valid_thru <= datetime.now(UTC):
-        raise HTTPException(
-            detail=f"{upload_id=} timed out.",
+            detail=f"upload={upload_id} timed out.",
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
@@ -183,22 +171,16 @@ async def cancel_upload(
     user_uid = verify_access_token(request, jwt)
 
     try:
-        upload = await repo.find_upload(upload_id, eager=True)
+        upload = await repo.find_upload(user_uid, upload_id=upload_id)
     except EntityNotFoundError as e:
         raise HTTPException(
-            detail=f"{upload_id=} was not found.",
+            detail=f"upload={upload_id} was not found.",
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    if upload.user.uid != user_uid:
+    if not upload.is_valid():
         raise HTTPException(
-            detail=f"{upload_id=} can't be canceled.",
-            status_code=status.HTTP_403_FORBIDDEN,
-        )
-
-    if upload.valid_thru <= datetime.now(UTC):
-        raise HTTPException(
-            detail=f"{upload_id=} timed out.",
+            detail=f"upload={upload_id} timed out.",
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 

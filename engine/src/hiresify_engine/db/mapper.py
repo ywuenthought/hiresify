@@ -5,9 +5,9 @@
 
 """Provide mapper functions to convert ORM objects to domain ones."""
 
-from hiresify_engine.model import Blob
+from hiresify_engine.model import Blob, Upload
 
-from .model import BlobORM
+from .model import BlobORM, UploadORM
 from .util import restore_mime_type
 
 
@@ -17,6 +17,16 @@ def to_blob(obj: BlobORM) -> Blob:
         uid=obj.uid,
         file_name=obj.file_name,
         mime_type=restore_mime_type(obj.blob_key),
+        created_at=obj.created_at,
+        valid_thru=obj.valid_thru,
+    )
+
+
+def to_upload(obj: UploadORM) -> Upload:
+    """Convert an upload ORM object to a domain one."""
+    return Upload(
+        uid=obj.uid,
+        blob_key=obj.blob_key,
         created_at=obj.created_at,
         valid_thru=obj.valid_thru,
     )

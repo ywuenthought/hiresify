@@ -367,21 +367,20 @@ async def test_remove_upload(repository: Repository) -> None:
     )
 
     # When
-    upload = await repository.find_upload(upload_id)
+    upload = await repository.find_upload(user.uid, upload_id=upload_id)
 
     # Then
     assert upload.uid == upload_id
     assert upload.blob_key == blob_key
     assert upload.created_at == created_at
     assert upload.valid_thru == valid_thru
-    assert upload.user_id == user.id
 
     # When
     await repository.remove_upload(upload_id)
 
     # Then
     with pytest.raises(EntityNotFoundError):
-        await repository.find_upload(upload_id)
+        await repository.find_upload(user.uid, upload_id=upload_id)
 
 
 async def test_purge_uploads(repository: Repository) -> None:
