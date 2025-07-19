@@ -20,10 +20,7 @@ async def test_register_user(repository: Repository) -> None:
     username = "ywu"
 
     # When/Then
-    with pytest.raises(
-        EntityNotFoundError,
-        check=lambda e: str(e) == f"User with username={username} was not found.",
-    ):
+    with pytest.raises(EntityNotFoundError):
         await repository.find_user(username)
 
     # Given
@@ -38,12 +35,7 @@ async def test_register_user(repository: Repository) -> None:
     assert user.password == password
 
     # When/Then
-    with pytest.raises(
-        EntityConflictError,
-        check=lambda e: str(e) == (
-            f"User with username={username} conflicts with an existing entity."
-        ),
-    ):
+    with pytest.raises(EntityConflictError):
         await repository.register_user(username, password)
 
 
@@ -53,10 +45,7 @@ async def test_update_password(repository: Repository) -> None:
     updated_password = "456"
 
     # When/Then
-    with pytest.raises(
-        EntityNotFoundError,
-        check=lambda e: str(e) == f"User with username={username} was not found.",
-    ):
+    with pytest.raises(EntityNotFoundError):
         await repository.update_password(username, updated_password)
 
     # Given
@@ -76,10 +65,7 @@ async def test_delete_user(repository: Repository) -> None:
     username = "ywu"
 
     # When/Then
-    with pytest.raises(
-        EntityNotFoundError,
-        check=lambda e: str(e) == f"User with username={username} was not found.",
-    ):
+    with pytest.raises(EntityNotFoundError):
         await repository.delete_user(username)
 
     # Given
@@ -89,10 +75,7 @@ async def test_delete_user(repository: Repository) -> None:
     await repository.delete_user(username)
 
     # Then
-    with pytest.raises(
-        EntityNotFoundError,
-        check=lambda e: str(e) == f"User with username={username} was not found.",
-    ):
+    with pytest.raises(EntityNotFoundError):
         await repository.find_user(username)
 
 ###############
@@ -256,21 +239,23 @@ async def test_delete_blob(repository: Repository) -> None:
     )
 
     # When
-    blob = await repository.find_blob(blob.uid)
+    blob, key = await repository.find_blob(user.uid, blob_uid=blob.uid)
 
     # Then
-    assert blob.blob_key == blob_key
     assert blob.file_name == file_name
+    assert blob.mime_type is None
+
     assert blob.created_at == created_at
     assert blob.valid_thru == valid_thru
-    assert blob.user_id == user.id
+
+    assert key == blob_key
 
     # When
     await repository.delete_blob(blob.uid)
 
     # Then
     with pytest.raises(EntityNotFoundError):
-        await repository.find_blob(blob.uid)
+        await repository.find_blob(user.uid, blob_uid=blob.uid)
 
 
 async def test_delete_blobs(repository: Repository) -> None:

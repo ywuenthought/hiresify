@@ -34,7 +34,7 @@ class Base(DeclarativeBase):
     """The base for all database models to inherit from."""
 
 
-class User(Base):
+class UserORM(Base):
     """The database model for identifying a user."""
 
     __tablename__ = "user"
@@ -53,22 +53,22 @@ class User(Base):
     password: Mapped[str] = mapped_column(String(128), nullable=False)
 
     # A user can have many refresh tokens.
-    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+    refresh_tokens: Mapped[list["RefreshTokenORM"]] = relationship(
         back_populates="user", cascade="all, delete-orphan",
     )
 
     # A user can upload many blobs.
-    blobs: Mapped[list["Blob"]] = relationship(
+    blobs: Mapped[list["BlobORM"]] = relationship(
         back_populates="user", cascade="all, delete-orphan",
     )
 
     # A user can upload many uploads.
-    uploads: Mapped[list["Upload"]] = relationship(
+    uploads: Mapped[list["UploadORM"]] = relationship(
         back_populates="user", cascade="all, delete-orphan",
     )
 
 
-class RefreshToken(Base):
+class RefreshTokenORM(Base):
     """The database model for a user's refresh token."""
 
     __tablename__ = "refresh_token"
@@ -102,10 +102,10 @@ class RefreshToken(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     # Each refresh token belongs to one user.
-    user: Mapped["User"] = relationship(back_populates="refresh_tokens")
+    user: Mapped["UserORM"] = relationship(back_populates="refresh_tokens")
 
 
-class Blob(Base):
+class BlobORM(Base):
     """The database model for a blob file uploaded by a user."""
 
     __tablename__ = "blob"
@@ -133,10 +133,10 @@ class Blob(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     # Each blob belongs to one user.
-    user: Mapped["User"] = relationship(back_populates="blobs")
+    user: Mapped["UserORM"] = relationship(back_populates="blobs")
 
 
-class Upload(Base):
+class UploadORM(Base):
     """The database model for an upload of a blob file."""
 
     __tablename__ = "upload"
@@ -159,4 +159,4 @@ class Upload(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     # Each upload belongs to one user.
-    user: Mapped["User"] = relationship(back_populates="uploads")
+    user: Mapped["UserORM"] = relationship(back_populates="uploads")

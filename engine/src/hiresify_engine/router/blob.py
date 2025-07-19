@@ -26,7 +26,7 @@ from hiresify_engine.envvar import UPLOAD_TTL
 from hiresify_engine.model import Blob
 
 from .const import jwt, mime_types
-from .util import generate_blob_key, restore_mime_type, verify_access_token
+from .util import generate_blob_key, verify_access_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/blob")
@@ -162,18 +162,10 @@ async def finish_upload(
     valid_thru = created_at + timedelta(days=UPLOAD_TTL)
 
     await repo.remove_upload(upload_id)
-    blob_obj = await repo.create_blob(
+    return await repo.create_blob(
         user_uid,
         blob_key=blob_key,
         file_name=file_name,
-        created_at=created_at,
-        valid_thru=valid_thru,
-    )
-
-    return Blob(
-        uid=blob_obj.uid,
-        file_name=file_name,
-        mime_type=restore_mime_type(blob_key),
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -221,18 +213,7 @@ async def cancel_upload(
 async def fetch_blobs(*, repo: RepositoryDep, request: Request) -> list[Blob]:
     """Fetch all the blobs associated with a user from the database."""
     user_uid = verify_access_token(request, jwt)
-    blobs = await repo.find_blobs(user_uid)
-
-    return [
-        Blob(
-            uid=blob.uid,
-            file_name=blob.file_name,
-            mime_type=restore_mime_type(blob.blob_key),
-            created_at=blob.created_at,
-            valid_thru=blob.valid_thru,
-        )
-        for blob in blobs
-    ]
+    return await repo.find_blobs(user_uid)
 
 
 @router.delete("/delete", status_code=status.HTTP_204_NO_CONTENT)
@@ -245,15 +226,22 @@ async def delete_blob(
 ) -> None:
     """Finish the upload specified by the given upload ID."""
     user_uid = verify_access_token(request, jwt)
-    blob_obj = await repo.find_blob(blob_uid, eager=True)
 
-    if blob_obj.user.uid != user_uid:
+    try:
+        blob_obj, blob_key = await repo.find_blob(user_uid, blob_uid=user_uid)
+    except EntityNotFoundError as e:
         raise HTTPException(
-            detail=f"{blob_uid=} can't be deleted.",
-            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"{blob_uid=} was not found.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        ) from e
+
+    if not blob_obj.is_valid():
+        raise HTTPException(
+            detail=f"{blob_uid=} has timed out.",
+            status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
     async with blob.start_session() as session:
-        await session.delete_blob(blob_obj.blob_key)
+        await session.delete_blob(blob_key)
 
     await repo.delete_blob(blob_uid)

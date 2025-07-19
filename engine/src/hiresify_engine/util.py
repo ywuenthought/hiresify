@@ -7,6 +7,7 @@
 
 import os
 import typing as ty
+from datetime import datetime
 
 T = ty.TypeVar("T")
 
@@ -21,3 +22,9 @@ def get_envvar(varname: str, caster: ty.Callable[[str], T], default: T) -> T:
         return caster(value)
     except (ValueError, TypeError) as e:
         raise RuntimeError(f"Failed to load the envvar {varname}") from e
+
+
+def check_tz(dt: datetime) -> None:
+    """Check if the given datetime object is timezone-aware."""
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        raise ValueError(f"{dt=} must be timezone-aware.")

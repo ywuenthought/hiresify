@@ -5,6 +5,13 @@
 
 """Provide utility functions used by the repository layer."""
 
+import re
+
+_BLOB_KEY_PATTERN = re.compile(
+    r"^(?P<user_uid>[a-zA-Z0-9]{32})/(?P<main>[a-zA-Z0-9_-]+)"
+    r"/(?P<blob_uid>[a-zA-Z0-9]{32})\.(?P<sub>[a-z0-9]+)$",
+)
+
 
 def abbreviate_token(token: str, cutoff: int = 6) -> str:
     """Abbreviate the given token to make it partially visible."""
@@ -12,3 +19,12 @@ def abbreviate_token(token: str, cutoff: int = 6) -> str:
         return "<empty>"
 
     return f"{token[:cutoff]}***"
+
+
+def restore_mime_type(blob_key: str) -> str | None:
+    """Rstore the MIME type from the given blob key."""
+    if not (match := _BLOB_KEY_PATTERN.match(blob_key)):
+        return None
+
+    _, main, _, sub = match.groups()
+    return f"{main}/{sub}"
