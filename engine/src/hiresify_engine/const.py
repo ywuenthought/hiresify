@@ -27,12 +27,18 @@ PASSWORD_REGEX = r"^[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]+$"
 # JWT tokens
 ############
 
-ACCESS_TOKEN_NAME = "hiresify-access"
-
-REFRESH_TOKEN_NAME = "hiresify-refresh"
-
 TOKEN_ALGORITHM = "HS256"
 
 TOKEN_AUDIENCE = "hiresify-app"
 
 TOKEN_ISSUER = "hiresify-oauth2"
+
+#############
+# cookie keys
+#############
+
+ACCESS_TOKEN_NAME = "hiresify-access"
+
+REFRESH_TOKEN_NAME = "hiresify-refresh"
+
+SESSION_NAME = "hiresify-session"

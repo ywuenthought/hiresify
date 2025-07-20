@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from httpx import AsyncClient
 
 from hiresify_engine.cache.service import CacheService
+from hiresify_engine.const import SESSION_NAME
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.tool import compute_challenge, hash_password
 
@@ -43,7 +44,7 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
 
     # Given
     session_id = "session_id"
-    client.cookies.set("session_id", session_id)
+    client.cookies.set(SESSION_NAME, session_id)
 
     # When
     response = await client.post(endpoint, data=data)
@@ -57,7 +58,7 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
 
     token = uuid4().hex
     session = await cache.set_csrf_session(token)
-    client.cookies.set("session_id", session.id)
+    client.cookies.set(SESSION_NAME, session.id)
 
     # When
     response = await client.post(endpoint, data=data)
@@ -109,7 +110,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
 
     # Given
     session_id = "session_id"
-    client.cookies.set("session_id", "session_id")
+    client.cookies.set(SESSION_NAME, session_id)
 
     # When
     response = await client.post(endpoint, data=data)
@@ -123,7 +124,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
 
     token = uuid4().hex
     session = await cache.set_csrf_session(token)
-    client.cookies.set("session_id", session.id)
+    client.cookies.set(SESSION_NAME, session.id)
 
     # When
     response = await client.post(endpoint, data=data)
@@ -158,7 +159,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     # Then
     assert response.status_code == 302
 
-    sid = response.cookies.get("session_id")
+    sid = response.cookies.get(SESSION_NAME)
     assert sid is not None
 
     user_session = await cache.get_user_session(sid)
@@ -196,7 +197,7 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
 
     # Given
     session_id = uuid4().hex
-    client.cookies.set("session_id", session_id)
+    client.cookies.set(SESSION_NAME, session_id)
 
     # When
     response = await client.get(endpoint, params=prms)
@@ -208,7 +209,7 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     # Given
     cache: CacheService = app.state.cache
     session = await cache.set_user_session("user-uid")
-    client.cookies.set("session_id", session.id)
+    client.cookies.set(SESSION_NAME, session.id)
 
     # When
     response = await client.get(endpoint, params=prms)

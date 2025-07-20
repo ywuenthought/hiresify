@@ -11,7 +11,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from hiresify_engine.const import PASSWORD_REGEX, USERNAME_REGEX
+from hiresify_engine.const import PASSWORD_REGEX, SESSION_NAME, USERNAME_REGEX
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 from hiresify_engine.dep import CacheServiceDep, RepositoryDep
 from hiresify_engine.router.util import add_secure_headers
@@ -76,7 +76,7 @@ async def register_user(
     request: Request,
 ) -> RedirectResponse:
     """Register a user using the given user name."""
-    if (session_id := request.cookies.get("session_id")) is None:
+    if (session_id := request.cookies.get(SESSION_NAME)) is None:
         raise HTTPException(
             detail="No session ID was found in the cookies.",
             status_code=status.HTTP_404_NOT_FOUND,
@@ -142,7 +142,7 @@ async def login_user(
     request: Request,
 ) -> RedirectResponse:
     """Verify a user's credentials and set up a login session."""
-    if (session_id := request.cookies.get("session_id")) is None:
+    if (session_id := request.cookies.get(SESSION_NAME)) is None:
         raise HTTPException(
             detail="No session ID was found in the cookies.",
             status_code=status.HTTP_404_NOT_FOUND,
@@ -195,7 +195,7 @@ async def authorize_client(
     request: Request,
 ) -> RedirectResponse:
     """Authorize a client on behalf of a verified user."""
-    if (session_id := request.cookies.get("session_id")) is None:
+    if (session_id := request.cookies.get(SESSION_NAME)) is None:
         raise HTTPException(
             detail="No session ID was found in the cookies.",
             status_code=status.HTTP_404_NOT_FOUND,

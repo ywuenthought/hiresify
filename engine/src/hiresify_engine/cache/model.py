@@ -5,11 +5,8 @@
 
 """Define the data models used by cache store."""
 
-import copy
 import json
-import typing as ty
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from uuid import uuid4
 
 
@@ -44,77 +41,3 @@ class Authorization:
     def serialize(self) -> str:
         """Serialize this object into a string."""
         return json.dumps(asdict(self))
-
-
-@dataclass(frozen=True, kw_only=True)
-class _BaseSession:
-    """The base data model for a session."""
-
-    #: When the session was issued.
-    issued_at: datetime
-
-    #: When the session expires.
-    expire_at: datetime
-
-    #: The session ID that defaults to a random UUID.
-    id: str = field(default_factory=lambda: uuid4().hex)
-
-    @classmethod
-    def from_serialized(cls, serialized: str) -> ty.Self:
-        """Instantiate this class using the given serialized data."""
-        raw = json.loads(serialized)
-
-        for key in ("issued_at", "expire_at"):
-            raw[key] = datetime.fromisoformat(raw[key])
-
-        return cls(**raw)
-
-    def serialize(self) -> str:
-        """Serialize this object into a string."""
-        raw = copy.deepcopy(self.__dict__)
-
-        for key in ("issued_at", "expire_at"):
-            raw[key] = raw[key].isoformat()
-
-        return json.dumps(raw)
-
-    def to_cookie(self) -> dict[str, ty.Any]:
-        """Convert the metadata to a cookie."""
-        elapsed = self.expire_at - self.issued_at
-        max_age = int(elapsed.total_seconds())
-
-        return dict(
-            expires=self.expire_at,
-            value=self.id,
-            max_age=max_age,
-            # Only send over HTTP requests, avoiding XSS attacks.
-            httponly=True,
-            # The hardcoded cookie name.
-            key="session_id",
-            # Forbidden cross-site requests.
-            samesite="strict",
-            # Only send over HTTPS connections.
-            secure=True,
-        )
-
-
-@dataclass(frozen=True, kw_only=True)
-class UserSession(_BaseSession):
-    """The data model for a user session."""
-
-    #: The user UID linked to this session.
-    user_uid: str
-
-    #: The type of this session.
-    type: ty.ClassVar[str] = "user"
-
-
-@dataclass(frozen=True, kw_only=True)
-class CSRFSession(_BaseSession):
-    """The data model for a CSRF session."""
-
-    #: The CSRF token linked to this session.
-    csrf_token: str
-
-    #: The type of this session.
-    type: ty.ClassVar[str] = "csrf"

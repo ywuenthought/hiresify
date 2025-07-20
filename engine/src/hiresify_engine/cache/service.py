@@ -11,8 +11,9 @@ from datetime import UTC, datetime, timedelta
 from redis.asyncio import Redis
 
 from hiresify_engine.envvar import CACHE_TTL
+from hiresify_engine.model import CSRFSession, UserSession
 
-from .model import Authorization, CSRFSession, UserSession
+from .model import Authorization
 
 T = ty.TypeVar("T", CSRFSession, UserSession)
 
