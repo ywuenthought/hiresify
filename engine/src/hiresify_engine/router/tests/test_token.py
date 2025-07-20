@@ -126,7 +126,7 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
 
     # Then
     assert response.status_code == 401
-    assert response.json()["detail"] == "No refresh token was found."
+    assert response.json()["detail"] == "No token was found."
 
     # Given
     issued_at, expire_at = get_interval_from_now(10)

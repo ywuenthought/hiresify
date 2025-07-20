@@ -3,8 +3,7 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-from fastapi import APIRouter
-
+from .blob import router as blob_router
 from .token import router as token_router
 from .user import router as user_router
 
@@ -13,4 +12,6 @@ routers = [
     user_router,
 ]
 
-api_routers: list[APIRouter] = []
+api_routers = [
+    blob_router,
+]

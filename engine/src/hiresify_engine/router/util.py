@@ -10,9 +10,9 @@ from uuid import uuid4
 
 from fastapi import HTTPException, Request, Response, status
 
-from hiresify_engine.const import ACCESS_TOKEN_NAME
 from hiresify_engine.envvar import PRODUCTION
 from hiresify_engine.model import JWTToken
+from hiresify_engine.util import get_interval_from_now
 
 _CSP_ITEMS = {
     "connect-src": ["self"],
@@ -55,6 +55,12 @@ def add_secure_headers(response: Response) -> None:
         response.headers["Strict-Transport-Security"] = "; ".join(_STS_ITEMS)
 
 
+def generate_jwt_token(user_uid: str, ttl: int) -> JWTToken:
+    """Generate an instance of JWTToken for the given user UID."""
+    issued_at, expire_at = get_interval_from_now(ttl)
+    return JWTToken(user_uid=user_uid, issued_at=issued_at, expire_at=expire_at)
+
+
 def generate_blob_key(user_uid: str, mime_type: str) -> str:
     """Generate a blob key with the given user UID and MIME type."""
     main, sub = mime_type.split("/")
@@ -68,21 +74,21 @@ def restore_mime_type(blob_key: str) -> str:
     return f"{main}/{ext[1:]}"
 
 
-def verify_access_token(request: Request) -> str:
-    """Verify the access token and return the user UID if ok."""
-    if not (token := request.cookies.get(ACCESS_TOKEN_NAME)):
+def verify_jwt_token(request: Request, token_name: str) -> JWTToken:
+    """Verify the JWT token from cookies with the given token name."""
+    if not (token := request.cookies.get(token_name)):
         raise HTTPException(
-            detail="No access token was found.",
+            detail="No token was found.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if not (access_token := JWTToken.from_token(token)):
+    if not (jwt_token := JWTToken.from_token(token)):
         raise HTTPException(
-            detail="The access token is invalid.",
+            detail="The token is invalid.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    return access_token.user_uid
+    return jwt_token
 
 
 def _format_csp_items(csp_items: dict[str, list[str]]) -> str:

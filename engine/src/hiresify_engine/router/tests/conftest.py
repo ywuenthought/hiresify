@@ -10,9 +10,9 @@ from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from hiresify_engine.testing import TestCacheService, test_repository
+from hiresify_engine.testing import TestBlobService, TestCacheService, test_repository
 
-from ...router import routers
+from ...router import api_routers, routers
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -20,11 +20,17 @@ async def app() -> ty.AsyncGenerator[FastAPI, None]:
     """Create an app using the testing tool stack."""
     app = FastAPI()
 
-    for router in routers:
+    for router in routers + api_routers:
         app.include_router(router)
+
+    # Initialize the test blob service.
+    app.state.blob = blob = TestBlobService()
 
     # Initialize the test cache manager.
     app.state.cache = TestCacheService()
+
+    # Initialize the blob bucket.
+    await blob.init_bucket()
 
     # Initialize the test database repository.
     async with test_repository() as repo:

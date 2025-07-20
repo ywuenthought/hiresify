@@ -22,26 +22,13 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 
-##########
-# main app
-##########
 
 app = FastAPI(lifespan=lifespan)
 
 if PRODUCTION:
     app.add_middleware(HTTPSOnlyMiddleware)
 
-for router in routers:
+for router in routers + api_routers:
     app.include_router(router)
 
-#########
-# API app
-#########
-
-api_app = FastAPI()
-
-for api_router in api_routers:
-    api_app.include_router(api_router)
-
-app.mount("/api", api_app)
 app.mount("/static", StaticFiles(directory=const.STATIC_DIR))
