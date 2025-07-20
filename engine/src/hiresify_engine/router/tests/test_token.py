@@ -55,7 +55,7 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     code_challenge = compute_challenge(code_verifier, code_challenge_method)
 
     cache: CacheService = app.state.cache
-    auth = await cache.set_authorization(
+    code = await cache.set_authorization(
         user.uid,
         client_id=client_id,
         code_challenge=code_challenge,
@@ -64,7 +64,7 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     )
 
     # Use an incorrect client ID.
-    data.update(client_id=uuid4().hex, code=auth.code)
+    data.update(client_id=uuid4().hex, code=code)
 
     # When
     response = await client.post(endpoint, data=data)
@@ -106,7 +106,7 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
         assert client.cookies.get(key) is not None
 
     # The authorization code has been removed from the cache store.
-    assert await cache.get_authorization(auth.code) is None
+    assert await cache.get_authorization(code) is None
 
 
 async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:

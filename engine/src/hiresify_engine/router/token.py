@@ -41,13 +41,13 @@ async def issue_token(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    if client_id != auth.client_id:
+    if client_id != auth["client_id"]:
         raise HTTPException(
             detail="The input client ID is unauthorized.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if redirect_uri != auth.redirect_uri:
+    if redirect_uri != auth["redirect_uri"]:
         raise HTTPException(
             detail="The input redirect URI is invalid.",
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -55,8 +55,8 @@ async def issue_token(
 
     if not confirm_verifier(
         code_verifier,
-        auth.code_challenge,
-        auth.code_challenge_method,
+        auth["code_challenge"],
+        auth["code_challenge_method"],
     ):
         raise HTTPException(
             detail="The input code verifier is invalid.",
@@ -67,7 +67,7 @@ async def issue_token(
 
     try:
         refresh_token = await repo.create_token(
-            auth.user_uid,
+            auth["user_uid"],
             issued_at=issued_at,
             expire_at=expire_at,
             device=device,
@@ -87,7 +87,7 @@ async def issue_token(
         **JWTToken(
             issued_at=issued_at,
             expire_at=expire_at,
-            user_uid=auth.user_uid,
+            user_uid=auth["user_uid"],
         ).to_cookie(ACCESS_TOKEN_NAME),
     )
 

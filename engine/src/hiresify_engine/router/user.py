@@ -207,7 +207,7 @@ async def authorize_client(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    auth = await cache.set_authorization(
+    code = await cache.set_authorization(
         session.user_uid,
         client_id=client_id,
         code_challenge=code_challenge,
@@ -215,7 +215,7 @@ async def authorize_client(
         redirect_uri=redirect_uri,
     )
 
-    url = f"{redirect_uri}?code={auth.code}&state={state}"
+    url = f"{redirect_uri}?code={code}&state={state}"
     response = RedirectResponse(status_code=status.HTTP_303_SEE_OTHER, url=url)
     add_secure_headers(response)
 

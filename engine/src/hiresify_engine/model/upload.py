@@ -35,3 +35,14 @@ class Upload:
     def is_valid(self) -> bool:
         """Check if this upload is still valid or expired."""
         return self.valid_thru > datetime.now(UTC)
+
+
+@dataclass(frozen=True)
+class UploadPart:
+    """Wrap user-facing fields and methods for an upload part."""
+
+    #: The E-Tag of this file part.
+    etag: str
+
+    #: The index of ordering among all the parts.
+    index: int

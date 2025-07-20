@@ -5,15 +5,15 @@
 
 """Export the cache service layer for user authorization."""
 
+import json
 import typing as ty
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 from redis.asyncio import Redis
 
 from hiresify_engine.envvar import CACHE_TTL
 from hiresify_engine.model import CSRFSession, UserSession
-
-from .model import Authorization
 
 T = ty.TypeVar("T", CSRFSession, UserSession)
 
@@ -41,27 +41,32 @@ class CacheService:
         code_challenge: str,
         code_challenge_method: str,
         redirect_uri: str,
-    ) -> Authorization:
-        """Set an authorization with the given user UID."""
-        auth = Authorization(
-            client_id=client_id,
-            code_challenge=code_challenge,
-            code_challenge_method=code_challenge_method,
-            redirect_uri=redirect_uri,
-            user_uid=user_uid,
+    ) -> str:
+        """Set an authorization for the given user UID."""
+        code = uuid4().hex
+
+        await self._store.set(
+            f"auth:{code}",
+            json.dumps(
+                dict(
+                    client_id=client_id,
+                    code_challenge=code_challenge,
+                    code_challenge_method=code_challenge_method,
+                    redirect_uri=redirect_uri,
+                    user_uid=user_uid,
+                ),
+            ),
+            ex=CACHE_TTL,
         )
 
-        serialized = auth.serialize()
-        await self._store.set(f"auth:{auth.code}", serialized, ex=CACHE_TTL)
+        return code
 
-        return auth
-
-    async def get_authorization(self, code: str) -> Authorization | None:
+    async def get_authorization(self, code: str) -> dict[str, str] | None:
         """Get the authorization with the given code."""
         if not (serialized := await self._store.get(f"auth:{code}")):
             return None
 
-        return Authorization.from_serialized(serialized)
+        return json.loads(serialized)
 
     async def del_authorization(self, code: str) -> None:
         """Delete the authorization with the given code."""

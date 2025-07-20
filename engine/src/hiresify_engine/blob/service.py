@@ -20,8 +20,7 @@ from hiresify_engine.envvar import (
     BUCKET_NAME,
     PRODUCTION,
 )
-
-from .model import UploadPart
+from hiresify_engine.model import UploadPart
 
 
 class BlobService:
@@ -145,7 +144,11 @@ class BlobService:
         for part in parts:
             etags[part["PartNumber"] - 1] = part["ETag"]
 
-        return [UploadPart(etag=t, index=i + 1) for i, t in enumerate(etags)]
+        return [
+            UploadPart(etag=etag, index=index)
+            for index, etag
+            in enumerate(etags, start=1)
+        ]
 
     async def delete_blob(self, blob_key: str) -> None:
         """Delete the blob given its blob key."""
