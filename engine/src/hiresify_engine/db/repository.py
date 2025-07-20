@@ -15,10 +15,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
-from hiresify_engine.model import Blob, JWTToken, Upload
+from hiresify_engine.model import Blob, JWTToken, Upload, User
 
 from .exception import EntityConflictError, EntityNotFoundError
-from .mapper import to_blob, to_token, to_upload
+from .mapper import to_blob, to_token, to_upload, to_user
 from .model import Base, BlobORM, RefreshTokenORM, UploadORM, UserORM
 
 
@@ -58,7 +58,7 @@ class Repository:
     # user management
     #################
 
-    async def find_user(self, username: str, *, eager: bool = False) -> UserORM:
+    async def find_user(self, username: str, *, eager: bool = False) -> User:
         """Find the user with the given user name."""
         options = [selectinload(UserORM.blobs)] if eager else []
 
@@ -71,9 +71,9 @@ class Repository:
             if not (user := result.scalar_one_or_none()):
                 raise EntityNotFoundError(UserORM, username=username)
 
-            return user
+            return to_user(user)
 
-    async def register_user(self, username: str, password: str) -> UserORM:
+    async def register_user(self, username: str, password: str) -> User:
         """Register a user given a user name and a hashed password."""
         user = UserORM(username=username, password=password)
 
@@ -85,7 +85,7 @@ class Repository:
                 raise EntityConflictError(UserORM, username=username) from e
 
             await session.refresh(user)
-            return user
+            return to_user(user)
 
     async def update_password(self, username: str, password: str) -> None:
         """Update a user's password given the user name and the new hashed password."""

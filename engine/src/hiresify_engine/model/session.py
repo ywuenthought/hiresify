@@ -42,8 +42,9 @@ class _BaseSession:
         """Serialize this object into a string."""
         raw = copy.deepcopy(self.__dict__)
 
-        for key in ("issued_at", "expire_at"):
-            raw[key] = raw[key].isoformat()
+        for key, value in raw.items():
+            if isinstance(value, datetime):
+                raw[key] = value.isoformat()
 
         return json.dumps(raw)
 

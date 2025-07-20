@@ -7,10 +7,10 @@
 
 import typing as ty
 
-from hiresify_engine.model import Blob, JWTToken, Upload
+from hiresify_engine.model import Blob, JWTToken, Upload, User
 from hiresify_engine.util import restore_mime_type
 
-from .model import BlobORM, RefreshTokenORM, UploadORM
+from .model import BlobORM, RefreshTokenORM, UploadORM, UserORM
 
 
 def to_blob(obj: BlobORM) -> Blob:
@@ -43,3 +43,8 @@ def to_upload(obj: UploadORM) -> Upload:
         created_at=obj.created_at,
         valid_thru=obj.valid_thru,
     )
+
+
+def to_user(obj: UserORM) -> User:
+    """Convert a user ORM object to a domain one."""
+    return User( uid=obj.uid, username=obj.username, password=obj.password)

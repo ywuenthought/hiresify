@@ -9,5 +9,6 @@ from .blob import Blob
 from .session import CSRFSession, UserSession
 from .token import JWTToken
 from .upload import Upload
+from .user import User
 
-__all__ = ["Blob", "CSRFSession", "JWTToken", "Upload", "UserSession"]
+__all__ = ["Blob", "CSRFSession", "JWTToken", "Upload", "User", "UserSession"]

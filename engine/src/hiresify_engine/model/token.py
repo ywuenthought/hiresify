@@ -20,7 +20,7 @@ from hiresify_engine.util import check_tz
 
 @dataclass(frozen=True)
 class JWTToken:
-    """The base for a token domain model."""
+    """Wrap user-facing fields and methods for a JWT token."""
 
     #: The UID of the user that owns this token.
     user_uid: str
