@@ -9,9 +9,9 @@ import typing as ty
 
 from fastapi import Depends
 
-from hiresify_engine.blob.service import BlobService
-from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
+from hiresify_engine.service.blob import BlobService
+from hiresify_engine.service.cache import CacheService
 
 from .getter import get_blob, get_cache, get_repo
 

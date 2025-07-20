@@ -11,10 +11,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from hiresify_engine.blob.service import BlobService
-from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.envvar import DATABASE_CONFIG, DATABASE_URL, REDIS_URL
+from hiresify_engine.service.blob import BlobService
+from hiresify_engine.service.cache import CacheService
 
 ##########
 # lifespan

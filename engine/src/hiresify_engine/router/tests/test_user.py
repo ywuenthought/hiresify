@@ -10,9 +10,9 @@ from uuid import uuid4
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from hiresify_engine.cache.service import CacheService
 from hiresify_engine.const import SESSION_NAME
 from hiresify_engine.db.repository import Repository
+from hiresify_engine.service.cache import CacheService
 from hiresify_engine.tool import compute_challenge, hash_password
 
 ###############

@@ -7,9 +7,9 @@
 
 from fastapi import FastAPI, Request
 
-from hiresify_engine.blob.service import BlobService
-from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
+from hiresify_engine.service.blob import BlobService
+from hiresify_engine.service.cache import CacheService
 
 
 def get_blob(request: Request) -> BlobService:

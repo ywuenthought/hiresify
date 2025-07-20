@@ -11,7 +11,7 @@ from uuid import uuid4
 
 import pytest
 
-from ..service import BlobService
+from ..blob import BlobService
 
 
 async def test_upload_file(media: str, service: BlobService) -> None:
