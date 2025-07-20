@@ -5,9 +5,11 @@
 
 """Provide mapper functions to convert ORM objects to domain ones."""
 
-from hiresify_engine.model import Blob, Upload
+import typing as ty
 
-from .model import BlobORM, UploadORM
+from hiresify_engine.model import Blob, JWTToken, Upload
+
+from .model import BlobORM, RefreshTokenORM, UploadORM
 from .util import restore_mime_type
 
 
@@ -19,6 +21,17 @@ def to_blob(obj: BlobORM) -> Blob:
         mime_type=restore_mime_type(obj.blob_key),
         created_at=obj.created_at,
         valid_thru=obj.valid_thru,
+    )
+
+
+def to_token(obj: RefreshTokenORM, **kwargs: ty.Any) -> JWTToken:
+    """Convert a refresh token ORM object to a domain one."""
+    return JWTToken(
+        issued_at=obj.issued_at,
+        expire_at=obj.expire_at,
+        revoked=obj.revoked,
+        uid=obj.uid,
+        **kwargs,
     )
 
 

@@ -13,14 +13,6 @@ _BLOB_KEY_PATTERN = re.compile(
 )
 
 
-def abbreviate_token(token: str, cutoff: int = 6) -> str:
-    """Abbreviate the given token to make it partially visible."""
-    if not token:
-        return "<empty>"
-
-    return f"{token[:cutoff]}***"
-
-
 def restore_mime_type(blob_key: str) -> str | None:
     """Rstore the MIME type from the given blob key."""
     if not (match := _BLOB_KEY_PATTERN.match(blob_key)):

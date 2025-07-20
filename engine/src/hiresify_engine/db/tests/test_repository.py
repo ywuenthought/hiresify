@@ -86,14 +86,12 @@ async def test_create_token(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
-    token = "xyz123"
     issued_at = datetime.now(UTC)
     expire_at = issued_at + timedelta(seconds=1)
 
     # When
     refresh_token = await repository.create_token(
         user.uid,
-        token=token,
         issued_at=issued_at,
         expire_at=expire_at,
     )
@@ -106,33 +104,27 @@ async def test_revoke_token(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
-    token = "xyz123"
     issued_at = datetime.now(UTC)
     expire_at = issued_at + timedelta(seconds=1)
 
-    await repository.create_token(
+    refresh_token = await repository.create_token(
         user.uid,
-        token=token,
         issued_at=issued_at,
         expire_at=expire_at,
     )
 
     # When
-    refresh_token = await repository.find_token(token)
+    refresh_token = await repository.find_token(refresh_token.uid)
 
     # Then
-    assert refresh_token.token == token
-    assert refresh_token.issued_at == issued_at
-    assert refresh_token.expire_at == expire_at
-    assert refresh_token.user_id == user.id
+    assert not refresh_token.revoked
 
     # When
-    token = refresh_token.token
-    await repository.revoke_token(token)
+    await repository.revoke_token(refresh_token.uid)
+    refresh_token = await repository.find_token(refresh_token.uid)
 
     # Then
-    with pytest.raises(EntityNotFoundError):
-        await repository.find_token(token)
+    assert refresh_token.revoked
 
 
 async def test_revoke_tokens(repository: Repository) -> None:
@@ -140,13 +132,10 @@ async def test_revoke_tokens(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
 
     issued_at = datetime.now(UTC)
-    tokens = [f"token{i}" for i in range(1, 4)]
-
-    for token in tokens:
+    for _ in range(3):
         expire_at = issued_at + timedelta(seconds=1)
         await repository.create_token(
             user.uid,
-            token=token,
             issued_at=issued_at,
             expire_at=expire_at,
         )
@@ -156,14 +145,16 @@ async def test_revoke_tokens(repository: Repository) -> None:
     refresh_tokens = await repository.find_tokens(user.uid)
 
     # Then
-    assert len(refresh_tokens) == len(tokens)
+    for refresh_token in refresh_tokens:
+        assert not refresh_token.revoked
 
     # When
     await repository.revoke_tokens(user.uid)
     refresh_tokens = await repository.find_tokens(user.uid)
 
     # Then
-    assert not refresh_tokens
+    for refresh_token in refresh_tokens:
+        assert refresh_token.revoked
 
 
 async def test_purge_tokens(repository: Repository) -> None:
@@ -171,13 +162,11 @@ async def test_purge_tokens(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
     
     issued_at = datetime.now(UTC)
-    tokens = [f"token{i}" for i in range(1, 4)]
 
-    for token in tokens:
+    for _ in range(3):
         expire_at = issued_at + timedelta(seconds=1)
         refresh_token = await repository.create_token(
             user.uid,
-            token=token,
             issued_at=issued_at,
             expire_at=expire_at,
         )
@@ -187,7 +176,7 @@ async def test_purge_tokens(repository: Repository) -> None:
     refresh_tokens = await repository.find_tokens(user.uid)
 
     # Then
-    assert len(refresh_tokens) == len(tokens)
+    assert len(refresh_tokens) == 3
 
     # When
     await repository.purge_tokens(1, refresh_token.expire_at + timedelta(days=2))

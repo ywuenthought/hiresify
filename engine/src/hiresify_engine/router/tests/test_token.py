@@ -10,9 +10,11 @@ from fastapi import FastAPI
 from httpx import AsyncClient
 
 from hiresify_engine.cache.service import CacheService
+from hiresify_engine.const import ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.jwt.service import JWTTokenService
+from hiresify_engine.model import JWTToken
 from hiresify_engine.tool import compute_challenge, hash_password
+from hiresify_engine.util import abbreviate_token, get_interval_from_now
 
 
 async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
@@ -100,7 +102,7 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     # Then
     assert response.status_code == 201
 
-    for key in ("access_token", "refresh_token"):
+    for key in (ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME):
         assert client.cookies.get(key) is not None
 
     # The authorization code has been removed from the cache store.
@@ -123,47 +125,56 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint)
 
     # Then
-    assert response.status_code == 404
-    assert response.json()["detail"] == "No refresh token was found in the cookies."
+    assert response.status_code == 401
+    assert response.json()["detail"] == "No refresh token was found."
 
     # Given
-    token = uuid4().hex
-    client.cookies.set("refresh_token", token)
+    issued_at, expire_at = get_interval_from_now(10)
+    refresh_token = JWTToken(
+        issued_at=issued_at,
+        expire_at=expire_at,
+        user_uid=user.uid,
+    )
+
+    token = refresh_token.token
+    client.cookies.set(REFRESH_TOKEN_NAME, token)
 
     # When
     response = await client.post(endpoint)
 
     # Then
-    assert response.status_code == 400
-    assert response.json()["detail"] == f"{token=} does not exist."
+    assert response.status_code == 401
+    assert response.json()["detail"] == (
+        f"token={abbreviate_token(token)} does not exist."
+    )
 
     # Given
-    jwt: JWTTokenService = app.state.jwt
-    refresh_token = jwt.generate_refresh_token(user.uid)
-    await repo.create_token(
+    issued_at, expire_at = get_interval_from_now(10)
+    refresh_token = await repo.create_token(
         user.uid,
-        token=refresh_token.token,
-        issued_at=refresh_token.issued_at,
-        expire_at=refresh_token.expire_at,
+        issued_at=issued_at,
+        expire_at=expire_at,
     )
 
 
     token = refresh_token.token
-    client.cookies.set("refresh_token", token)
+    client.cookies.set(REFRESH_TOKEN_NAME, token)
 
     # When
     response = await client.post(endpoint)
 
     # Then
     assert response.status_code == 201
-    assert client.cookies.get("access_token") is not None
+    assert client.cookies.get(ACCESS_TOKEN_NAME) is not None
 
     # Given
-    await repo.revoke_token(token)
+    await repo.revoke_token(refresh_token.uid)
 
     # When
     response = await client.post(endpoint)
 
     # Then
-    assert response.status_code == 400
-    assert response.json()["detail"] == f"{token=} does not exist."
+    assert response.status_code == 401
+    assert response.json()["detail"] == (
+        f"token={abbreviate_token(token)} has been revoked or timed out."
+    )

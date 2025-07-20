@@ -6,6 +6,7 @@
 """Export all the domain models to be used across modules."""
 
 from .blob import Blob
+from .token import JWTToken
 from .upload import Upload
 
-__all__ = ["Blob", "Upload"]
+__all__ = ["Blob", "JWTToken", "Upload"]

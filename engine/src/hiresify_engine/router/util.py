@@ -10,8 +10,9 @@ from uuid import uuid4
 
 from fastapi import HTTPException, Request, Response, status
 
+from hiresify_engine.const import ACCESS_TOKEN_NAME
 from hiresify_engine.envvar import PRODUCTION
-from hiresify_engine.jwt.service import JWTTokenService
+from hiresify_engine.model import JWTToken
 
 _CSP_ITEMS = {
     "connect-src": ["self"],
@@ -67,21 +68,21 @@ def restore_mime_type(blob_key: str) -> str:
     return f"{main}/{ext[1:]}"
 
 
-def verify_access_token(request: Request, jwt: JWTTokenService) -> str:
+def verify_access_token(request: Request) -> str:
     """Verify the access token and return the user UID if ok."""
-    if not (access_token := request.cookies.get("access_token")):
+    if not (token := request.cookies.get(ACCESS_TOKEN_NAME)):
         raise HTTPException(
             detail="No access token was found.",
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if not (user_uid := jwt.verify(access_token)):
+    if not (access_token := JWTToken.from_token(token)):
         raise HTTPException(
             detail="The access token is invalid.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    return user_uid
+    return access_token.user_uid
 
 
 def _format_csp_items(csp_items: dict[str, list[str]]) -> str:

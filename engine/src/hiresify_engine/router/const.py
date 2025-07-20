@@ -7,10 +7,7 @@
 
 from fastapi.templating import Jinja2Templates
 
-from hiresify_engine.jwt.service import JWTTokenService
 from hiresify_engine.templates import LOGIN_HTML
-
-jwt = JWTTokenService()
 
 templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 

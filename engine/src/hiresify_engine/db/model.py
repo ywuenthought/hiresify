@@ -80,14 +80,14 @@ class RefreshTokenORM(Base):
         String(32), default=lambda: uuid4().hex, unique=True,
     )
 
-    #: A string representation of the refresh token.
-    token: Mapped[str] = mapped_column(String(512), nullable=False, unique=True)
-
     #: The date and time when the token was issued.
     issued_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
 
     #: The date and time when the token was set to expire.
     expire_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
+
+    #: A boolean flag for whether this token has been revoked.
+    revoked: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     #: The user agent or device name for this token.
     device: Mapped[str] = mapped_column(String(128), nullable=True)

@@ -5,6 +5,8 @@
 
 """Read and export environment variables."""
 
+from secrets import token_urlsafe
+
 from .util import get_envvar
 
 # The access token TTL (sec).
@@ -36,6 +38,9 @@ DATABASE_URL = get_envvar("DATABASE_URL", str, "")
 
 # The database config file.
 DATABASE_CONFIG = get_envvar("DATABASE_CONFIG", str, "")
+
+# The secret key used to encrypt and decrypt JWT tokens.
+JWT_SECRET_KEY = get_envvar("JWT_SECRET_KEY", str, token_urlsafe(64))
 
 # The current deployment type.
 PRODUCTION = get_envvar("PRODUCTION", bool, False)

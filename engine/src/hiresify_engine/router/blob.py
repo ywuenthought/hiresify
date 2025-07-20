@@ -25,7 +25,7 @@ from hiresify_engine.dep import BlobServiceDep, RepositoryDep
 from hiresify_engine.envvar import UPLOAD_TTL
 from hiresify_engine.model import Blob
 
-from .const import jwt, mime_types
+from .const import mime_types
 from .util import generate_blob_key, verify_access_token
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ async def start_upload(
     request: Request,
 ) -> str:
     """Start a multipart upload of the given file."""
-    user_uid = verify_access_token(request, jwt)
+    user_uid = verify_access_token(request)
 
     try:
         head = await file.read(4096)
@@ -89,7 +89,7 @@ async def upload_chunk(
     request: Request,
 ) -> None:
     """Receive, process, and upload a chunk of blob."""
-    user_uid = verify_access_token(request, jwt)
+    user_uid = verify_access_token(request)
 
     try:
         upload = await repo.find_upload(user_uid, upload_id=upload_id)
@@ -126,7 +126,7 @@ async def finish_upload(
     request: Request,
 ) -> Blob:
     """Finish the upload specified by the given upload ID."""
-    user_uid = verify_access_token(request, jwt)
+    user_uid = verify_access_token(request)
 
     try:
         upload = await repo.find_upload(user_uid, upload_id=upload_id)
@@ -168,7 +168,7 @@ async def cancel_upload(
     request: Request,
 ) -> None:
     """Finish the upload specified by the given upload ID."""
-    user_uid = verify_access_token(request, jwt)
+    user_uid = verify_access_token(request)
 
     try:
         upload = await repo.find_upload(user_uid, upload_id=upload_id)
@@ -194,7 +194,7 @@ async def cancel_upload(
 @router.get("/fetch", response_model=list[Blob])
 async def fetch_blobs(*, repo: RepositoryDep, request: Request) -> list[Blob]:
     """Fetch all the blobs associated with a user from the database."""
-    user_uid = verify_access_token(request, jwt)
+    user_uid = verify_access_token(request)
     return await repo.find_blobs(user_uid)
 
 
@@ -207,7 +207,7 @@ async def delete_blob(
     request: Request,
 ) -> None:
     """Finish the upload specified by the given upload ID."""
-    user_uid = verify_access_token(request, jwt)
+    user_uid = verify_access_token(request)
 
     try:
         blob_obj, blob_key = await repo.find_blob(user_uid, blob_uid=user_uid)

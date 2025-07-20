@@ -5,9 +5,8 @@
 
 """Define the domain model for upload management."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
-
-from pydantic.dataclasses import dataclass
 
 from hiresify_engine.util import check_tz
 
