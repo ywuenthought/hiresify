@@ -126,7 +126,7 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
 
     # Then
     assert response.status_code == 401
-    assert response.json()["detail"] == "No token was found."
+    assert response.json()["detail"] == f"No {REFRESH_TOKEN_NAME} token was found."
 
     # Given
     issued_at, expire_at = get_interval_from_now(10)
@@ -176,5 +176,5 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
     # Then
     assert response.status_code == 401
     assert response.json()["detail"] == (
-        f"token={abbreviate_token(token)} has been revoked or timed out."
+        f"token={abbreviate_token(token)} has been revoked."
     )

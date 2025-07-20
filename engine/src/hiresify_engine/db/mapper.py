@@ -8,9 +8,9 @@
 import typing as ty
 
 from hiresify_engine.model import Blob, JWTToken, Upload
+from hiresify_engine.util import restore_mime_type
 
 from .model import BlobORM, RefreshTokenORM, UploadORM
-from .util import restore_mime_type
 
 
 def to_blob(obj: BlobORM) -> Blob:

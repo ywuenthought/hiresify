@@ -6,10 +6,17 @@
 """Provide utility functions used across the codebase."""
 
 import os
+import re
 import typing as ty
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 T = ty.TypeVar("T")
+
+BLOB_KEY_PATTERN = re.compile(
+    r"^(?P<user_uid>[a-zA-Z0-9]{32})/(?P<main>[a-zA-Z0-9_-]+)"
+    r"/(?P<blob_uid>[a-zA-Z0-9]{32})\.(?P<sub>[a-z0-9]+)$",
+)
 
 
 def abbreviate_token(token: str, cutoff: int = 6) -> str:
@@ -39,6 +46,12 @@ def check_tz(dt: datetime) -> None:
         raise ValueError(f"{dt=} must be timezone-aware.")
 
 
+def generate_blob_key(user_uid: str, mime_type: str) -> str:
+    """Generate a blob key with the given user UID and MIME type."""
+    main, sub = mime_type.split("/")
+    return f"{user_uid}/{main}/{uuid4().hex}.{sub}"
+
+
 def get_interval_from_now(ttl: int) -> tuple[datetime, datetime]:
     """Get a time interval from now with the given TTL.
 
@@ -47,3 +60,12 @@ def get_interval_from_now(ttl: int) -> tuple[datetime, datetime]:
     start = datetime.now(UTC)
     end = start + timedelta(seconds=ttl)
     return start, end
+
+
+def restore_mime_type(blob_key: str) -> str | None:
+    """Rstore the MIME type from the given blob key."""
+    if not (match := BLOB_KEY_PATTERN.match(blob_key)):
+        return None
+
+    _, main, _, sub = match.groups()
+    return f"{main}/{sub}"

@@ -11,10 +11,11 @@ from hiresify_engine.const import ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME
 from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import CacheServiceDep, RepositoryDep
 from hiresify_engine.envvar import ACCESS_TTL, REFRESH_TTL
+from hiresify_engine.model import JWTToken
 from hiresify_engine.tool import confirm_verifier
 from hiresify_engine.util import abbreviate_token, get_interval_from_now
 
-from .util import generate_jwt_token, verify_jwt_token
+from .util import verify_token
 
 router = APIRouter(prefix="/token")
 
@@ -81,8 +82,14 @@ async def issue_token(
 
     response.set_cookie(**refresh_token.to_cookie(REFRESH_TOKEN_NAME, "/token"))
 
-    access_token = generate_jwt_token(auth.user_uid, ACCESS_TTL)
-    response.set_cookie(**access_token.to_cookie(ACCESS_TOKEN_NAME))
+    issued_at, expire_at = get_interval_from_now(ACCESS_TTL)
+    response.set_cookie(
+        **JWTToken(
+            issued_at=issued_at,
+            expire_at=expire_at,
+            user_uid=auth.user_uid,
+        ).to_cookie(ACCESS_TOKEN_NAME),
+    )
 
     await cache.del_authorization(code)
 
@@ -95,7 +102,7 @@ async def refresh_token(
     response: Response,
 ) -> None:
     """Refresh a user's access token if the given refresh token is active."""
-    refresh_token = verify_jwt_token(request, REFRESH_TOKEN_NAME)
+    refresh_token = verify_token(request, REFRESH_TOKEN_NAME)
     token = refresh_token.token
 
     try:
@@ -106,27 +113,27 @@ async def refresh_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
         ) from e
 
-    if refresh_token.revoked or not refresh_token.is_valid():
+    if refresh_token.revoked:
         raise HTTPException(
-            detail=f"token={abbreviate_token(token)} has been revoked or timed out.",
+            detail=f"token={abbreviate_token(token)} has been revoked.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
     
-    access_token = generate_jwt_token(refresh_token.user_uid, ACCESS_TTL)
-    response.set_cookie(**access_token.to_cookie(ACCESS_TOKEN_NAME))
+    issued_at, expire_at = get_interval_from_now(ACCESS_TTL)
+    response.set_cookie(
+        **JWTToken(
+            issued_at=issued_at,
+            expire_at=expire_at,
+            user_uid=refresh_token.user_uid,
+        ).to_cookie(ACCESS_TOKEN_NAME),
+    )
 
 
 @router.post("/revoke", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_token(*, repo: RepositoryDep, request: Request) -> None:
     """Revoke a user's refresh token."""
-    refresh_token = verify_jwt_token(request, REFRESH_TOKEN_NAME)
+    refresh_token = verify_token(request, REFRESH_TOKEN_NAME)
     token = refresh_token.token
-
-    if not refresh_token.is_valid():
-        raise HTTPException(
-            detail=f"token={abbreviate_token(token)} has timed out.",
-            status_code=status.HTTP_401_UNAUTHORIZED,
-        )
 
     try:
         await repo.revoke_token(refresh_token.uid)

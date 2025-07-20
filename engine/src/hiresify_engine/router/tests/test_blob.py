@@ -12,11 +12,10 @@ from httpx import AsyncClient
 from hiresify_engine.blob.service import BlobService
 from hiresify_engine.const import ACCESS_TOKEN_NAME
 from hiresify_engine.db.repository import Repository
+from hiresify_engine.model import JWTToken
 from hiresify_engine.testing.data import PNG_STREAM
 from hiresify_engine.tool import hash_password
-from hiresify_engine.util import get_interval_from_now
-
-from ..util import generate_blob_key, generate_jwt_token
+from hiresify_engine.util import generate_blob_key, get_interval_from_now
 
 
 async def test_start_upload(app: FastAPI, client: AsyncClient) -> None:
@@ -26,7 +25,8 @@ async def test_start_upload(app: FastAPI, client: AsyncClient) -> None:
     repo: Repository = app.state.repo
     user = await repo.register_user("ywu", hash_password("123"))
 
-    token = generate_jwt_token(user.uid, 10)
+    issued_at, expire_at = get_interval_from_now(10)
+    token = JWTToken(user_uid=user.uid, issued_at=issued_at, expire_at=expire_at)
     client.cookies.set(ACCESS_TOKEN_NAME, token.token)
 
     # When
@@ -65,7 +65,8 @@ async def test_upload_chunk(app: FastAPI, client: AsyncClient) -> None:
     repo: Repository = app.state.repo
     user = await repo.register_user("ewu", hash_password("123"))
 
-    token = generate_jwt_token(user.uid, 10)
+    issued_at, expire_at = get_interval_from_now(10)
+    token = JWTToken(user_uid=user.uid, issued_at=issued_at, expire_at=expire_at)
     client.cookies.set(ACCESS_TOKEN_NAME, token.token)
 
     upload_id = uuid4().hex
@@ -112,7 +113,8 @@ async def test_finish_upload(app: FastAPI, client: AsyncClient) -> None:
     repo: Repository = app.state.repo
     user = await repo.register_user("kwu", hash_password("123"))
 
-    token = generate_jwt_token(user.uid, 10)
+    issued_at, expire_at = get_interval_from_now(10)
+    token = JWTToken(user_uid=user.uid, issued_at=issued_at, expire_at=expire_at)
     client.cookies.set(ACCESS_TOKEN_NAME, token.token)
 
     blob: BlobService = app.state.blob
@@ -146,7 +148,8 @@ async def test_cancel_upload(app: FastAPI, client: AsyncClient) -> None:
     repo: Repository = app.state.repo
     user = await repo.register_user("swu", hash_password("123"))
 
-    token = generate_jwt_token(user.uid, 10)
+    issued_at, expire_at = get_interval_from_now(10)
+    token = JWTToken(user_uid=user.uid, issued_at=issued_at, expire_at=expire_at)
     client.cookies.set(ACCESS_TOKEN_NAME, token.token)
 
     blob: BlobService = app.state.blob
@@ -178,7 +181,8 @@ async def test_delete_blob(app: FastAPI, client: AsyncClient) -> None:
     repo: Repository = app.state.repo
     user = await repo.register_user("awu", hash_password("123"))
 
-    token = generate_jwt_token(user.uid, 10)
+    issued_at, expire_at = get_interval_from_now(10)
+    token = JWTToken(user_uid=user.uid, issued_at=issued_at, expire_at=expire_at)
     client.cookies.set(ACCESS_TOKEN_NAME, token.token)
 
     blob_uid = uuid4().hex

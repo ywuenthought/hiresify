@@ -25,9 +25,10 @@ from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import BlobServiceDep, RepositoryDep
 from hiresify_engine.envvar import UPLOAD_TTL
 from hiresify_engine.model import Blob, Upload
+from hiresify_engine.util import generate_blob_key
 
 from .const import mime_types
-from .util import generate_blob_key, verify_jwt_token
+from .util import verify_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/blob")
@@ -42,7 +43,7 @@ async def start_upload(
     request: Request,
 ) -> str:
     """Start a multipart upload of the given file."""
-    token = verify_jwt_token(request, ACCESS_TOKEN_NAME)
+    token = verify_token(request, ACCESS_TOKEN_NAME)
 
     try:
         head = await file.read(4096)
@@ -90,7 +91,7 @@ async def upload_chunk(
     request: Request,
 ) -> None:
     """Receive, process, and upload a chunk of blob."""
-    token = verify_jwt_token(request, ACCESS_TOKEN_NAME)
+    token = verify_token(request, ACCESS_TOKEN_NAME)
     upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
 
     chunk = await file.read()
@@ -114,7 +115,7 @@ async def finish_upload(
     request: Request,
 ) -> Blob:
     """Finish the upload specified by the given upload ID."""
-    token = verify_jwt_token(request, ACCESS_TOKEN_NAME)
+    token = verify_token(request, ACCESS_TOKEN_NAME)
     upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
 
     async with blob.start_session() as session:
@@ -142,7 +143,7 @@ async def cancel_upload(
     request: Request,
 ) -> None:
     """Finish the upload specified by the given upload ID."""
-    token = verify_jwt_token(request, ACCESS_TOKEN_NAME)
+    token = verify_token(request, ACCESS_TOKEN_NAME)
     upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
 
     async with blob.start_session() as session:
@@ -154,7 +155,7 @@ async def cancel_upload(
 @router.get("/fetch", response_model=list[Blob])
 async def fetch_blobs(*, repo: RepositoryDep, request: Request) -> list[Blob]:
     """Fetch all the blobs associated with a user from the database."""
-    token = verify_jwt_token(request, ACCESS_TOKEN_NAME)
+    token = verify_token(request, ACCESS_TOKEN_NAME)
     return await repo.find_blobs(token.user_uid)
 
 
@@ -167,7 +168,7 @@ async def delete_blob(
     request: Request,
 ) -> None:
     """Finish the upload specified by the given upload ID."""
-    token = verify_jwt_token(request, ACCESS_TOKEN_NAME)
+    token = verify_token(request, ACCESS_TOKEN_NAME)
 
     try:
         obj, key = await repo.find_blob(token.user_uid, blob_uid=blob_uid)

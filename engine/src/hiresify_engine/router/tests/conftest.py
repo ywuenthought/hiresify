@@ -15,7 +15,7 @@ from hiresify_engine.testing import TestBlobService, TestCacheService, test_repo
 from ...router import api_routers, routers
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 async def app() -> ty.AsyncGenerator[FastAPI, None]:
     """Create an app using the testing tool stack."""
     app = FastAPI()
@@ -38,7 +38,7 @@ async def app() -> ty.AsyncGenerator[FastAPI, None]:
         yield app
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 async def start_lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     """Start the lifespan of the testing app."""
     async with LifespanManager(app=app):

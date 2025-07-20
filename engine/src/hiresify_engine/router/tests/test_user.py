@@ -4,6 +4,7 @@
 # explicit written permission from the copyright holder.
 
 from secrets import token_urlsafe
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from fastapi import FastAPI
@@ -12,8 +13,6 @@ from httpx import AsyncClient
 from hiresify_engine.cache.service import CacheService
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.tool import compute_challenge, hash_password
-
-from .util import get_query_params
 
 ###############
 # user workflow
@@ -220,5 +219,14 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     url: str = response.headers.get("location")
     assert url.startswith(redirect_uri)
 
-    query_params = get_query_params(url)
+    query_params = _get_query_params(url)
     assert list(query_params.keys()) == ["code", "state"]
+
+
+# -- helper functions
+
+
+def _get_query_params(url: str) -> dict[str, list[str]]:
+    """Parse the given URL to get the query parameters."""
+    parsed_url = urlparse(url)
+    return parse_qs(parsed_url.query)
