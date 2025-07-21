@@ -8,13 +8,11 @@
 import typing as ty
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from functools import cached_property
 from uuid import uuid4
 
 from jose import JWTError, jwt
 
 from hiresify_engine.const import TOKEN_ALGORITHM, TOKEN_AUDIENCE, TOKEN_ISSUER
-from hiresify_engine.envvar import JWT_SECRET_KEY, PRODUCTION
 from hiresify_engine.util import check_tz
 
 
@@ -47,12 +45,12 @@ class JWTToken:
         return self.expire_at > datetime.now(UTC)
 
     @classmethod
-    def from_token(cls, token: str) -> ty.Optional["JWTToken"]:
+    def from_token(cls, token: str, *, secret_key: str) -> ty.Optional["JWTToken"]:
         """Initialize a new instance of JWTToken by decrypting the JWT token."""
         try:
             payload = jwt.decode(
                 token,
-                key=JWT_SECRET_KEY,
+                key=secret_key,
                 algorithms=[TOKEN_ALGORITHM],
                 audience=TOKEN_AUDIENCE,
                 issuer=TOKEN_ISSUER,
@@ -67,8 +65,7 @@ class JWTToken:
             user_uid=payload["sub"],
         )
 
-    @cached_property
-    def token(self) -> str:
+    def get_token(self, secret_key: str) -> str:
         """Compute the JWT token by encrypting the token information."""
         return jwt.encode(
             dict(
@@ -80,10 +77,17 @@ class JWTToken:
                 sub=self.user_uid,
             ),
             algorithm=TOKEN_ALGORITHM,
-            key=JWT_SECRET_KEY,
+            key=secret_key,
         )
 
-    def to_cookie(self, key: str, path: str = "/") -> dict[str, ty.Any]:
+    def to_cookie(
+        self,
+        token_name: str,
+        encrypted_token: str,
+        *,
+        path: str = "/",
+        secure: bool = False,
+    ) -> dict[str, ty.Any]:
         """Generate a cookie with the available information."""
         elapsed = self.expire_at - self.issued_at
         max_age = int(elapsed.total_seconds())
@@ -93,12 +97,12 @@ class JWTToken:
             # Only send over HTTP requests, avoiding XSS attacks.
             httponly=True,
             # The cookie key.
-            key=key,
+            key=token_name,
             max_age=max_age,
             path=path,
             # Forbidden cross-site requests.
             samesite="strict",
             # Only send over HTTPS connections.
-            secure=PRODUCTION,
-            value=self.token,
+            secure=secure,
+            value=encrypted_token,
         )

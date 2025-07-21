@@ -22,7 +22,7 @@ from magic import from_buffer
 
 from hiresify_engine.const import ACCESS_TOKEN_NAME
 from hiresify_engine.db.exception import EntityNotFoundError
-from hiresify_engine.dep import BlobServiceDep, RepositoryDep
+from hiresify_engine.dep import AppConfigDep, BlobServiceDep, RepositoryDep
 from hiresify_engine.envvar import UPLOAD_TTL
 from hiresify_engine.model import Blob, Upload
 from hiresify_engine.util import generate_blob_key
@@ -41,11 +41,16 @@ async def start_upload(
     file: UploadFile = File(...),  # noqa: B008
     *,
     blob: BlobServiceDep,
+    config: AppConfigDep,
     repo: RepositoryDep,
     request: Request,
 ) -> str:
     """Start a multipart upload of the given file."""
-    token = verify_token(request, ACCESS_TOKEN_NAME)
+    token = verify_token(
+        request.cookies,
+        token_name=ACCESS_TOKEN_NAME,
+        secret_key=config.jwt_secret_key,
+    )
 
     try:
         head = await file.read(4096)
@@ -89,19 +94,22 @@ async def upload_chunk(
     upload_id: str = Form(..., max_length=128),
     *,
     blob: BlobServiceDep,
+    config: AppConfigDep,
     repo: RepositoryDep,
     request: Request,
 ) -> None:
     """Receive, process, and upload a chunk of blob."""
-    token = verify_token(request, ACCESS_TOKEN_NAME)
+    token = verify_token(
+        request.cookies,
+        token_name=ACCESS_TOKEN_NAME,
+        secret_key=config.jwt_secret_key,
+    )
+
     upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
-
-    chunk = await file.read()
-
     async with blob.start_session() as session:
         await session.upload_chunk(
             blob_key=upload.blob_key,
-            data_chunk=chunk,
+            data_chunk=await file.read(),
             part_index=part,
             upload_id=upload_id,
         )
@@ -113,13 +121,18 @@ async def finish_upload(
     file_name: str = Form(..., max_length=256),
     *,
     blob: BlobServiceDep,
+    config: AppConfigDep,
     repo: RepositoryDep,
     request: Request,
 ) -> Blob:
     """Finish the upload specified by the given upload ID."""
-    token = verify_token(request, ACCESS_TOKEN_NAME)
-    upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
+    token = verify_token(
+        request.cookies,
+        token_name=ACCESS_TOKEN_NAME,
+        secret_key=config.jwt_secret_key,
+    )
 
+    upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
     async with blob.start_session() as session:
         await session.finish_upload(upload.blob_key, upload_id)
 
@@ -141,13 +154,18 @@ async def cancel_upload(
     upload_id: str = Query(..., max_length=128),
     *,
     blob: BlobServiceDep,
+    config: AppConfigDep,
     repo: RepositoryDep,
     request: Request,
 ) -> None:
     """Finish the upload specified by the given upload ID."""
-    token = verify_token(request, ACCESS_TOKEN_NAME)
-    upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
+    token = verify_token(
+        request.cookies,
+        token_name=ACCESS_TOKEN_NAME,
+        secret_key=config.jwt_secret_key,
+    )
 
+    upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
     async with blob.start_session() as session:
         await session.cancel_upload(upload.blob_key, upload_id)
 
@@ -155,9 +173,15 @@ async def cancel_upload(
 
 
 @router.get("/fetch", response_model=list[Blob])
-async def fetch_blobs(*, repo: RepositoryDep, request: Request) -> list[Blob]:
+async def fetch_blobs(
+    *, config: AppConfigDep, repo: RepositoryDep, request: Request,
+) -> list[Blob]:
     """Fetch all the blobs associated with a user from the database."""
-    token = verify_token(request, ACCESS_TOKEN_NAME)
+    token = verify_token(
+        request.cookies,
+        token_name=ACCESS_TOKEN_NAME,
+        secret_key=config.jwt_secret_key,
+    )
     return await repo.find_blobs(token.user_uid)
 
 
@@ -166,11 +190,16 @@ async def delete_blob(
     blob_uid: str = Query(..., max_length=32, min_length=32),
     *,
     blob: BlobServiceDep,
+    config: AppConfigDep,
     repo: RepositoryDep,
     request: Request,
 ) -> None:
     """Finish the upload specified by the given upload ID."""
-    token = verify_token(request, ACCESS_TOKEN_NAME)
+    token = verify_token(
+        request.cookies,
+        token_name=ACCESS_TOKEN_NAME,
+        secret_key=config.jwt_secret_key,
+    )
 
     try:
         obj, key = await repo.find_blob(token.user_uid, blob_uid=blob_uid)

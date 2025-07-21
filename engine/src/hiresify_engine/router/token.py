@@ -9,11 +9,11 @@ from fastapi import APIRouter, Form, HTTPException, Request, Response, status
 
 from hiresify_engine.const import ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME
 from hiresify_engine.db.exception import EntityNotFoundError
-from hiresify_engine.dep import CacheServiceDep, RepositoryDep
+from hiresify_engine.dep import AppConfigDep, CacheServiceDep, RepositoryDep
 from hiresify_engine.envvar import ACCESS_TTL, REFRESH_TTL
 from hiresify_engine.model import JWTToken
 from hiresify_engine.tool import confirm_verifier
-from hiresify_engine.util import abbreviate_token, get_interval_from_now
+from hiresify_engine.util import get_interval_from_now
 
 from .util import verify_token
 
@@ -31,6 +31,7 @@ async def issue_token(
     platform: str | None = Form(None, max_length=32),
     *,
     cache: CacheServiceDep,
+    config: AppConfigDep,
     repo: RepositoryDep,
     response: Response,
 ) -> None:
@@ -80,15 +81,28 @@ async def issue_token(
             status_code=status.HTTP_404_NOT_FOUND,
         ) from e
 
-    response.set_cookie(**refresh_token.to_cookie(REFRESH_TOKEN_NAME, "/token"))
+    response.set_cookie(
+        **refresh_token.to_cookie(
+            REFRESH_TOKEN_NAME,
+            refresh_token.get_token(config.jwt_secret_key),
+            path="/token",
+            secure=config.production,
+        ),
+    )
 
     issued_at, expire_at = get_interval_from_now(ACCESS_TTL)
+    access_token = JWTToken(
+        issued_at=issued_at,
+        expire_at=expire_at,
+        user_uid=auth["user_uid"],
+    )
+
     response.set_cookie(
-        **JWTToken(
-            issued_at=issued_at,
-            expire_at=expire_at,
-            user_uid=auth["user_uid"],
-        ).to_cookie(ACCESS_TOKEN_NAME),
+        **access_token.to_cookie(
+            ACCESS_TOKEN_NAME,
+            access_token.get_token(config.jwt_secret_key),
+            secure=config.production,
+        ),
     )
 
     await cache.del_authorization(code)
@@ -97,48 +111,63 @@ async def issue_token(
 @router.post("/refresh", status_code=status.HTTP_201_CREATED)
 async def refresh_token(
     *,
+    config: AppConfigDep,
     repo: RepositoryDep,
     request: Request,
     response: Response,
 ) -> None:
     """Refresh a user's access token if the given refresh token is active."""
-    refresh_token = verify_token(request, REFRESH_TOKEN_NAME)
-    token = refresh_token.token
+    refresh_token = verify_token(
+        request.cookies,
+        token_name=REFRESH_TOKEN_NAME,
+        secret_key=config.jwt_secret_key,
+    )
 
     try:
         refresh_token = await repo.find_token(refresh_token.uid)
     except EntityNotFoundError as e:
         raise HTTPException(
-            detail=f"token={abbreviate_token(token)} does not exist.",
+            detail=f"token={refresh_token.uid} does not exist.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         ) from e
 
     if refresh_token.revoked:
         raise HTTPException(
-            detail=f"token={abbreviate_token(token)} has been revoked.",
+            detail=f"token={refresh_token.uid} has been revoked.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
     
     issued_at, expire_at = get_interval_from_now(ACCESS_TTL)
+    access_token = JWTToken(
+        issued_at=issued_at,
+        expire_at=expire_at,
+        user_uid=refresh_token.user_uid,
+    )
+
     response.set_cookie(
-        **JWTToken(
-            issued_at=issued_at,
-            expire_at=expire_at,
-            user_uid=refresh_token.user_uid,
-        ).to_cookie(ACCESS_TOKEN_NAME),
+        **access_token.to_cookie(
+            ACCESS_TOKEN_NAME,
+            access_token.get_token(config.jwt_secret_key),
+            secure=config.production,
+        ),
     )
 
 
 @router.post("/revoke", status_code=status.HTTP_204_NO_CONTENT)
-async def revoke_token(*, repo: RepositoryDep, request: Request) -> None:
+async def revoke_token(
+    *, config: AppConfigDep, repo: RepositoryDep, request: Request,
+) -> None:
     """Revoke a user's refresh token."""
-    refresh_token = verify_token(request, REFRESH_TOKEN_NAME)
-    token = refresh_token.token
+    refresh_token = verify_token(
+        request.cookies,
+        token_name=REFRESH_TOKEN_NAME,
+        secret_key=config.jwt_secret_key,
+    )
 
     try:
         await repo.revoke_token(refresh_token.uid)
     except EntityNotFoundError as e:
         raise HTTPException(
-            detail=f"token={abbreviate_token(token)} does not exist.",
+            detail=f"token={refresh_token.uid} does not exist.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         ) from e

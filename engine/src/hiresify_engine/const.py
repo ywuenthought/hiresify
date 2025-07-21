@@ -7,40 +7,25 @@
 
 import pathlib
 
-############
-# file paths
-############
+ACCESS_TOKEN_NAME = "hiresify-access"
 
-PACKAGE_ROOT = pathlib.Path(__file__).parent
-
-STATIC_DIR = PACKAGE_ROOT / "static"
-
-############
-# deployment
-############
+BUCKET_NAME = "hiresify-bucket"
 
 DEVELOPMENT = "development"
 
-PRODUCTION = "production"
-
-TESTING = "testing"
-
-config_files = {
-    deployment: PACKAGE_ROOT / f".env.{deployment}"
-    for deployment in (DEVELOPMENT, PRODUCTION, TESTING)
-}
-
-############
-# user regex
-############
-
-USERNAME_REGEX = r"^[a-zA-Z][a-zA-Z0-9_]*$"
+PACKAGE_ROOT = pathlib.Path(__file__).parent
 
 PASSWORD_REGEX = r"^[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]+$"
 
-############
-# JWT tokens
-############
+PRODUCTION = "production"
+
+REFRESH_TOKEN_NAME = "hiresify-refresh"
+
+SESSION_NAME = "hiresify-session"
+
+STATIC_DIR = PACKAGE_ROOT / "static"
+
+TESTING = "testing"
 
 TOKEN_ALGORITHM = "HS256"
 
@@ -48,18 +33,9 @@ TOKEN_AUDIENCE = "hiresify-app"
 
 TOKEN_ISSUER = "hiresify-auth"
 
-#############
-# cookie keys
-#############
+USERNAME_REGEX = r"^[a-zA-Z][a-zA-Z0-9_]*$"
 
-ACCESS_TOKEN_NAME = "hiresify-access"
-
-REFRESH_TOKEN_NAME = "hiresify-refresh"
-
-SESSION_NAME = "hiresify-session"
-
-############
-# blob store
-############
-
-BUCKET_NAME = "hiresify-bucket"
+config_files = {
+    deployment: PACKAGE_ROOT / f".env.{deployment}"
+    for deployment in (DEVELOPMENT, PRODUCTION, TESTING)
+}

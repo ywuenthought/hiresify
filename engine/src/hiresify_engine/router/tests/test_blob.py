@@ -9,6 +9,7 @@ from uuid import uuid4
 from fastapi import FastAPI
 from httpx import AsyncClient
 
+from hiresify_engine.config import AppConfig
 from hiresify_engine.const import ACCESS_TOKEN_NAME
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.model import JWTToken
@@ -27,7 +28,9 @@ async def test_start_upload(app: FastAPI, client: AsyncClient) -> None:
 
     issued_at, expire_at = get_interval_from_now(10)
     token = JWTToken(user_uid=user.uid, issued_at=issued_at, expire_at=expire_at)
-    client.cookies.set(ACCESS_TOKEN_NAME, token.token)
+
+    config: AppConfig = app.state.config
+    client.cookies.set(ACCESS_TOKEN_NAME, token.get_token(config.jwt_secret_key))
 
     # When
     response = await client.post(
@@ -67,7 +70,9 @@ async def test_upload_chunk(app: FastAPI, client: AsyncClient) -> None:
 
     issued_at, expire_at = get_interval_from_now(10)
     token = JWTToken(user_uid=user.uid, issued_at=issued_at, expire_at=expire_at)
-    client.cookies.set(ACCESS_TOKEN_NAME, token.token)
+
+    config: AppConfig = app.state.config
+    client.cookies.set(ACCESS_TOKEN_NAME, token.get_token(config.jwt_secret_key))
 
     upload_id = uuid4().hex
 
@@ -115,7 +120,9 @@ async def test_finish_upload(app: FastAPI, client: AsyncClient) -> None:
 
     issued_at, expire_at = get_interval_from_now(10)
     token = JWTToken(user_uid=user.uid, issued_at=issued_at, expire_at=expire_at)
-    client.cookies.set(ACCESS_TOKEN_NAME, token.token)
+
+    config: AppConfig = app.state.config
+    client.cookies.set(ACCESS_TOKEN_NAME, token.get_token(config.jwt_secret_key))
 
     blob: BlobService = app.state.blob
     blob_key = generate_blob_key(user.uid, "image/png")
@@ -150,7 +157,9 @@ async def test_cancel_upload(app: FastAPI, client: AsyncClient) -> None:
 
     issued_at, expire_at = get_interval_from_now(10)
     token = JWTToken(user_uid=user.uid, issued_at=issued_at, expire_at=expire_at)
-    client.cookies.set(ACCESS_TOKEN_NAME, token.token)
+
+    config: AppConfig = app.state.config
+    client.cookies.set(ACCESS_TOKEN_NAME, token.get_token(config.jwt_secret_key))
 
     blob: BlobService = app.state.blob
     blob_key = generate_blob_key(user.uid, "image/png")
@@ -183,7 +192,9 @@ async def test_delete_blob(app: FastAPI, client: AsyncClient) -> None:
 
     issued_at, expire_at = get_interval_from_now(10)
     token = JWTToken(user_uid=user.uid, issued_at=issued_at, expire_at=expire_at)
-    client.cookies.set(ACCESS_TOKEN_NAME, token.token)
+
+    config: AppConfig = app.state.config
+    client.cookies.set(ACCESS_TOKEN_NAME, token.get_token(config.jwt_secret_key))
 
     blob_uid = uuid4().hex
 

@@ -9,12 +9,13 @@ from uuid import uuid4
 from fastapi import FastAPI
 from httpx import AsyncClient
 
+from hiresify_engine.config import AppConfig
 from hiresify_engine.const import ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.model import JWTToken
 from hiresify_engine.service.cache import CacheService
 from hiresify_engine.tool import compute_challenge, hash_password
-from hiresify_engine.util import abbreviate_token, get_interval_from_now
+from hiresify_engine.util import get_interval_from_now
 
 
 async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
@@ -136,7 +137,8 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
         user_uid=user.uid,
     )
 
-    token = refresh_token.token
+    config: AppConfig = app.state.config
+    token = refresh_token.get_token(config.jwt_secret_key)
     client.cookies.set(REFRESH_TOKEN_NAME, token)
 
     # When
@@ -144,9 +146,7 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
 
     # Then
     assert response.status_code == 401
-    assert response.json()["detail"] == (
-        f"token={abbreviate_token(token)} does not exist."
-    )
+    assert response.json()["detail"] == f"token={refresh_token.uid} does not exist."
 
     # Given
     issued_at, expire_at = get_interval_from_now(10)
@@ -157,7 +157,7 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
     )
 
 
-    token = refresh_token.token
+    token = refresh_token.get_token(config.jwt_secret_key)
     client.cookies.set(REFRESH_TOKEN_NAME, token)
 
     # When
@@ -175,6 +175,4 @@ async def test_refresh_token(app: FastAPI, client: AsyncClient) -> None:
 
     # Then
     assert response.status_code == 401
-    assert response.json()["detail"] == (
-        f"token={abbreviate_token(token)} has been revoked."
-    )
+    assert response.json()["detail"] == f"token={refresh_token.uid} has been revoked."
