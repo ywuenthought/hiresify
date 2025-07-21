@@ -13,6 +13,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from hiresify_engine.const import SESSION_NAME
+from hiresify_engine.envvar import PRODUCTION
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -63,7 +64,7 @@ class _BaseSession:
             # Forbidden cross-site requests.
             samesite="strict",
             # Only send over HTTPS connections.
-            secure=True,
+            secure=PRODUCTION,
         )
 
 

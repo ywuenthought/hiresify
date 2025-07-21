@@ -10,17 +10,39 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
 
 from hiresify_engine.const import PASSWORD_REGEX, SESSION_NAME, USERNAME_REGEX
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 from hiresify_engine.dep import CacheServiceDep, RepositoryDep
-from hiresify_engine.router.util import add_secure_headers
+from hiresify_engine.envvar import PRODUCTION
 from hiresify_engine.templates import LOGIN_HTML, REGISTER_HTML
 from hiresify_engine.tool import hash_password, verify_password
 
-from .const import templates
-
 router = APIRouter(prefix="/user")
+
+_headers = {
+    # Prevent loading any external resources.
+    "Content-Security-Policy": "connect-src 'self'; default-src 'self'; img-src 'self'; script-src 'self'; style-src 'self';",  # noqa: E501
+
+    # Disable access to sensitive APIs.
+    "Permissions-Policy": "geolocation=(), camera=()",
+
+    # Prevent leaking the referrer URL.
+    "Referrer-Policy": "no-referrer",
+
+    # Disallow MIME-sniff the response content.
+    "X-Content-Type-Options": "nosniff",
+
+    # Prevent the page from being embedded in frames.
+    "X-Frame-Options": "DENY",
+}
+
+if PRODUCTION:
+    # Force browsers to use HTTPS for all future requests.
+    _headers["Strict-Transport-Security"] = "includeSubDomains; max-age=63072000; preload"  # noqa: E501
+
+_templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 
 
 @router.get("/check")
@@ -52,14 +74,14 @@ async def register_user_page(
     csrf_token = uuid4().hex
     session = await cache.set_csrf_session(csrf_token)
 
-    response = templates.TemplateResponse(
+    response = _templates.TemplateResponse(
         request,
         REGISTER_HTML.name,
         dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
     )
 
     response.set_cookie(**session.to_cookie())
-    add_secure_headers(response)
+    response.headers.update(_headers)
 
     return response
 
@@ -118,14 +140,14 @@ async def login_user_page(
     csrf_token = uuid4().hex
     session = await cache.set_csrf_session(csrf_token)
 
-    response = templates.TemplateResponse(
+    response = _templates.TemplateResponse(
         request,
         LOGIN_HTML.name,
         dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
     )
 
     response.set_cookie(**session.to_cookie())
-    add_secure_headers(response)
+    response.headers.update(_headers)
 
     return response
 
@@ -217,6 +239,6 @@ async def authorize_client(
 
     url = f"{redirect_uri}?code={code}&state={state}"
     response = RedirectResponse(status_code=status.HTTP_303_SEE_OTHER, url=url)
-    add_secure_headers(response)
+    response.headers.update(_headers)
 
     return response

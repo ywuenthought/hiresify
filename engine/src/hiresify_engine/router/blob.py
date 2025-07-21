@@ -27,11 +27,13 @@ from hiresify_engine.envvar import UPLOAD_TTL
 from hiresify_engine.model import Blob, Upload
 from hiresify_engine.util import generate_blob_key
 
-from .const import mime_types
 from .util import verify_token
 
 logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/blob")
+
+_mime_types = {"image/jpeg", "image/png", "video/mp4"}
 
 
 @router.post("/upload/init", status_code=status.HTTP_201_CREATED)
@@ -55,7 +57,7 @@ async def start_upload(
     finally:
         await file.close()
 
-    if (mime_type := from_buffer(head, mime=True)) not in mime_types:
+    if (mime_type := from_buffer(head, mime=True)) not in _mime_types:
         raise HTTPException(
             detail=f"{mime_type=} is not supported",
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
