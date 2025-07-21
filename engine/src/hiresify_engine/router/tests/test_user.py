@@ -40,8 +40,8 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint, data=data)
 
     # Then
-    assert response.status_code == 404
-    assert response.json()["detail"] == "No session ID was found in the cookies."
+    assert response.status_code == 401
+    assert response.json()["detail"] == "No session ID was found."
 
     # Given
     session_id = "session_id"
@@ -51,7 +51,7 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint, data=data)
 
     # Then
-    assert response.status_code == 400
+    assert response.status_code == 401
     assert response.json()["detail"] == f"{session_id=} is invalid or timed out."
 
     # Given
@@ -66,7 +66,7 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint, data=data)
 
     # Then
-    assert response.status_code == 400
+    assert response.status_code == 401
     assert response.json()["detail"] == f"{csrf_token=} is invalid."
 
     # Given
@@ -107,8 +107,8 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint, data=data)
 
     # Then
-    assert response.status_code == 404
-    assert response.json()["detail"] == "No session ID was found in the cookies."
+    assert response.status_code == 401
+    assert response.json()["detail"] == "No session ID was found."
 
     # Given
     session_id = "session_id"
@@ -118,7 +118,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint, data=data)
 
     # Then
-    assert response.status_code == 400
+    assert response.status_code == 401
     assert response.json()["detail"] == f"{session_id=} is invalid or timed out."
 
     # Given
@@ -133,7 +133,7 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
     response = await client.post(endpoint, data=data)
 
     # Then
-    assert response.status_code == 400
+    assert response.status_code == 401
     assert response.json()["detail"] == f"{csrf_token=} is invalid."
 
     # Given
@@ -195,8 +195,8 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     response = await client.get(endpoint, params=prms)
 
     # Then
-    assert response.status_code == 404
-    assert response.json()["detail"] == "No session ID was found in the cookies."
+    assert response.status_code == 401
+    assert response.json()["detail"] == "No session ID was found."
 
     # Given
     session_id = uuid4().hex
@@ -206,7 +206,7 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
     response = await client.get(endpoint, params=prms)
 
     # Then
-    assert response.status_code == 400
+    assert response.status_code == 401
     assert response.json()["detail"] == f"{session_id=} is invalid or timed out."
 
     # Given

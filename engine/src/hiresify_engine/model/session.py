@@ -48,22 +48,23 @@ class _BaseSession:
 
         return json.dumps(raw)
 
-    def to_cookie(self, *, secure: bool = False) -> dict[str, ty.Any]:
+    def to_cookie(self, *, path: str = "/", secure: bool = False) -> dict[str, ty.Any]:
         """Convert the metadata to a cookie."""
         elapsed = self.expire_at - self.issued_at
         max_age = int(elapsed.total_seconds())
 
         return dict(
             expires=self.expire_at,
-            value=self.id,
-            max_age=max_age,
             # Only send over HTTP requests, avoiding XSS attacks.
             httponly=True,
             key=SESSION_NAME,
+            max_age=max_age,
+            path=path,
             # Forbidden cross-site requests.
             samesite="strict",
             # Only send over HTTPS connections.
             secure=secure,
+            value=self.id,
         )
 
 

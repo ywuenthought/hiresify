@@ -79,20 +79,20 @@ async def register_user(
     """Register a user using the given user name."""
     if (session_id := request.cookies.get(SESSION_NAME)) is None:
         raise HTTPException(
-            detail="No session ID was found in the cookies.",
-            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No session ID was found.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     if (session := await cache.get_csrf_session(session_id)) is None:
         raise HTTPException(
             detail=f"{session_id=} is invalid or timed out.",
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     if csrf_token != session.csrf_token:
         raise HTTPException(
             detail=f"{csrf_token=} is invalid.",
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     hashed_password = hash_password(password)
@@ -147,20 +147,20 @@ async def login_user(
     """Verify a user's credentials and set up a login session."""
     if (session_id := request.cookies.get(SESSION_NAME)) is None:
         raise HTTPException(
-            detail="No session ID was found in the cookies.",
-            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No session ID was found.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     if (session := await cache.get_csrf_session(session_id)) is None:
         raise HTTPException(
             detail=f"{session_id=} is invalid or timed out.",
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     if csrf_token != session.csrf_token:
         raise HTTPException(
             detail=f"{csrf_token=} is invalid.",
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     try:
@@ -201,14 +201,14 @@ async def authorize_client(
     """Authorize a client on behalf of a verified user."""
     if (session_id := request.cookies.get(SESSION_NAME)) is None:
         raise HTTPException(
-            detail="No session ID was found in the cookies.",
-            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No session ID was found.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     if (session := await cache.get_user_session(session_id)) is None:
         raise HTTPException(
             detail=f"{session_id=} is invalid or timed out.",
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     code = await cache.set_authorization(

@@ -100,6 +100,7 @@ async def issue_token(
         **access_token.to_cookie(
             ACCESS_TOKEN_NAME,
             access_token.get_token(config.jwt_secret_key),
+            path="/" if config.production else "/api",
             secure=config.production,
         ),
     )
@@ -147,6 +148,7 @@ async def refresh_token(
         **access_token.to_cookie(
             ACCESS_TOKEN_NAME,
             access_token.get_token(config.jwt_secret_key),
+            path="/" if config.production else "/api",
             secure=config.production,
         ),
     )
