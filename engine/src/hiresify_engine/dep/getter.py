@@ -7,6 +7,7 @@
 
 from fastapi import FastAPI, Request
 
+from hiresify_engine.config import AppConfig
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.service.blob import BlobService
 from hiresify_engine.service.cache import CacheService
@@ -24,6 +25,13 @@ def get_cache(request: Request) -> CacheService:
     app: FastAPI = request.app
     service: CacheService = app.state.cache
     return service
+
+
+def get_config(request: Request) -> AppConfig:
+    """Get the app configuration from app.state."""
+    app: FastAPI = request.app
+    config: AppConfig = app.state.config
+    return config
 
 
 def get_repo(request: Request) -> Repository:
