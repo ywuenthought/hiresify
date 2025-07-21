@@ -62,7 +62,7 @@ class AppConfig(BaseSettings):
     upload_ttl: int = 7
 
     #: A boolean flag for whether the deployment is production.
-    production: bool = DEPLOYMENT != PRODUCTION
+    production: bool = DEPLOYMENT == PRODUCTION
 
     model_config = SettingsConfigDict(
         env_file=os.path.join(
