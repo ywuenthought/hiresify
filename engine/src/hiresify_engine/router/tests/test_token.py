@@ -56,8 +56,11 @@ async def test_issue_token(app: FastAPI, client: AsyncClient) -> None:
     code_challenge = compute_challenge(code_verifier, code_challenge_method)
 
     cache: CacheService = app.state.cache
+    app_conf: AppConfig = app.state.config
+
     code = await cache.set_authorization(
         user.uid,
+        ttl=app_conf.cache_ttl,
         client_id=client_id,
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,

@@ -12,7 +12,6 @@ from uuid import uuid4
 
 from redis.asyncio import Redis
 
-from hiresify_engine.envvar import CACHE_TTL
 from hiresify_engine.model import CSRFSession, UserSession
 
 T = ty.TypeVar("T", CSRFSession, UserSession)
@@ -37,6 +36,7 @@ class CacheService:
         self,
         user_uid: str,
         *,
+        ttl: int,
         client_id: str,
         code_challenge: str,
         code_challenge_method: str,
@@ -56,7 +56,7 @@ class CacheService:
                     user_uid=user_uid,
                 ),
             ),
-            ex=CACHE_TTL,
+            ex=ttl,
         )
 
         return code
@@ -76,9 +76,9 @@ class CacheService:
     # CSRF session
     ##############
 
-    async def set_csrf_session(self, csrf_token: str) -> CSRFSession:
+    async def set_csrf_session(self, csrf_token: str, ttl: int) -> CSRFSession:
         """Set a CSRF session for the given CSRF token."""
-        return await self._set_session(CSRFSession, csrf_token=csrf_token)
+        return await self._set_session(CSRFSession, ttl, csrf_token=csrf_token)
 
     async def get_csrf_session(self, session_id: str) -> CSRFSession | None:
         """Get the CSRF session with the given session ID."""
@@ -88,9 +88,9 @@ class CacheService:
     # user session
     ##############
 
-    async def set_user_session(self, user_uid: str) -> UserSession:
+    async def set_user_session(self, user_uid: str, ttl: int) -> UserSession:
         """Set a user session for the given user UID."""
-        return await self._set_session(UserSession, user_uid=user_uid)
+        return await self._set_session(UserSession, ttl, user_uid=user_uid)
 
     async def get_user_session(self, session_id: str) -> UserSession | None:
         """Get the user session with the given session ID."""
@@ -98,10 +98,10 @@ class CacheService:
 
     # -- helper functions
 
-    async def _set_session(self, cls: type[T], **metadata: ty.Any) -> T:
+    async def _set_session(self, cls: type[T], ttl: int, **metadata: ty.Any) -> T:
         """Set a session with the given cls (class) and metadata."""
         issued_at = datetime.now(UTC)
-        expire_at = issued_at + timedelta(seconds=CACHE_TTL)
+        expire_at = issued_at + timedelta(seconds=ttl)
 
         session = cls(
             issued_at=issued_at,
@@ -110,7 +110,7 @@ class CacheService:
         )
 
         serialized = session.serialize()
-        await self._store.set(f"{cls.type}:{session.id}", serialized, ex=CACHE_TTL)
+        await self._store.set(f"{cls.type}:{session.id}", serialized, ex=ttl)
 
         return session
 

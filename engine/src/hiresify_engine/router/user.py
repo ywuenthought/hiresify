@@ -73,7 +73,7 @@ async def register_user_page(
 ) -> HTMLResponse:
     """Render the login form with a CSRF token."""
     csrf_token = uuid4().hex
-    session = await cache.set_csrf_session(csrf_token)
+    session = await cache.set_csrf_session(csrf_token, ttl=config.cache_ttl)
 
     response = _templates.TemplateResponse(
         request,
@@ -140,7 +140,7 @@ async def login_user_page(
 ) -> HTMLResponse:
     """Render the login form with a CSRF token."""
     csrf_token = uuid4().hex
-    session = await cache.set_csrf_session(csrf_token)
+    session = await cache.set_csrf_session(csrf_token, ttl=config.cache_ttl)
 
     response = _templates.TemplateResponse(
         request,
@@ -201,7 +201,7 @@ async def login_user(
 
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=redirect_uri)
 
-    user_session = await cache.set_user_session(db_user.uid)
+    user_session = await cache.set_user_session(db_user.uid, ttl=config.cache_ttl)
     response.set_cookie(**user_session.to_cookie(secure=config.production))
 
     return response
@@ -217,6 +217,7 @@ async def authorize_client(
     state: str = Query(..., max_length=32, min_length=32),
     *,
     cache: CacheServiceDep,
+    config: AppConfigDep,
     request: Request,
 ) -> RedirectResponse:
     """Authorize a client on behalf of a verified user."""
@@ -234,6 +235,7 @@ async def authorize_client(
 
     code = await cache.set_authorization(
         session.user_uid,
+        ttl=config.cache_ttl,
         client_id=client_id,
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,

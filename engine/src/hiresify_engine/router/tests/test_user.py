@@ -10,6 +10,7 @@ from uuid import uuid4
 from fastapi import FastAPI
 from httpx import AsyncClient
 
+from hiresify_engine.config import AppConfig
 from hiresify_engine.const import SESSION_NAME
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.service.cache import CacheService
@@ -55,9 +56,10 @@ async def test_register_user(app: FastAPI, client: AsyncClient) -> None:
 
     # Given
     cache: CacheService = app.state.cache
+    app_conf: AppConfig = app.state.config
 
     token = uuid4().hex
-    session = await cache.set_csrf_session(token)
+    session = await cache.set_csrf_session(token, ttl=app_conf.cache_ttl)
     client.cookies.set(SESSION_NAME, session.id)
 
     # When
@@ -121,9 +123,10 @@ async def test_login_user(app: FastAPI, client: AsyncClient) -> None:
 
     # Given
     cache: CacheService = app.state.cache
+    app_conf: AppConfig = app.state.config
 
     token = uuid4().hex
-    session = await cache.set_csrf_session(token)
+    session = await cache.set_csrf_session(token, ttl=app_conf.cache_ttl)
     client.cookies.set(SESSION_NAME, session.id)
 
     # When
@@ -208,7 +211,9 @@ async def test_authorize_client(app: FastAPI, client: AsyncClient) -> None:
 
     # Given
     cache: CacheService = app.state.cache
-    session = await cache.set_user_session("user-uid")
+    app_conf: AppConfig = app.state.config
+
+    session = await cache.set_user_session("user-uid", ttl=app_conf.cache_ttl)
     client.cookies.set(SESSION_NAME, session.id)
 
     # When
