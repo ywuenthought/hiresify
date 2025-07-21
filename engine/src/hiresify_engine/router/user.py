@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 
 from hiresify_engine.const import PASSWORD_REGEX, SESSION_NAME, USERNAME_REGEX
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
-from hiresify_engine.dep import CacheServiceDep, RepositoryDep
+from hiresify_engine.dep import AppConfigDep, CacheServiceDep, RepositoryDep
 from hiresify_engine.envvar import PRODUCTION
 from hiresify_engine.templates import LOGIN_HTML, REGISTER_HTML
 from hiresify_engine.tool import hash_password, verify_password
@@ -68,6 +68,7 @@ async def register_user_page(
     redirect_uri: str = Query(..., max_length=2048),
     *,
     cache: CacheServiceDep,
+    config: AppConfigDep,
     request: Request,
 ) -> HTMLResponse:
     """Render the login form with a CSRF token."""
@@ -80,7 +81,7 @@ async def register_user_page(
         dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
     )
 
-    response.set_cookie(**session.to_cookie())
+    response.set_cookie(**session.to_cookie(secure=config.production))
     response.headers.update(_headers)
 
     return response
@@ -134,6 +135,7 @@ async def login_user_page(
     redirect_uri: str = Query(..., max_length=2048),
     *,
     cache: CacheServiceDep,
+    config: AppConfigDep,
     request: Request,
 ) -> HTMLResponse:
     """Render the login form with a CSRF token."""
@@ -146,7 +148,7 @@ async def login_user_page(
         dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
     )
 
-    response.set_cookie(**session.to_cookie())
+    response.set_cookie(**session.to_cookie(secure=config.production))
     response.headers.update(_headers)
 
     return response
@@ -160,6 +162,7 @@ async def login_user(
     redirect_uri: str = Form(..., max_length=2048),
     *,
     cache: CacheServiceDep,
+    config: AppConfigDep,
     repo: RepositoryDep,
     request: Request,
 ) -> RedirectResponse:
@@ -199,7 +202,7 @@ async def login_user(
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=redirect_uri)
 
     user_session = await cache.set_user_session(db_user.uid)
-    response.set_cookie(**user_session.to_cookie())
+    response.set_cookie(**user_session.to_cookie(secure=config.production))
 
     return response
 
