@@ -137,7 +137,9 @@ class TestBlobService(BlobService):
         self._client = MockBlobStore()  # type: ignore[assignment]
 
     @asynccontextmanager
-    async def start_session(self) -> ty.AsyncGenerator["TestBlobService", None]:
+    async def start_session(
+        self, production: bool = False,
+    ) -> ty.AsyncGenerator["TestBlobService", None]:
         """Start a session for managing files."""
         try:
             yield self

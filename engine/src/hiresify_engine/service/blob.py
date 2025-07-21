@@ -12,37 +12,49 @@ from aioboto3 import Session
 from aiobotocore.config import AioConfig
 from types_aiobotocore_s3.client import S3Client
 
-from hiresify_engine.envvar import (
-    BLOB_ACCESS_KEY,
-    BLOB_SECRET_KEY,
-    BLOB_STORE_REGION,
-    BLOB_STORE_URL,
-    BUCKET_NAME,
-    PRODUCTION,
-)
+from hiresify_engine.const import BUCKET_NAME
 from hiresify_engine.model import UploadPart
 
 
 class BlobService:
     """A wrapper class providing APIs to manage the blob store."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        store_url: str,
+        *,
+        region_name: str,
+        access_key: str,
+        secret_key: str,
+    ) -> None:
         """Initialize a new instance of BlobService."""
-        self._session = Session()
-        self._configs = AioConfig(
-            retries=dict(max_attempts=3),
-            s3=dict(addressing_style="auto" if PRODUCTION else "path"),
-            signature_version="s3v4",
+        self._session = Session(
+            region_name=region_name,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
         )
 
+        self._store_url = store_url
         self._client: S3Client | None = None
 
     @asynccontextmanager
-    async def start_session(self) -> ty.AsyncGenerator["BlobService", None]:
+    async def start_session(
+        self, production: bool = False,
+    ) -> ty.AsyncGenerator["BlobService", None]:
         """Start an AIOHTTP TCP session for managing files."""
-        async with self._create_client() as client:
-            self._client = client
+        configs = AioConfig(
+            retries=dict(max_attempts=3),
+            s3=dict(addressing_style="auto" if production else "path"),
+            signature_version="s3v4",
+        )
 
+        async with self._session.client(
+            "s3",
+            config=configs,
+            endpoint_url=self._store_url,
+            use_ssl=production,
+        ) as client:
+            self._client = client
             try:
                 yield self
             finally:
@@ -156,15 +168,3 @@ class BlobService:
             raise RuntimeError("S3 client has not been initialized.")
 
         await self._client.delete_object(Bucket=BUCKET_NAME, Key=blob_key)
-
-    def _create_client(self) -> ty.AsyncContextManager[S3Client]:
-        """Create an instance of S3 client as an async context manager."""
-        return self._session.client(
-            "s3",
-            aws_access_key_id=BLOB_ACCESS_KEY,
-            aws_secret_access_key=BLOB_SECRET_KEY,
-            config=self._configs,
-            endpoint_url=BLOB_STORE_URL,
-            region_name=BLOB_STORE_REGION,
-            use_ssl=PRODUCTION,
-        )

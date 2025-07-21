@@ -27,7 +27,12 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     app.state.config = config = AppConfig()
 
     # Initialize the blob store manager.
-    app.state.blob = blob = BlobService()
+    app.state.blob = blob = BlobService(
+        config.blob_store_url,
+        region_name=config.blob_store_region,
+        access_key=config.blob_access_key,
+        secret_key=config.blob_secret_key,
+    )
 
     # Initialize the cache store manager.
     app.state.cache = cache = CacheService(REDIS_URL)
