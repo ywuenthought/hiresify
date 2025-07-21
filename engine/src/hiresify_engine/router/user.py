@@ -59,7 +59,7 @@ async def register_user_page(
         dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
     )
 
-    response.set_cookie(**session.to_cookie(secure=config.production))
+    response.set_cookie(**session.to_cookie(path="/user", secure=config.production))
     response.headers.update(_get_secure_headers(config.production))
 
     return response
@@ -126,7 +126,7 @@ async def login_user_page(
         dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
     )
 
-    response.set_cookie(**session.to_cookie(secure=config.production))
+    response.set_cookie(**session.to_cookie(path="/user", secure=config.production))
     response.headers.update(_get_secure_headers(config.production))
 
     return response
@@ -179,8 +179,8 @@ async def login_user(
 
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=redirect_uri)
 
-    user_session = await cache.set_user_session(db_user.uid, ttl=config.cache_ttl)
-    response.set_cookie(**user_session.to_cookie(secure=config.production))
+    session = await cache.set_user_session(db_user.uid, ttl=config.cache_ttl)
+    response.set_cookie(**session.to_cookie(path="/user", secure=config.production))
 
     return response
 
