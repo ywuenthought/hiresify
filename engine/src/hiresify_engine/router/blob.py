@@ -5,8 +5,6 @@
 
 """Define the backend upload-related endpoints."""
 
-import logging
-
 from fastapi import (
     APIRouter,
     File,
@@ -26,8 +24,6 @@ from hiresify_engine.model import Blob, Upload
 from hiresify_engine.util import generate_blob_key, get_interval_from_now
 
 from .util import verify_token
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/blob")
 

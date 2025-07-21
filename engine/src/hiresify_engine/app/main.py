@@ -5,8 +5,6 @@
 
 """Provide the application entry point."""
 
-import logging
-
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
@@ -16,11 +14,6 @@ from hiresify_engine.router import api_routers, routers
 
 from .lifespan import lifespan
 from .middleware import HTTPSOnlyMiddleware
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
 
 
 app = FastAPI(lifespan=lifespan)
