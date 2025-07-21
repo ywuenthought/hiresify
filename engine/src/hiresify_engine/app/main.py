@@ -11,11 +11,9 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from hiresify_engine import const
-from hiresify_engine.envvar import PRODUCTION
 from hiresify_engine.router import api_routers, routers
 
 from .lifespan import lifespan
-from .middleware import HTTPSOnlyMiddleware
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,11 +22,7 @@ logging.basicConfig(
 
 
 app = FastAPI(lifespan=lifespan)
-
-if PRODUCTION:
-    app.add_middleware(HTTPSOnlyMiddleware)
+app.mount("/static", StaticFiles(directory=const.STATIC_DIR))
 
 for router in routers + api_routers:
     app.include_router(router)
-
-app.mount("/static", StaticFiles(directory=const.STATIC_DIR))

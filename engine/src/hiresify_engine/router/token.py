@@ -10,7 +10,6 @@ from fastapi import APIRouter, Form, HTTPException, Request, Response, status
 from hiresify_engine.const import ACCESS_TOKEN_NAME, REFRESH_TOKEN_NAME
 from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import AppConfigDep, CacheServiceDep, RepositoryDep
-from hiresify_engine.envvar import ACCESS_TTL, REFRESH_TTL
 from hiresify_engine.model import JWTToken
 from hiresify_engine.tool import confirm_verifier
 from hiresify_engine.util import get_interval_from_now
@@ -64,7 +63,7 @@ async def issue_token(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    issued_at, expire_at = get_interval_from_now(86400 * REFRESH_TTL)
+    issued_at, expire_at = get_interval_from_now(86400 * config.refresh_ttl)
 
     try:
         refresh_token = await repo.create_token(
@@ -90,7 +89,7 @@ async def issue_token(
         ),
     )
 
-    issued_at, expire_at = get_interval_from_now(ACCESS_TTL)
+    issued_at, expire_at = get_interval_from_now(config.access_ttl)
     access_token = JWTToken(
         issued_at=issued_at,
         expire_at=expire_at,
@@ -137,7 +136,7 @@ async def refresh_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
     
-    issued_at, expire_at = get_interval_from_now(ACCESS_TTL)
+    issued_at, expire_at = get_interval_from_now(config.access_ttl)
     access_token = JWTToken(
         issued_at=issued_at,
         expire_at=expire_at,

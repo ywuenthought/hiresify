@@ -7,12 +7,12 @@
 
 import json
 import typing as ty
-from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from redis.asyncio import Redis
 
 from hiresify_engine.model import CSRFSession, UserSession
+from hiresify_engine.util import get_interval_from_now
 
 T = ty.TypeVar("T", CSRFSession, UserSession)
 
@@ -100,8 +100,7 @@ class CacheService:
 
     async def _set_session(self, cls: type[T], ttl: int, **metadata: ty.Any) -> T:
         """Set a session with the given cls (class) and metadata."""
-        issued_at = datetime.now(UTC)
-        expire_at = issued_at + timedelta(seconds=ttl)
+        issued_at, expire_at = get_interval_from_now(ttl)
 
         session = cls(
             issued_at=issued_at,

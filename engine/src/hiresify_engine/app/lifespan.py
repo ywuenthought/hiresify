@@ -12,9 +12,10 @@ from fastapi import FastAPI
 
 from hiresify_engine.config import AppConfig
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.envvar import DATABASE_URL, REDIS_URL
 from hiresify_engine.service.blob import BlobService
 from hiresify_engine.service.cache import CacheService
+
+from .middleware import HTTPSOnlyMiddleware
 
 ##########
 # lifespan
@@ -26,6 +27,10 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     # Initialize the app configuration.
     app.state.config = config = AppConfig()
 
+    # Add config-dependent middlewares.
+    if config.production:
+        app.add_middleware(HTTPSOnlyMiddleware)
+
     # Initialize the blob store manager.
     app.state.blob = blob = BlobService(
         config.blob_store_url,
@@ -35,10 +40,10 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     )
 
     # Initialize the cache store manager.
-    app.state.cache = cache = CacheService(REDIS_URL)
+    app.state.cache = cache = CacheService(config.redis_url)
 
     # Initialize the database repository.
-    app.state.repo = repo = Repository(DATABASE_URL, **config.database_config)
+    app.state.repo = repo = Repository(config.database_url, **config.database_config)
 
     # Initialize the blob bucket.
     await blob.init_bucket()

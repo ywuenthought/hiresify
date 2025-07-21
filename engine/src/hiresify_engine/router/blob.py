@@ -6,7 +6,6 @@
 """Define the backend upload-related endpoints."""
 
 import logging
-from datetime import UTC, datetime, timedelta
 
 from fastapi import (
     APIRouter,
@@ -23,9 +22,8 @@ from magic import from_buffer
 from hiresify_engine.const import ACCESS_TOKEN_NAME
 from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import AppConfigDep, BlobServiceDep, RepositoryDep
-from hiresify_engine.envvar import UPLOAD_TTL
 from hiresify_engine.model import Blob, Upload
-from hiresify_engine.util import generate_blob_key
+from hiresify_engine.util import generate_blob_key, get_interval_from_now
 
 from .util import verify_token
 
@@ -73,9 +71,7 @@ async def start_upload(
     async with blob.start_session() as session:
         upload_id = await session.start_upload(blob_key)
 
-    created_at = datetime.now(UTC)
-    valid_thru = created_at + timedelta(days=UPLOAD_TTL)
-
+    created_at, valid_thru = get_interval_from_now(86400 * config.upload_ttl)
     await repo.start_upload(
         token.user_uid,
         uid=upload_id,
@@ -136,10 +132,9 @@ async def finish_upload(
     async with blob.start_session() as session:
         await session.finish_upload(upload.blob_key, upload_id)
 
-    created_at = datetime.now(UTC)
-    valid_thru = created_at + timedelta(days=UPLOAD_TTL)
-
     await repo.remove_upload(upload_id)
+
+    created_at, valid_thru = get_interval_from_now(86400 * config.upload_ttl)
     return await repo.create_blob(
         token.user_uid,
         blob_key=upload.blob_key,

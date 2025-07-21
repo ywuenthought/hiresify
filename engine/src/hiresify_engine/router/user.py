@@ -15,32 +15,10 @@ from fastapi.templating import Jinja2Templates
 from hiresify_engine.const import PASSWORD_REGEX, SESSION_NAME, USERNAME_REGEX
 from hiresify_engine.db.exception import EntityConflictError, EntityNotFoundError
 from hiresify_engine.dep import AppConfigDep, CacheServiceDep, RepositoryDep
-from hiresify_engine.envvar import PRODUCTION
 from hiresify_engine.templates import LOGIN_HTML, REGISTER_HTML
 from hiresify_engine.tool import hash_password, verify_password
 
 router = APIRouter(prefix="/user")
-
-_headers = {
-    # Prevent loading any external resources.
-    "Content-Security-Policy": "connect-src 'self'; default-src 'self'; img-src 'self'; script-src 'self'; style-src 'self';",  # noqa: E501
-
-    # Disable access to sensitive APIs.
-    "Permissions-Policy": "geolocation=(), camera=()",
-
-    # Prevent leaking the referrer URL.
-    "Referrer-Policy": "no-referrer",
-
-    # Disallow MIME-sniff the response content.
-    "X-Content-Type-Options": "nosniff",
-
-    # Prevent the page from being embedded in frames.
-    "X-Frame-Options": "DENY",
-}
-
-if PRODUCTION:
-    # Force browsers to use HTTPS for all future requests.
-    _headers["Strict-Transport-Security"] = "includeSubDomains; max-age=63072000; preload"  # noqa: E501
 
 _templates = Jinja2Templates(directory=LOGIN_HTML.parent)
 
@@ -82,7 +60,7 @@ async def register_user_page(
     )
 
     response.set_cookie(**session.to_cookie(secure=config.production))
-    response.headers.update(_headers)
+    response.headers.update(_get_secure_headers(config.production))
 
     return response
 
@@ -149,7 +127,7 @@ async def login_user_page(
     )
 
     response.set_cookie(**session.to_cookie(secure=config.production))
-    response.headers.update(_headers)
+    response.headers.update(_get_secure_headers(config.production))
 
     return response
 
@@ -244,6 +222,32 @@ async def authorize_client(
 
     url = f"{redirect_uri}?code={code}&state={state}"
     response = RedirectResponse(status_code=status.HTTP_303_SEE_OTHER, url=url)
-    response.headers.update(_headers)
+    response.headers.update(_get_secure_headers(config.production))
 
     return response
+
+
+def _get_secure_headers(production: bool = False) -> dict[str, str]:
+    """Get the secure headers depending on the deployment."""
+    headers = {
+        # Prevent loading any external resources.
+        "Content-Security-Policy": "connect-src 'self'; default-src 'self'; img-src 'self'; script-src 'self'; style-src 'self';",  # noqa: E501
+
+        # Disable access to sensitive APIs.
+        "Permissions-Policy": "geolocation=(), camera=()",
+
+        # Prevent leaking the referrer URL.
+        "Referrer-Policy": "no-referrer",
+
+        # Disallow MIME-sniff the response content.
+        "X-Content-Type-Options": "nosniff",
+
+        # Prevent the page from being embedded in frames.
+        "X-Frame-Options": "DENY",
+    }
+
+    if production:
+        # Force browsers to use HTTPS for all future requests.
+        headers["Strict-Transport-Security"] = "includeSubDomains; max-age=63072000; preload"  # noqa: E501
+
+    return headers
