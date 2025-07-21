@@ -29,7 +29,7 @@ from .util import verify_token
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/blob")
+router = APIRouter(prefix="/blob")
 
 _mime_types = {"image/jpeg", "image/png", "video/mp4"}
 

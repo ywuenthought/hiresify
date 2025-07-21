@@ -84,7 +84,7 @@ async def issue_token(
         **refresh_token.to_cookie(
             REFRESH_TOKEN_NAME,
             refresh_token.get_token(config.jwt_secret_key),
-            path="/token",
+            path="/token" if config.production else "/api/token",
             secure=config.production,
         ),
     )

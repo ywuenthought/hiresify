@@ -21,7 +21,7 @@ from hiresify_engine.util import generate_blob_key, get_interval_from_now
 
 async def test_start_upload(app: FastAPI, client: AsyncClient) -> None:
     # Given
-    endpoint = "/api/blob/upload/init"
+    endpoint = "/blob/upload/init"
 
     repo: Repository = app.state.repo
     user = await repo.register_user("ywu", hash_password("123"))
@@ -63,7 +63,7 @@ async def test_start_upload(app: FastAPI, client: AsyncClient) -> None:
 
 async def test_upload_chunk(app: FastAPI, client: AsyncClient) -> None:
     # Given
-    endpoint = "/api/blob/upload"
+    endpoint = "/blob/upload"
 
     repo: Repository = app.state.repo
     user = await repo.register_user("ewu", hash_password("123"))
@@ -113,7 +113,7 @@ async def test_upload_chunk(app: FastAPI, client: AsyncClient) -> None:
 
 async def test_finish_upload(app: FastAPI, client: AsyncClient) -> None:
     # Given
-    endpoint = "/api/blob/upload"
+    endpoint = "/blob/upload"
 
     repo: Repository = app.state.repo
     user = await repo.register_user("kwu", hash_password("123"))
@@ -150,7 +150,7 @@ async def test_finish_upload(app: FastAPI, client: AsyncClient) -> None:
 
 async def test_cancel_upload(app: FastAPI, client: AsyncClient) -> None:
     # Given
-    endpoint = "/api/blob/upload"
+    endpoint = "/blob/upload"
 
     repo: Repository = app.state.repo
     user = await repo.register_user("swu", hash_password("123"))
@@ -185,7 +185,7 @@ async def test_cancel_upload(app: FastAPI, client: AsyncClient) -> None:
 
 async def test_delete_blob(app: FastAPI, client: AsyncClient) -> None:
     # Given
-    endpoint = "/api/blob/delete"
+    endpoint = "/blob/delete"
 
     repo: Repository = app.state.repo
     user = await repo.register_user("awu", hash_password("123"))
