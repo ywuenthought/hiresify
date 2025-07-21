@@ -23,18 +23,19 @@ class BlobService:
         self,
         store_url: str,
         *,
-        region_name: str,
+        region_tag: str,
         access_key: str,
         secret_key: str,
     ) -> None:
         """Initialize a new instance of BlobService."""
-        self._session = Session(
-            region_name=region_name,
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-        )
+        self._session = Session()
 
         self._store_url = store_url
+
+        self._region_tag = region_tag
+        self._access_key = access_key
+        self._secret_key = secret_key
+
         self._client: S3Client | None = None
 
     @asynccontextmanager
@@ -42,7 +43,7 @@ class BlobService:
         self, production: bool = False,
     ) -> ty.AsyncGenerator["BlobService", None]:
         """Start an AIOHTTP TCP session for managing files."""
-        configs = AioConfig(
+        config = AioConfig(
             retries=dict(max_attempts=3),
             s3=dict(addressing_style="auto" if production else "path"),
             signature_version="s3v4",
@@ -50,8 +51,11 @@ class BlobService:
 
         async with self._session.client(
             "s3",
-            config=configs,
+            aws_access_key_id=self._access_key,
+            aws_secret_access_key=self._secret_key,
+            config=config,
             endpoint_url=self._store_url,
+            region_name=self._region_tag,
             use_ssl=production,
         ) as client:
             self._client = client

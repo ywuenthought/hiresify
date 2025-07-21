@@ -41,7 +41,8 @@ async def start_lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
         app.state.cache = TestCacheService()
 
         # Initialize the blob bucket.
-        await blob.init_bucket()
+        async with blob.start_session() as session:
+            await session.init_bucket()
 
         # Initialize the test database repository.
         async with test_repository() as repo:

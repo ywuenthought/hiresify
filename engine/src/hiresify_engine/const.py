@@ -36,6 +36,6 @@ TOKEN_ISSUER = "hiresify-auth"
 USERNAME_REGEX = r"^[a-zA-Z][a-zA-Z0-9_]*$"
 
 config_files = {
-    deployment: PACKAGE_ROOT / f".env.{deployment}"
+    deployment: f".env.{deployment}"
     for deployment in (DEVELOPMENT, PRODUCTION, TESTING)
 }

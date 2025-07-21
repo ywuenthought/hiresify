@@ -15,8 +15,6 @@ from hiresify_engine.db.repository import Repository
 from hiresify_engine.service.blob import BlobService
 from hiresify_engine.service.cache import CacheService
 
-from .middleware import HTTPSOnlyMiddleware
-
 ##########
 # lifespan
 ##########
@@ -24,17 +22,12 @@ from .middleware import HTTPSOnlyMiddleware
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     """Wrap the lifespan events for the application."""
-    # Initialize the app configuration.
-    app.state.config = config = AppConfig()
-
-    # Add config-dependent middlewares.
-    if config.production:
-        app.add_middleware(HTTPSOnlyMiddleware)
+    config: AppConfig = app.state.config
 
     # Initialize the blob store manager.
     app.state.blob = blob = BlobService(
         config.blob_store_url,
-        region_name=config.blob_store_region,
+        region_tag=config.blob_store_region,
         access_key=config.blob_access_key,
         secret_key=config.blob_secret_key,
     )
@@ -46,7 +39,8 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     app.state.repo = repo = Repository(config.database_url, **config.database_config)
 
     # Initialize the blob bucket.
-    await blob.init_bucket()
+    async with blob.start_session(config.production) as session:
+        await session.init_bucket()
 
     # Initialize the database schema.
     await repo.init_schema()

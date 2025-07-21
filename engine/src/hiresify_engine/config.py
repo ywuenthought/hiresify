@@ -14,6 +14,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from hiresify_engine.const import DEVELOPMENT, PRODUCTION, config_files
 
+CONFIG_DIR = os.environ.get("CONFIG_DIR", "")
+
 DEPLOYMENT = os.environ.get("DEPLOYMENT", DEVELOPMENT)
 
 
@@ -63,6 +65,8 @@ class AppConfig(BaseSettings):
     production: bool = DEPLOYMENT != PRODUCTION
 
     model_config = SettingsConfigDict(
-        env_file=config_files.get(DEPLOYMENT, config_files[DEVELOPMENT]),
+        env_file=os.path.join(
+            CONFIG_DIR, config_files.get(DEPLOYMENT, config_files[DEVELOPMENT]),
+        ),
         env_file_encoding="utf-8",
     )

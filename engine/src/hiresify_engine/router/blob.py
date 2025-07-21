@@ -68,7 +68,7 @@ async def start_upload(
 
     blob_key = generate_blob_key(token.user_uid, mime_type)
 
-    async with blob.start_session() as session:
+    async with blob.start_session(config.production) as session:
         upload_id = await session.start_upload(blob_key)
 
     created_at, valid_thru = get_interval_from_now(86400 * config.upload_ttl)
@@ -102,7 +102,7 @@ async def upload_chunk(
     )
 
     upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
-    async with blob.start_session() as session:
+    async with blob.start_session(config.production) as session:
         await session.upload_chunk(
             blob_key=upload.blob_key,
             data_chunk=await file.read(),
@@ -129,7 +129,7 @@ async def finish_upload(
     )
 
     upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
-    async with blob.start_session() as session:
+    async with blob.start_session(config.production) as session:
         await session.finish_upload(upload.blob_key, upload_id)
 
     await repo.remove_upload(upload_id)
@@ -161,7 +161,7 @@ async def cancel_upload(
     )
 
     upload = await _verify_upload(token.user_uid, upload_id, repo=repo)
-    async with blob.start_session() as session:
+    async with blob.start_session(config.production) as session:
         await session.cancel_upload(upload.blob_key, upload_id)
 
     await repo.remove_upload(upload_id)
@@ -210,7 +210,7 @@ async def delete_blob(
             status_code=status.HTTP_408_REQUEST_TIMEOUT,
         )
 
-    async with blob.start_session() as session:
+    async with blob.start_session(config.production) as session:
         await session.delete_blob(key)
 
     await repo.delete_blob(blob_uid)
