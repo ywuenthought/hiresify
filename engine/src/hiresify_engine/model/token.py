@@ -86,7 +86,7 @@ class JWTToken:
         encrypted_token: str,
         *,
         path: str = "/",
-        secure: bool = False,
+        same: str = "none",
     ) -> dict[str, ty.Any]:
         """Generate a cookie with the available information."""
         elapsed = self.expire_at - self.issued_at
@@ -94,15 +94,11 @@ class JWTToken:
 
         return dict(
             expires=self.expire_at,
-            # Only send over HTTP requests, avoiding XSS attacks.
             httponly=True,
-            # The cookie key.
             key=token_name,
             max_age=max_age,
             path=path,
-            # Forbidden cross-site requests.
-            samesite="strict",
-            # Only send over HTTPS connections.
-            secure=secure,
+            samesite=same,
+            secure=True,
             value=encrypted_token,
         )

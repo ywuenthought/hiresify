@@ -15,7 +15,6 @@ from hiresify_engine.router import api_routers, routers
 from .lifespan import lifespan
 from .middleware import HTTPSOnlyMiddleware
 
-
 app = FastAPI(lifespan=lifespan)
 
 app.state.config = config = AppConfig()

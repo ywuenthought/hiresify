@@ -29,7 +29,12 @@ export default function LoginCallback() {
       });
 
       // Navigate to the authorization URL.
-      window.location.href = authUrl.toString();
+      const meta = document.createElement('meta');
+      meta.httpEquiv = 'refresh';
+      meta.content = `0; url=${authUrl.toString()}`;
+      document.head.appendChild(meta);
+
+      return () => document.head.removeChild(meta);
     };
 
     redirectToAuth();

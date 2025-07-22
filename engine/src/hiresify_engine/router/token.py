@@ -85,7 +85,6 @@ async def issue_token(
             REFRESH_TOKEN_NAME,
             refresh_token.get_token(config.jwt_secret_key),
             path="/token" if config.production else "/api/token",
-            secure=config.production,
         ),
     )
 
@@ -101,7 +100,6 @@ async def issue_token(
             ACCESS_TOKEN_NAME,
             access_token.get_token(config.jwt_secret_key),
             path="/" if config.production else "/api",
-            secure=config.production,
         ),
     )
 
@@ -149,7 +147,6 @@ async def refresh_token(
             ACCESS_TOKEN_NAME,
             access_token.get_token(config.jwt_secret_key),
             path="/" if config.production else "/api",
-            secure=config.production,
         ),
     )
 

@@ -59,7 +59,7 @@ async def register_user_page(
         dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
     )
 
-    response.set_cookie(**session.to_cookie(path="/user", secure=config.production))
+    response.set_cookie(**session.to_cookie(path="/user"))
     response.headers.update(_get_secure_headers(config.production))
 
     return response
@@ -126,7 +126,7 @@ async def login_user_page(
         dict(csrf_token=csrf_token, redirect_uri=redirect_uri),
     )
 
-    response.set_cookie(**session.to_cookie(path="/user", secure=config.production))
+    response.set_cookie(**session.to_cookie(path="/user"))
     response.headers.update(_get_secure_headers(config.production))
 
     return response
@@ -151,13 +151,13 @@ async def login_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if (session := await cache.get_csrf_session(session_id)) is None:
+    if (csrf_session := await cache.get_csrf_session(session_id)) is None:
         raise HTTPException(
             detail=f"{session_id=} is invalid or timed out.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    if csrf_token != session.csrf_token:
+    if csrf_token != csrf_session.csrf_token:
         raise HTTPException(
             detail=f"{csrf_token=} is invalid.",
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -180,7 +180,7 @@ async def login_user(
     response = RedirectResponse(status_code=status.HTTP_302_FOUND, url=redirect_uri)
 
     session = await cache.set_user_session(db_user.uid, ttl=config.cache_ttl)
-    response.set_cookie(**session.to_cookie(path="/user", secure=config.production))
+    response.set_cookie(**session.to_cookie(path="/user"))
 
     return response
 
