@@ -82,7 +82,7 @@ async def start_upload(
 @router.post("/upload")
 async def upload_chunk(
     file: UploadFile = File(...),  # noqa: B008
-    part: int = Query(1, examples=[1], ge=1),
+    part_index: int = Form(1, examples=[1], ge=1),
     upload_id: str = Form(..., max_length=128),
     *,
     blob: BlobServiceDep,
@@ -102,7 +102,7 @@ async def upload_chunk(
         await session.upload_chunk(
             blob_key=upload.blob_key,
             data_chunk=await file.read(),
-            part_index=part,
+            part_index=part_index,
             upload_id=upload_id,
         )
 
