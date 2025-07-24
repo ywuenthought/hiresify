@@ -7,7 +7,7 @@ import './App.css';
 import { Box } from '@mui/material';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
-import { routes } from './const';
+import { routes } from './routes';
 import AuthorizeCallback from './view/AuthorizeCallback';
 import Home from './view/Home';
 import LoginCallback from './view/LoginCallback';

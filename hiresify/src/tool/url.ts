@@ -2,12 +2,7 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import {
-  AUTHORIZE_CALLBACK_URL,
-  LOGIN_CALLBACK_URL,
-  REGISTER_CALLBACK_URL,
-  userUrls,
-} from '@/const';
+import { callbackUrls, userUrls } from '@/urls';
 
 type buildAuthorizeClientUrlProps = {
   clientId: string;
@@ -25,7 +20,7 @@ export function buildAuthorizeClientUrl(
   authUrl.searchParams.set('client_id', clientId);
   authUrl.searchParams.set('code_challenge', codeChallenge);
   authUrl.searchParams.set('code_challenge_method', 's256');
-  authUrl.searchParams.set('redirect_uri', AUTHORIZE_CALLBACK_URL);
+  authUrl.searchParams.set('redirect_uri', callbackUrls.authorize);
   authUrl.searchParams.set('response_type', 'code');
   authUrl.searchParams.set('state', state);
 
@@ -35,7 +30,7 @@ export function buildAuthorizeClientUrl(
 export function buildLoginUserUrl(): URL {
   // Generate the full login URL.
   const loginUrl = new URL(userUrls.login);
-  loginUrl.searchParams.set('redirect_uri', LOGIN_CALLBACK_URL);
+  loginUrl.searchParams.set('redirect_uri', callbackUrls.login);
 
   return loginUrl;
 }
@@ -43,7 +38,7 @@ export function buildLoginUserUrl(): URL {
 export function buildRegisterUserUrl(): URL {
   // Generate the full registration URL.
   const registerUrl = new URL(userUrls.register);
-  registerUrl.searchParams.set('redirect_uri', REGISTER_CALLBACK_URL);
+  registerUrl.searchParams.set('redirect_uri', callbackUrls.register);
 
   return registerUrl;
 }

@@ -5,7 +5,7 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
-import { tokenUrls } from '@/const';
+import { tokenUrls } from '@/urls';
 
 const handlers = [
   http.post(tokenUrls.revoke, () => {

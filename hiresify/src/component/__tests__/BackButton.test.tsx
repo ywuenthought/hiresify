@@ -16,7 +16,7 @@ vi.mock('react-router-dom', async () => {
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { routes } from '@/const';
+import { routes } from '@/routes';
 
 import BackButton from '../BackButton';
 

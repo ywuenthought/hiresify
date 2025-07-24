@@ -4,7 +4,7 @@
 
 import { render, waitFor } from '@testing-library/react';
 
-import { AUTHORIZE_CALLBACK_URL, userUrls } from '@/const';
+import { callbackUrls, userUrls } from '@/urls';
 import { getManyItems } from '@/util';
 
 import LoginCallback from '../LoginCallback';
@@ -72,6 +72,6 @@ describe('LoginCallback UI component', () => {
 
     const encodedRedirectUri = params.get('redirect_uri') as string;
     expect(encodedRedirectUri).not.toBeNull();
-    expect(decodeURIComponent(encodedRedirectUri)).toBe(AUTHORIZE_CALLBACK_URL);
+    expect(decodeURIComponent(encodedRedirectUri)).toBe(callbackUrls.authorize);
   });
 });

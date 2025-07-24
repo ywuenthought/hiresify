@@ -7,7 +7,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import BackButton from '@/component/BackButton';
-import { AUTHORIZE_CALLBACK_URL, routes, tokenUrls } from '@/const';
+import { routes } from '@/routes';
+import { callbackUrls, tokenUrls } from '@/urls';
 import { getDetail, getManyItems, postWithUrlEncodedFormData } from '@/util';
 
 export default function AuthorizeCallback() {
@@ -43,7 +44,7 @@ export default function AuthorizeCallback() {
         client_id: clientId,
         code: authCode,
         code_verifier: verifier,
-        redirect_uri: AUTHORIZE_CALLBACK_URL,
+        redirect_uri: callbackUrls.authorize,
       });
 
       if (!resp.ok) {

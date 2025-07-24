@@ -21,9 +21,10 @@ vi.mock('react-router-dom', async () => {
 import { render, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 
-import { routes, tokenUrls } from '@/const';
+import { routes } from '@/routes';
 import server from '@/testing/server';
 import { generateCodeVerifier } from '@/tool/pkce';
+import { tokenUrls } from '@/urls';
 import { getManyUuids, setManyItems } from '@/util';
 
 import AuthorizeCallback from '../AuthorizeCallback';

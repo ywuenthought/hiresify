@@ -7,7 +7,8 @@ import type { ButtonProps } from '@mui/material';
 import { Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
-import { routes, tokenUrls } from '@/const';
+import { routes } from '@/routes';
+import { tokenUrls } from '@/urls';
 
 export default function LogoutButton(props: ButtonProps) {
   const navigate = useNavigate();

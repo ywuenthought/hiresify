@@ -7,7 +7,8 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import LogoutButton from '@/component/LogoutButton';
-import { routes, tokenUrls } from '@/const';
+import { routes } from '@/routes';
+import { tokenUrls } from '@/urls';
 
 function Main() {
   const navigate = useNavigate();

@@ -7,7 +7,7 @@ import type { ButtonProps } from '@mui/material';
 import { Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
-import { routes } from '@/const';
+import { routes } from '@/routes';
 
 export default function BackButton(props: ButtonProps) {
   const navigate = useNavigate();
