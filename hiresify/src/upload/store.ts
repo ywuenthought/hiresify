@@ -6,20 +6,27 @@ import Denque from 'denque';
 
 import { CHUNK_SIZE } from '@/const';
 
-import type { PartMeta, Status } from './type';
+import type { PartMeta } from './type';
 
 export default class UploadMemoryStore {
+  // The parts failed to upload.
   private failedParts: Denque<PartMeta> = new Denque();
+  // The parts being uploaded.
   private onDutyParts: Set<PartMeta> = new Set();
+  // The parts that has passed uploading.
   private passedParts: Denque<PartMeta> = new Denque();
+  // The parts paused to upload.
   private pausedParts: PartMeta[] = [];
+  // The parts to send to the backend.
   private toSendParts: Denque<PartMeta> = new Denque();
+  // The number of all parts.
+  private numAllParts: number = 0;
 
   constructor(args: { file: File }) {
     const { file } = args;
 
-    const count = Math.ceil(file.size / CHUNK_SIZE);
-    for (let index = 1; index <= count; index += 1) {
+    this.numAllParts = Math.ceil(file.size / CHUNK_SIZE);
+    for (let index = 1; index <= this.numAllParts; index += 1) {
       const offset = (index - 1) * CHUNK_SIZE;
       this.toSendParts.push({
         index: index,
@@ -78,20 +85,7 @@ export default class UploadMemoryStore {
     }
   }
 
-  public status(): Status {
-    const failed = this.failedParts.length;
-    const onDuty = this.onDutyParts.size;
-    const passed = this.passedParts.length;
-    const paused = this.pausedParts.length;
-    const toSend = this.toSendParts.length;
-    const progress = passed / (failed + onDuty + passed + paused + toSend);
-    return {
-      failed,
-      onDuty,
-      passed,
-      paused,
-      toSend,
-      progress,
-    };
+  public progress(): number {
+    return this.passedParts.length / this.numAllParts;
   }
 }
