@@ -20,6 +20,11 @@ export const userUrls = {
   register: `${VITE_API_ORIGIN}/user/register`,
 };
 
+export const blobUrls = {
+  upload: `${API_ORIGIN}/blob/upload`,
+  uploadInit: `${API_ORIGIN}/blob/upload/init`,
+};
+
 export const callbackUrls = {
   authorize:
     `${window.location.origin}` +
