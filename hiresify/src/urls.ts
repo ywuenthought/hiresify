@@ -22,7 +22,6 @@ export const userUrls = {
 
 export const blobUrls = {
   upload: `${API_ORIGIN}/blob/upload`,
-  uploadInit: `${API_ORIGIN}/blob/upload/init`,
 };
 
 export const callbackUrls = {
