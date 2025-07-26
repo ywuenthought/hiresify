@@ -21,7 +21,7 @@ from hiresify_engine.util import generate_blob_key, get_interval_from_now
 
 async def test_start_upload(app: FastAPI, client: AsyncClient) -> None:
     # Given
-    endpoint = "/blob/upload/init"
+    endpoint = "/blob/upload"
 
     repo: Repository = app.state.repo
     user = await repo.register_user("ywu", hash_password("123"))
@@ -63,7 +63,7 @@ async def test_start_upload(app: FastAPI, client: AsyncClient) -> None:
 
 async def test_upload_chunk(app: FastAPI, client: AsyncClient) -> None:
     # Given
-    endpoint = "/blob/upload"
+    endpoint = "/blob/upload/1"
 
     repo: Repository = app.state.repo
     user = await repo.register_user("ewu", hash_password("123"))
@@ -80,7 +80,7 @@ async def test_upload_chunk(app: FastAPI, client: AsyncClient) -> None:
     file = ("test.png", PNG_STREAM, "image/png")
 
     # When
-    response = await client.post(endpoint, data=data, files=dict(file=file))
+    response = await client.patch(endpoint, data=data, files=dict(file=file))
 
     # Then
     assert response.status_code == 404
@@ -105,7 +105,7 @@ async def test_upload_chunk(app: FastAPI, client: AsyncClient) -> None:
     data.update(upload_id=upload_id)
 
     # When
-    response = await client.post(endpoint, data=data, files=dict(file=file))
+    response = await client.patch(endpoint, data=data, files=dict(file=file))
 
     # Then
     assert response.status_code == 200

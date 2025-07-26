@@ -10,6 +10,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Path,
     Query,
     Request,
     UploadFile,
@@ -30,7 +31,7 @@ router = APIRouter(prefix="/blob")
 _mime_types = {"image/jpeg", "image/png", "video/mp4"}
 
 
-@router.post("/upload/init", status_code=status.HTTP_201_CREATED)
+@router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def start_upload(
     file: UploadFile = File(...),  # noqa: B008
     *,
@@ -79,10 +80,10 @@ async def start_upload(
     return upload_id
 
 
-@router.post("/upload")
+@router.patch("/upload/{index}")
 async def upload_chunk(
     file: UploadFile = File(...),  # noqa: B008
-    part_index: int = Form(1, examples=[1], ge=1),
+    index: int = Path(..., examples=[1], ge=1),
     upload_id: str = Form(..., max_length=128),
     *,
     blob: BlobServiceDep,
@@ -102,7 +103,7 @@ async def upload_chunk(
         await session.upload_chunk(
             blob_key=upload.blob_key,
             data_chunk=await file.read(),
-            part_index=part_index,
+            part_index=index,
             upload_id=upload_id,
         )
 
