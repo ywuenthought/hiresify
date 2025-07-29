@@ -199,8 +199,8 @@ async def test_create_blob(repository: Repository) -> None:
     # When
     blob = await repository.create_blob(
         user.uid,
-        blob_key=uuid4().hex,
-        file_name="blob.bin",
+        blob_key=f"{user.uid}/image/{uuid4().hex}.png",
+        file_name="blob.png",
         created_at=created_at,
         valid_thru=valid_thru,
     )
@@ -213,8 +213,8 @@ async def test_delete_blob(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
-    blob_key = uuid4().hex
-    file_name = "blob.bin"
+    blob_key = f"{user.uid}/image/{uuid4().hex}.png"
+    file_name = "blob.png"
 
     created_at = datetime.now(UTC)
     valid_thru = created_at + timedelta(seconds=1)
@@ -232,7 +232,7 @@ async def test_delete_blob(repository: Repository) -> None:
 
     # Then
     assert blob.file_name == file_name
-    assert blob.mime_type is None
+    assert blob.mime_type == "image/png"
 
     assert blob.created_at == created_at
     assert blob.valid_thru == valid_thru
@@ -252,13 +252,13 @@ async def test_delete_blobs(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
 
     created_at = datetime.now(UTC)
-    file_names = [f"blob{i}.bin" for i in range(1, 4)]
+    file_names = [f"blob{i}.png" for i in range(1, 4)]
 
     for file_name in file_names:
         valid_thru = created_at + timedelta(seconds=1)
         await repository.create_blob(
             user.uid,
-            blob_key=uuid4().hex,
+            blob_key=f"{user.uid}/image/{uuid4().hex}.png",
             file_name=file_name,
             created_at=created_at,
             valid_thru=valid_thru,
@@ -284,13 +284,13 @@ async def test_purge_blobs(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
     
     created_at = datetime.now(UTC)
-    file_names = [f"blob{i}.bin" for i in range(1, 4)]
+    file_names = [f"blob{i}.png" for i in range(1, 4)]
 
     for file_name in file_names:
         valid_thru = created_at + timedelta(seconds=1)
         blob = await repository.create_blob(
             user.uid,
-            blob_key=uuid4().hex,
+            blob_key=f"{user.uid}/image/{uuid4().hex}.png",
             file_name=file_name,
             created_at=created_at,
             valid_thru=valid_thru,
@@ -319,7 +319,7 @@ async def test_start_upload(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
 
     upload_id = "upload-id"
-    blob_key = uuid4().hex
+    blob_key = f"{user.uid}/blob/{uuid4().hex}.png"
 
     created_at = datetime.now(UTC)
     valid_thru = created_at + timedelta(seconds=1)
@@ -342,7 +342,7 @@ async def test_remove_upload(repository: Repository) -> None:
     user = await repository.register_user("ywu", "123")
 
     upload_id = "upload-id"
-    blob_key = uuid4().hex
+    blob_key = f"{user.uid}/blob/{uuid4().hex}.png"
 
     created_at = datetime.now(UTC)
     valid_thru = created_at + timedelta(seconds=1)

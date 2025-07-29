@@ -23,7 +23,7 @@ class Blob:
     file_name: str
 
     #: The MIME type of this blob file.
-    mime_type: str | None
+    mime_type: str
 
     #: The date and time when the blob was created.
     created_at: datetime

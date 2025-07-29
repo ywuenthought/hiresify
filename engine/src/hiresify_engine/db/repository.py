@@ -309,7 +309,7 @@ class Repository:
             return to_blob(blob)
 
     async def delete_blob(self, blob_uid: str) -> None:
-        """Delete an blob given the blob UID."""
+        """Delete a blob given the blob UID."""
         whereclause = BlobORM.uid == blob_uid
         stmt = delete(BlobORM).where(whereclause)
 

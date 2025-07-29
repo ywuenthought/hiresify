@@ -62,10 +62,10 @@ def get_interval_from_now(ttl: int) -> tuple[datetime, datetime]:
     return start, end
 
 
-def restore_mime_type(blob_key: str) -> str | None:
+def restore_mime_type(blob_key: str) -> str:
     """Rstore the MIME type from the given blob key."""
     if not (match := BLOB_KEY_PATTERN.match(blob_key)):
-        return None
+        raise ValueError(f"{blob_key=} is invalid.")
 
     _, main, _, sub = match.groups()
     return f"{main}/{sub}"
