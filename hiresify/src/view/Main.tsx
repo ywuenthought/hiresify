@@ -2,16 +2,26 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import { Box } from '@mui/material';
-import { useEffect } from 'react';
+import { Box, Divider, List, Paper, Stack, Typography } from '@mui/material';
+import { useCallback, useEffect, useState } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
 
+import bg from '@/assets/bg.jpg';
+import Background from '@/component/Background';
+import FileProfile from '@/component/FileProfile';
 import LogoutButton from '@/component/LogoutButton';
 import { routes } from '@/routes';
 import { tokenUrls } from '@/urls';
 
-function Main() {
+export default function Main() {
   const navigate = useNavigate();
+  const [files, setFiles] = useState<File[]>([]);
+
+  const onDrop = useCallback((curFiles: File[]) => {
+    setFiles((preFiles) => [...preFiles, ...curFiles]);
+  }, []);
+  const { getInputProps, getRootProps, isDragActive } = useDropzone({ onDrop });
 
   useEffect(() => {
     const refreshToken = async () => {
@@ -29,10 +39,68 @@ function Main() {
   }, [navigate]);
 
   return (
-    <Box width={150} sx={{ position: 'absolute', right: 0, top: 0 }}>
-      <LogoutButton />
-    </Box>
+    <Background imageAddress={bg}>
+      <Box width={150} sx={{ position: 'absolute', right: 0, top: 10 }}>
+        <LogoutButton />
+      </Box>
+      <Stack
+        direction="column"
+        spacing={2}
+        sx={{
+          alignItems: 'center',
+          height: '100%',
+          justifyContent: 'center',
+        }}
+      >
+        <Box
+          {...getRootProps()}
+          sx={{
+            bgcolor: isDragActive ? '#808080' : '#ffffff',
+            border: '2px dashed #808080',
+            cursor: 'pointer',
+            height: 150,
+            padding: 4,
+            width: 700,
+            zIndex: 0,
+          }}
+        >
+          <Stack
+            sx={{
+              alignItems: 'center',
+              display: 'flex',
+              height: '100%',
+              justifyContent: 'center',
+            }}
+          >
+            <input {...getInputProps()} />
+            <Typography gutterBottom variant="h5">
+              Drag and drop files here, or click to select.
+            </Typography>
+          </Stack>
+        </Box>
+        <Paper
+          elevation={4}
+          sx={{
+            height: 500,
+            overflow: 'auto',
+            padding: 4,
+            width: 700,
+          }}
+        >
+          <List>
+            {files.map((file, index) => (
+              <>
+                <FileProfile
+                  fileName={file.name}
+                  key={`fileProfile:${index}`}
+                  removeFile={() => undefined}
+                />
+                <Divider />
+              </>
+            ))}
+          </List>
+        </Paper>
+      </Stack>
+    </Background>
   );
 }
-
-export default Main;

@@ -5,24 +5,13 @@
 import { Box, Stack, Typography } from '@mui/material';
 
 import bg from '@/assets/bg.jpg';
+import Background from '@/component/Background';
 import LoginButton from '@/component/LoginButton';
 import RegisterLink from '@/component/RegisterLink';
 
-function Home() {
+export default function Home() {
   return (
-    <Box
-      sx={{
-        backgroundImage: `url(${bg})`,
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundSize: 'cover',
-        bottom: 0,
-        left: 0,
-        position: 'fixed',
-        right: 0,
-        top: 0,
-      }}
-    >
+    <Background imageAddress={bg}>
       <Stack
         spacing={7}
         sx={{
@@ -59,8 +48,6 @@ function Home() {
           </Stack>
         </Stack>
       </Stack>
-    </Box>
+    </Background>
   );
 }
-
-export default Home;
