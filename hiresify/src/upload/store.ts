@@ -5,6 +5,7 @@
 import Denque from 'denque';
 
 import { CHUNK_SIZE } from '@/const';
+import { defer } from '@/util';
 
 import type { PartMeta } from './type';
 
@@ -21,17 +22,24 @@ export default class UploadMemoryStore {
   private toSendParts: Denque<PartMeta> = new Denque();
   // The number of all parts.
   private numAllParts: number = 0;
+  // The total size of the file.
+  private totFileSize: number = 0;
 
   constructor(args: { file: File }) {
     const { file } = args;
 
     this.numAllParts = Math.ceil(file.size / CHUNK_SIZE);
+    this.totFileSize = file.size;
+  }
+
+  public async init(): Promise<void> {
     for (let index = 1; index <= this.numAllParts; index += 1) {
       const offset = (index - 1) * CHUNK_SIZE;
       this.toSendParts.push({
         index: index,
-        bound: [offset, Math.min(offset + CHUNK_SIZE, file.size)],
+        bound: [offset, Math.min(offset + CHUNK_SIZE, this.totFileSize)],
       });
+      defer();
     }
   }
 
@@ -67,22 +75,32 @@ export default class UploadMemoryStore {
     this.passedParts.push(part);
   }
 
-  public pause(): void {
+  public async pause(): Promise<void> {
+    // This is nonblocking considering max jobs.
+    this.pausedParts.push(...this.onDutyParts);
+
     while (this.toSendParts.length > 0) {
       this.pausedParts.push(this.toSendParts.pop() as PartMeta);
+      defer();
     }
   }
 
-  public resume(): void {
+  public async resume(): Promise<void> {
     while (this.pausedParts.length > 0) {
       this.toSendParts.push(this.pausedParts.pop() as PartMeta);
+      defer();
     }
   }
 
-  public retry(): void {
+  public async retry(): Promise<void> {
     while (this.failedParts.length > 0) {
       this.toSendParts.push(this.failedParts.shift() as PartMeta);
+      defer();
     }
+  }
+
+  public complete(): boolean {
+    return this.toSendParts.length === 0 && this.onDutyParts.size === 0;
   }
 
   public progress(): number {

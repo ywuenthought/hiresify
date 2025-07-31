@@ -4,6 +4,10 @@
 
 import { v4 as uuid4 } from 'uuid';
 
+export async function defer(ms?: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms ?? 0));
+}
+
 export async function getDetail(resp: Response): Promise<string> {
   const { detail }: { detail?: string } = await resp.json();
   return `HTTP ${resp.status}${detail ? `: ${detail}` : ''}`;

@@ -3,6 +3,7 @@
 // See the LICENSE file for more details.
 
 import Denque from 'denque';
+import { createContext } from 'react';
 
 type Job = () => Promise<void>;
 
@@ -39,3 +40,5 @@ export default class UploadQueue {
     }
   }
 }
+
+export const UploadQueueContext = createContext<UploadQueue | null>(null);

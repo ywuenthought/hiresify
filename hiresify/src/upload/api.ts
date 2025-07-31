@@ -63,15 +63,15 @@ export async function finish(args: {
 
 export async function upload(args: {
   file: File;
-  partMeta: PartMeta;
+  part: PartMeta;
   uploadId: string;
   controller: AbortController;
 }): Promise<Response> {
-  const { file, partMeta, uploadId, controller } = args;
+  const { file, part, uploadId, controller } = args;
 
   const form = new FormData();
-  form.append('file', file.slice(...partMeta.bound));
-  form.append('index', String(partMeta.index));
+  form.append('file', file.slice(...part.bound));
+  form.append('index', String(part.index));
   form.append('upload_id', uploadId);
 
   try {

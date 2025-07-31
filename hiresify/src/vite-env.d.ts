@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_API_ORIGIN: string;
   readonly VITE_CHUNK_SIZE: string;
+  readonly VITE_UPLOAD_CONCURRENCY: string;
 }
 
 interface ImportMeta {

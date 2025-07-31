@@ -7,13 +7,16 @@ import { StrictMode } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 
 import App from './App.tsx';
+import UploadQueueProvider from './upload/provider.tsx';
 
 export default function Root() {
   return (
     <StrictMode>
       <CssBaseline />
       <BrowserRouter>
-        <App />
+        <UploadQueueProvider>
+          <App />
+        </UploadQueueProvider>
       </BrowserRouter>
     </StrictMode>
   );
