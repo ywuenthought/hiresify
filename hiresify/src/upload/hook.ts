@@ -53,6 +53,7 @@ export function useUpload(args: { file: File; partSize: number }) {
           setProgress(store.getProgress());
         } else {
           store.failPart({ part });
+          setComplete(store.getComplete());
         }
       };
     },

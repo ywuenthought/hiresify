@@ -18,7 +18,7 @@ export default class UploadMemoryStore {
   // The progress of the file upload.
   private progress: number = 0;
   // The index of next part to send.
-  private nextPartIndex: number = 0;
+  private nextPartIndex: number = 1;
 
   constructor(args: { fileSize: number; partSize: number }) {
     const { fileSize, partSize } = args;
@@ -36,10 +36,12 @@ export default class UploadMemoryStore {
 
     this.onDutyParts.delete(part);
     this.failedParts.add(part);
+
+    this.complete = this.onDutyParts.size === 0;
   }
 
   public nextPart(): PartMeta | undefined {
-    const start = this.nextPartIndex * this.partSize;
+    const start = (this.nextPartIndex - 1) * this.partSize;
 
     if (start >= this.fileSize) {
       return;
