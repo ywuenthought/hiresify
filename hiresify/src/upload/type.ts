@@ -5,6 +5,8 @@
 export type PartMeta = {
   // The index of this part.
   readonly index: number;
-  // The starting and ending byte positions of this part in the parent file.
-  readonly bound: [number, number];
+  // The starting byte position.
+  readonly start: number;
+  // The ending byte position.
+  readonly end: number;
 };

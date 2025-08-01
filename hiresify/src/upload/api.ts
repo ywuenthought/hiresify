@@ -70,7 +70,7 @@ export async function upload(args: {
   const { file, part, uploadId, controller } = args;
 
   const form = new FormData();
-  form.append('file', file.slice(...part.bound));
+  form.append('file', file.slice(part.start, part.end));
   form.append('index', String(part.index));
   form.append('upload_id', uploadId);
 

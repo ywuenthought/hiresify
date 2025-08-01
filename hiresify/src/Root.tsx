@@ -7,6 +7,7 @@ import { StrictMode } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 
 import App from './App.tsx';
+import { UPLOAD_CONCURRENCY } from './const.ts';
 import UploadQueueProvider from './upload/provider.tsx';
 
 export default function Root() {
@@ -14,7 +15,7 @@ export default function Root() {
     <StrictMode>
       <CssBaseline />
       <BrowserRouter>
-        <UploadQueueProvider>
+        <UploadQueueProvider concurrency={UPLOAD_CONCURRENCY}>
           <App />
         </UploadQueueProvider>
       </BrowserRouter>

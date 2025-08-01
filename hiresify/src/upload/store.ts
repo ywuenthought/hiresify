@@ -2,45 +2,29 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import Denque from 'denque';
-
-import { CHUNK_SIZE } from '@/const';
-import { defer } from '@/util';
-
 import type { PartMeta } from './type';
 
 export default class UploadMemoryStore {
   // The parts failed to upload.
-  private failedParts: Denque<PartMeta> = new Denque();
-  // The parts being uploaded.
+  private failedParts: Set<PartMeta> = new Set();
+  // The parts in an upload process.
   private onDutyParts: Set<PartMeta> = new Set();
-  // The parts that has passed uploading.
-  private passedParts: Denque<PartMeta> = new Denque();
-  // The parts paused to upload.
-  private pausedParts: PartMeta[] = [];
-  // The parts to send to the backend.
-  private toSendParts: Denque<PartMeta> = new Denque();
-  // The number of all parts.
-  private numAllParts: number = 0;
+  // A boolean flag for whether the file upload has ended.
+  private complete: boolean = false;
   // The total size of the file.
-  private totFileSize: number = 0;
+  private fileSize: number = 0;
+  // The size of an individual part.
+  private partSize: number = 0;
+  // The progress of the file upload.
+  private progress: number = 0;
+  // The index of next part to send.
+  private nextPartIndex: number = 0;
 
-  constructor(args: { file: File }) {
-    const { file } = args;
+  constructor(args: { fileSize: number; partSize: number }) {
+    const { fileSize, partSize } = args;
 
-    this.numAllParts = Math.ceil(file.size / CHUNK_SIZE);
-    this.totFileSize = file.size;
-  }
-
-  public async init(): Promise<void> {
-    for (let index = 1; index <= this.numAllParts; index += 1) {
-      const offset = (index - 1) * CHUNK_SIZE;
-      this.toSendParts.push({
-        index: index,
-        bound: [offset, Math.min(offset + CHUNK_SIZE, this.totFileSize)],
-      });
-      defer();
-    }
+    this.fileSize = fileSize;
+    this.partSize = partSize;
   }
 
   public failPart(args: { part: PartMeta }): void {
@@ -51,59 +35,54 @@ export default class UploadMemoryStore {
     }
 
     this.onDutyParts.delete(part);
-    this.failedParts.push(part);
+    this.failedParts.add(part);
   }
 
   public nextPart(): PartMeta | undefined {
-    const part = this.toSendParts.shift();
+    const start = this.nextPartIndex * this.partSize;
 
-    if (part) {
-      this.onDutyParts.add(part);
+    if (start >= this.fileSize) {
+      return;
     }
 
-    return part;
+    const end = Math.min(start + this.partSize, this.fileSize);
+    const part = { index: this.nextPartIndex, start, end };
+
+    this.onDutyParts.add(part);
+    this.nextPartIndex += 1;
+
+    return Object.freeze(part);
   }
 
   public passPart(args: { part: PartMeta }): void {
     const { part } = args;
 
-    if (!this.onDutyParts.has(part)) {
+    if (!this.failedParts.has(part) && !this.onDutyParts.has(part)) {
       return;
     }
 
+    this.failedParts.delete(part);
     this.onDutyParts.delete(part);
-    this.passedParts.push(part);
+
+    this.complete = this.onDutyParts.size === 0;
+    this.progress += (part.end - part.start) / this.fileSize;
   }
 
-  public async pause(): Promise<void> {
-    // This is nonblocking considering max jobs.
-    this.pausedParts.push(...this.onDutyParts);
-
-    while (this.toSendParts.length > 0) {
-      this.pausedParts.push(this.toSendParts.pop() as PartMeta);
-      defer();
-    }
+  public resume(): Set<PartMeta> {
+    return this.onDutyParts;
   }
 
-  public async resume(): Promise<void> {
-    while (this.pausedParts.length > 0) {
-      this.toSendParts.push(this.pausedParts.pop() as PartMeta);
-      defer();
-    }
+  public retry(): Set<PartMeta> {
+    this.onDutyParts = this.failedParts;
+    this.failedParts = new Set();
+    return this.onDutyParts;
   }
 
-  public async retry(): Promise<void> {
-    while (this.failedParts.length > 0) {
-      this.toSendParts.push(this.failedParts.shift() as PartMeta);
-      defer();
-    }
+  public getComplete(): boolean {
+    return this.complete;
   }
 
-  public complete(): boolean {
-    return this.toSendParts.length === 0 && this.onDutyParts.size === 0;
-  }
-
-  public progress(): number {
-    return this.passedParts.length / this.numAllParts;
+  public getProgress(): number {
+    return this.progress;
   }
 }
