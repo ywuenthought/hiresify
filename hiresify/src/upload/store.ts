@@ -2,32 +2,63 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import type { PartMeta } from './type';
+import { defer } from '@/util';
+
+import type { UploadPart } from './type';
 
 export default class UploadMemoryStore {
   // The parts failed to upload.
-  private failedParts: Set<PartMeta> = new Set();
+  private failedParts: UploadPart[] = [];
   // The parts in an upload process.
-  private onDutyParts: Set<PartMeta> = new Set();
-  // A boolean flag for whether the file upload has ended.
-  private complete: boolean = false;
-  // The total size of the file.
-  private fileSize: number = 0;
-  // The size of an individual part.
-  private partSize: number = 0;
-  // The progress of the file upload.
-  private progress: number = 0;
-  // The index of next part to send.
-  private nextPartIndex: number = 1;
+  private onDutyParts: Set<UploadPart> = new Set();
+  // The parts of the file to send.
+  private toSendParts: UploadPart[] = [];
 
-  constructor(args: { fileSize: number; partSize: number }) {
-    const { fileSize, partSize } = args;
+  // Whether the store has been initialzied.
+  private doneInit: boolean = false;
+  // The total size of the uploaded parts.
+  private doneSize: number = 0;
 
-    this.fileSize = fileSize;
-    this.partSize = partSize;
+  public async init(args: { file: File; partSize: number }): Promise<void> {
+    if (this.doneInit) {
+      return;
+    }
+
+    const { file, partSize } = args;
+    const count = Math.ceil(file.size / partSize);
+
+    for (let index = 1; index <= count; index += 1) {
+      const offset = (index - 1) * partSize;
+      const chunk = file.slice(offset, Math.min(offset + partSize, file.size));
+      this.toSendParts.push({ index, chunk });
+      defer();
+    }
+
+    this.doneInit = true;
   }
 
-  public failPart(args: { part: PartMeta }): void {
+  public failPart(args: { part: UploadPart }): void {
+    const { part } = args;
+
+    if (!this.onDutyParts.has(part)) {
+      return;
+    }
+
+    this.failedParts.push(part);
+    this.onDutyParts.delete(part);
+  }
+
+  public nextPart(): UploadPart | undefined {
+    const part = this.toSendParts.pop();
+
+    if (part) {
+      this.onDutyParts.add(part);
+    }
+
+    return Object.freeze(part);
+  }
+
+  public passPart(args: { part: UploadPart }): void {
     const { part } = args;
 
     if (!this.onDutyParts.has(part)) {
@@ -35,56 +66,28 @@ export default class UploadMemoryStore {
     }
 
     this.onDutyParts.delete(part);
-    this.failedParts.add(part);
-
-    this.complete = this.onDutyParts.size === 0;
+    this.doneSize += part.chunk.size;
   }
 
-  public nextPart(): PartMeta | undefined {
-    const start = (this.nextPartIndex - 1) * this.partSize;
-
-    if (start >= this.fileSize) {
-      return;
+  public async pause(): Promise<void> {
+    for (const part of this.onDutyParts) {
+      this.toSendParts.push(part);
+      defer();
     }
 
-    const end = Math.min(start + this.partSize, this.fileSize);
-    const part = { index: this.nextPartIndex, start, end };
-
-    this.onDutyParts.add(part);
-    this.nextPartIndex += 1;
-
-    return Object.freeze(part);
+    this.onDutyParts.clear();
   }
 
-  public passPart(args: { part: PartMeta }): void {
-    const { part } = args;
-
-    if (!this.failedParts.has(part) && !this.onDutyParts.has(part)) {
-      return;
+  public async retry(): Promise<void> {
+    for (const part of this.failedParts) {
+      this.toSendParts.push(part);
+      defer();
     }
 
-    this.failedParts.delete(part);
-    this.onDutyParts.delete(part);
-
-    this.complete = this.onDutyParts.size === 0;
-    this.progress += (part.end - part.start) / this.fileSize;
+    this.failedParts.length = 0;
   }
 
-  public resume(): Set<PartMeta> {
-    return this.onDutyParts;
-  }
-
-  public retry(): Set<PartMeta> {
-    this.onDutyParts = this.failedParts;
-    this.failedParts = new Set();
-    return this.onDutyParts;
-  }
-
-  public getComplete(): boolean {
-    return this.complete;
-  }
-
-  public getProgress(): number {
-    return this.progress;
+  public getDoneSize(): number {
+    return this.doneSize;
   }
 }

@@ -2,11 +2,9 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-export type PartMeta = {
+export type UploadPart = {
   // The index of this part.
   readonly index: number;
-  // The starting byte position.
-  readonly start: number;
-  // The ending byte position.
-  readonly end: number;
+  // The chunk of the parent file.
+  readonly chunk: Blob;
 };

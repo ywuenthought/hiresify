@@ -4,7 +4,7 @@
 
 import { blobUrls } from '@/urls';
 
-import type { PartMeta } from './type';
+import type { UploadPart } from './type';
 
 export async function cancel(args: { uploadId: string }): Promise<Response> {
   const { uploadId } = args;
@@ -62,15 +62,14 @@ export async function finish(args: {
 }
 
 export async function upload(args: {
-  file: File;
-  part: PartMeta;
+  part: UploadPart;
   uploadId: string;
   controller: AbortController;
 }): Promise<Response> {
-  const { file, part, uploadId, controller } = args;
+  const { part, uploadId, controller } = args;
 
   const form = new FormData();
-  form.append('file', file.slice(part.start, part.end));
+  form.append('file', part.chunk);
   form.append('index', String(part.index));
   form.append('upload_id', uploadId);
 

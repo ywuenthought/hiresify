@@ -9,7 +9,7 @@ import { defer } from '@/util';
 import * as api from './api';
 import { UploadQueueContext } from './queue';
 import UploadMemoryStore from './store';
-import type { PartMeta } from './type';
+import type { UploadPart } from './type';
 
 export function useUploadQueue() {
   const context = useContext(UploadQueueContext);
@@ -25,35 +25,41 @@ export function useUpload(args: { file: File; partSize: number }) {
   const { file, partSize } = args;
 
   const queue = useUploadQueue();
-  const store = useMemo(
-    () => new UploadMemoryStore({ fileSize: file.size, partSize }),
-    [file, partSize]
-  );
+  const store = useMemo(() => new UploadMemoryStore(), []);
 
   const uploadIdRef = useRef<string>('');
   const controllers: AbortController[] = useMemo(() => [], []);
 
-  const [progress, setProgress] = useState<number>(0);
   const [complete, setComplete] = useState<boolean>(false);
+  const [progress, setProgress] = useState<number>(0);
 
   const factory = useCallback(
-    (args: { controller: AbortController; part: PartMeta }) => {
+    (args: { controller: AbortController; part: UploadPart }) => {
       const { controller, part } = args;
+
+      const fileName = file.name;
+      const uploadId = uploadIdRef.current;
+
       return async () => {
-        const response = await api.upload({
-          file,
-          part,
-          uploadId: uploadIdRef.current,
-          controller,
-        });
+        const response = await api.upload({ part, uploadId, controller });
 
         if (response.ok) {
           store.passPart({ part });
-          setComplete(store.getComplete());
-          setProgress(store.getProgress());
+
+          const doneSize = store.getDoneSize();
+          setProgress((doneSize / file.size) * 100);
+
+          if (doneSize === file.size) {
+            const response = await api.finish({ fileName, uploadId });
+
+            if (response.ok) {
+              setComplete(true);
+            } else {
+              throw new Error(`Failed to finish the upload for ${file.name}.`);
+            }
+          }
         } else {
           store.failPart({ part });
-          setComplete(store.getComplete());
         }
       };
     },
@@ -61,6 +67,10 @@ export function useUpload(args: { file: File; partSize: number }) {
   );
 
   const create = useCallback(async () => {
+    if (uploadIdRef.current) {
+      return;
+    }
+
     const response = await api.create({ file });
 
     if (!response.ok) {
@@ -69,7 +79,9 @@ export function useUpload(args: { file: File; partSize: number }) {
 
     const uploadId = (await response.json()) as string;
     uploadIdRef.current = uploadId;
-  }, [file]);
+
+    store.init({ file, partSize });
+  }, [file, partSize, store]);
 
   const upload = useCallback(async () => {
     while (true) {
@@ -93,50 +105,36 @@ export function useUpload(args: { file: File; partSize: number }) {
       controllers.pop()?.abort();
       defer();
     }
-  }, [controllers]);
 
-  const resume = useCallback(async () => {
-    for (const part of store.resume()) {
-      const controller = new AbortController();
-      controllers.push(controller);
-
-      const job = factory({ controller, part });
-      queue.enqueue({ job });
-      defer();
-    }
-  }, [controllers, queue, store, factory]);
+    await store.pause();
+  }, [controllers, store]);
 
   const retry = useCallback(async () => {
-    for (const part of store.retry()) {
-      const controller = new AbortController();
-      controllers.push(controller);
+    if (store.getDoneSize() < file.size) {
+      await store.retry();
+      await upload();
+    } else {
+      if (complete) {
+        return;
+      }
 
-      const job = factory({ controller, part });
-      queue.enqueue({ job });
-      defer();
+      const response = await api.finish({
+        fileName: file.name,
+        uploadId: uploadIdRef.current,
+      });
+
+      if (response.ok) {
+        setComplete(true);
+      }
     }
-  }, [controllers, queue, store, factory]);
+  }, [complete, file, store, upload]);
 
-  const cancel = useCallback(async () => {
+  const remove = useCallback(async () => {
+    await pause();
+
     const uploadId = uploadIdRef.current;
     await api.cancel({ uploadId });
-  }, []);
+  }, [pause]);
 
-  const finish = useCallback(async () => {
-    const fileName = file.name;
-    const uploadId = uploadIdRef.current;
-    await api.finish({ fileName, uploadId });
-  }, [file]);
-
-  return [
-    complete,
-    progress,
-    cancel,
-    create,
-    finish,
-    pause,
-    resume,
-    retry,
-    upload,
-  ];
+  return [complete, progress, create, pause, remove, retry, upload];
 }

@@ -3,53 +3,67 @@
 // See the LICENSE file for more details.
 
 import UploadMemoryStore from '../store';
-import type { PartMeta } from '../type';
+import type { UploadPart } from '../type';
 
 describe('UploadMemoryStore', () => {
-  it('gives next parts to upload', () => {
+  const byte = new Uint8Array([0x00]);
+  const file = new File([byte], 'blob.bin', {
+    type: 'application/octet-stream',
+  });
+
+  it('gives next parts to upload', async () => {
     // Given
-    const store = new UploadMemoryStore({ fileSize: 1, partSize: 1 });
+    const store = new UploadMemoryStore();
+    await store.init({ file, partSize: 1 });
 
     // When
     const part = store.nextPart();
 
     // Then
     expect(part).not.toBeUndefined();
-    expect(part).toEqual({ index: 1, start: 0, end: 1 });
-
-    expect(store.resume()).toEqual(new Set([part]));
-    expect(store.getComplete()).toBeFalsy();
-    expect(store.getProgress()).toBe(0);
+    expect(part).toEqual({ index: 1, chunk: file.slice(0, 1) });
+    expect(store.getDoneSize()).toBe(0);
 
     // When/Then
     expect(store.nextPart()).toBeUndefined();
-  });
-
-  it('fails a file part upload', () => {
-    // Given
-    const store = new UploadMemoryStore({ fileSize: 1, partSize: 1 });
 
     // When
-    const part = store.nextPart() as PartMeta;
+    await store.pause();
+    const partResumed = store.nextPart();
+
+    // Then
+    expect(partResumed).toEqual(part);
+  });
+
+  it('sets a part upload to be failed', async () => {
+    // Given
+    const store = new UploadMemoryStore();
+    await store.init({ file, partSize: 1 });
+
+    // When
+    const part = store.nextPart() as UploadPart;
     store.failPart({ part });
 
-    expect(store.getComplete()).toBeTruthy();
-    expect(store.getProgress()).toBe(0);
-
-    // When/Then
-    expect(store.retry()).toEqual(new Set([part]));
-  });
-
-  it('passes a file part upload', () => {
-    // Given
-    const store = new UploadMemoryStore({ fileSize: 1, partSize: 1 });
+    expect(store.getDoneSize()).toBe(0);
 
     // When
-    const part = store.nextPart() as PartMeta;
+    await store.retry();
+    const partRetried = store.nextPart();
+
+    // Then
+    expect(partRetried).toEqual(part);
+  });
+
+  it('sets a part upload to be passed', async () => {
+    // Given
+    const store = new UploadMemoryStore();
+    await store.init({ file, partSize: 1 });
+
+    // When
+    const part = store.nextPart() as UploadPart;
     store.passPart({ part });
 
     // Then
-    expect(store.getComplete()).toBeTruthy();
-    expect(store.getProgress()).toBe(1);
+    expect(store.getDoneSize()).toBe(1);
   });
 });
