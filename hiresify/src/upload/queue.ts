@@ -5,15 +5,15 @@
 import Denque from 'denque';
 import { createContext } from 'react';
 
-type Job = () => Promise<void>;
+import type { Job } from './type';
 
 export default class UploadQueue {
   private concurrency: number = 1;
   private runningJobs: number = 0;
   private pendingJobs: Denque<Job> = new Denque();
 
-  constructor(args: { concurrency?: number }) {
-    const { concurrency = 1 } = args;
+  constructor(args?: { concurrency: number }) {
+    const concurrency = args?.concurrency ?? 1;
 
     if (concurrency < 1 || !Number.isInteger(concurrency)) {
       throw new Error('Invalid pool concurrency was given.');
