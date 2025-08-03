@@ -2,7 +2,7 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-export type Job = () => Promise<void>;
+export type SimpleAsyncThunk = () => Promise<void>;
 
 export type UploadPart = {
   // The index of this part.

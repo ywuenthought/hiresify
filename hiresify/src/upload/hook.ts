@@ -9,7 +9,7 @@ import { defer } from '@/util';
 import * as api from './api';
 import { UploadQueueContext } from './queue';
 import UploadMemoryStore from './store';
-import type { UploadPart } from './type';
+import type { SimpleAsyncThunk, UploadPart } from './type';
 
 export function useUploadQueue() {
   const context = useContext(UploadQueueContext);
@@ -21,7 +21,16 @@ export function useUploadQueue() {
   return context;
 }
 
-export function useUpload(args: { file: File; partSize: number }) {
+export function useUpload(args: { file: File; partSize: number }): {
+  allClear: boolean;
+  complete: boolean;
+  progress: number;
+  abort: SimpleAsyncThunk;
+  pause: SimpleAsyncThunk;
+  retry: SimpleAsyncThunk;
+  setup: SimpleAsyncThunk;
+  start: SimpleAsyncThunk;
+} {
   const { file, partSize } = args;
 
   const queue = useUploadQueue();
@@ -31,6 +40,7 @@ export function useUpload(args: { file: File; partSize: number }) {
   const controllers: AbortController[] = useMemo(() => [], []);
 
   const [complete, setComplete] = useState<boolean>(false);
+  const [allClear, setAllClear] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
 
   const factory = useCallback(
@@ -40,22 +50,43 @@ export function useUpload(args: { file: File; partSize: number }) {
       const fileName = file.name;
       const uploadId = uploadIdRef.current;
 
-      return async () => {
-        const response = await api.upload({ part, uploadId, controller });
+      return async (): Promise<void> => {
+        let response: Response;
+
+        try {
+          response = await api.upload({ part, uploadId, controller });
+        } catch {
+          return;
+        }
 
         if (response.ok) {
           store.passPart({ part });
 
+          const allClear = store.getAllClear();
+          setAllClear(allClear);
+
           const doneSize = store.getDoneSize();
           setProgress((doneSize / file.size) * 100);
 
-          if (doneSize === file.size) {
-            const response = await api.finish({ fileName, uploadId });
+          if (allClear) {
+            const error = new Error(`Failed to upload ${file.name}.`);
+
+            if (doneSize !== file.size) {
+              throw error;
+            }
+
+            let response: Response;
+
+            try {
+              response = await api.finish({ fileName, uploadId });
+            } catch {
+              throw error;
+            }
 
             if (response.ok) {
               setComplete(true);
             } else {
-              throw new Error(`Failed to upload ${file.name}.`);
+              throw error;
             }
           }
         } else {
@@ -66,7 +97,7 @@ export function useUpload(args: { file: File; partSize: number }) {
     [file, store]
   );
 
-  const create = useCallback(async () => {
+  const setup = useCallback(async () => {
     if (uploadIdRef.current) {
       return;
     }
@@ -81,7 +112,7 @@ export function useUpload(args: { file: File; partSize: number }) {
     store.init({ file, partSize });
   }, [file, partSize, store]);
 
-  const upload = useCallback(async () => {
+  const start = useCallback(async () => {
     while (true) {
       const part = store.nextPart();
 
@@ -110,7 +141,7 @@ export function useUpload(args: { file: File; partSize: number }) {
   const retry = useCallback(async () => {
     if (store.getDoneSize() < file.size) {
       await store.retry();
-      await upload();
+      await start();
     } else {
       if (complete) {
         return;
@@ -125,14 +156,14 @@ export function useUpload(args: { file: File; partSize: number }) {
         setComplete(true);
       }
     }
-  }, [complete, file, store, upload]);
+  }, [complete, file, store, start]);
 
-  const remove = useCallback(async () => {
+  const abort = useCallback(async () => {
     await pause();
 
     const uploadId = uploadIdRef.current;
     await api.cancel({ uploadId });
   }, [pause]);
 
-  return [complete, progress, create, pause, remove, retry, upload];
+  return { allClear, complete, progress, abort, pause, retry, setup, start };
 }

@@ -14,6 +14,9 @@ export default class UploadMemoryStore {
   // The parts of the file to send.
   private toSendParts: UploadPart[] = [];
 
+  // Whether ALL the chunk uploads have been cleared.
+  // A chunk upload is cleared even if it is failed.
+  private allClear: boolean = false;
   // Whether the store has been initialzied.
   private doneInit: boolean = false;
   // The total size of the uploaded parts.
@@ -46,6 +49,8 @@ export default class UploadMemoryStore {
 
     this.failedParts.push(part);
     this.onDutyParts.delete(part);
+
+    this.allClear = this.onDutyParts.size === 0;
   }
 
   public nextPart(): UploadPart | undefined {
@@ -66,6 +71,8 @@ export default class UploadMemoryStore {
     }
 
     this.onDutyParts.delete(part);
+
+    this.allClear = this.onDutyParts.size === 0;
     this.doneSize += part.chunk.size;
   }
 
@@ -85,6 +92,10 @@ export default class UploadMemoryStore {
     }
 
     this.failedParts.length = 0;
+  }
+
+  public getAllClear(): boolean {
+    return this.allClear;
   }
 
   public getDoneSize(): number {

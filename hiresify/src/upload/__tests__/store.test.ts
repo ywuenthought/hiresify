@@ -44,6 +44,7 @@ describe('UploadMemoryStore', () => {
     const part = store.nextPart() as UploadPart;
     store.failPart({ part });
 
+    expect(store.getAllClear()).toBeTruthy();
     expect(store.getDoneSize()).toBe(0);
 
     // When
@@ -64,6 +65,7 @@ describe('UploadMemoryStore', () => {
     store.passPart({ part });
 
     // Then
+    expect(store.getAllClear()).toBeTruthy();
     expect(store.getDoneSize()).toBe(1);
   });
 });

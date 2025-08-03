@@ -5,12 +5,12 @@
 import Denque from 'denque';
 import { createContext } from 'react';
 
-import type { Job } from './type';
+import type { SimpleAsyncThunk } from './type';
 
 export default class UploadQueue {
   private concurrency: number = 1;
   private runningJobs: number = 0;
-  private pendingJobs: Denque<Job> = new Denque();
+  private pendingJobs: Denque<SimpleAsyncThunk> = new Denque();
 
   constructor(args?: { concurrency: number }) {
     const concurrency = args?.concurrency ?? 1;
@@ -22,7 +22,7 @@ export default class UploadQueue {
     this.concurrency = concurrency;
   }
 
-  public enqueue(args: { job: Job }) {
+  public enqueue(args: { job: SimpleAsyncThunk }) {
     const { job } = args;
 
     this.pendingJobs.push(job);
@@ -31,7 +31,7 @@ export default class UploadQueue {
 
   private runNextJobs() {
     while (this.runningJobs < this.concurrency && this.pendingJobs.length > 0) {
-      const job = this.pendingJobs.shift() as Job;
+      const job = this.pendingJobs.shift() as SimpleAsyncThunk;
       this.runningJobs += 1;
       job().finally(() => {
         this.runningJobs -= 1;

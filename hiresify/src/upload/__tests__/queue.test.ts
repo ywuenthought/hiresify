@@ -3,10 +3,10 @@
 // See the LICENSE file for more details.
 
 import UploadQueue from '../queue';
-import type { Job } from '../type';
+import type { SimpleAsyncThunk } from '../type';
 
 function createManualJob(args: { id: string; logs: string[] }): {
-  job: Job;
+  job: SimpleAsyncThunk;
   unblock: () => void;
 } {
   const { id, logs } = args;

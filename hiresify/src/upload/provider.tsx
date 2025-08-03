@@ -6,9 +6,9 @@ import UploadQueue, { UploadQueueContext } from './queue';
 
 export default function UploadQueueProvider(args: {
   children: React.ReactNode;
-  concurrency: number;
+  concurrency?: number;
 }) {
-  const { children, concurrency } = args;
+  const { children, concurrency = 1 } = args;
   const queue = new UploadQueue({ concurrency });
 
   return (
