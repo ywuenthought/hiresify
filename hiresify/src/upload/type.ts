@@ -11,4 +11,4 @@ export type UploadPart = {
   readonly chunk: Blob;
 };
 
-export type UploadStatus = 'failed' | 'paused' | 'running' | 'succeeded';
+export type UploadStatus = 'active' | 'failed' | 'passed' | 'paused' | null;

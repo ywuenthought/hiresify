@@ -56,9 +56,9 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { progress, status } = result.current;
+    const { degree, status } = result.current;
 
-    expect(progress).toBe(0);
+    expect(degree).toBe(0);
     expect(status).toBe('failed');
   });
 
@@ -75,10 +75,10 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { progress, status } = result.current;
+    const { degree, status } = result.current;
 
-    expect(progress).toBe(100);
-    expect(status).toBe('succeeded');
+    expect(degree).toBe(100);
+    expect(status).toBe('passed');
   });
 
   it('uploads all file chunks with some failed', async () => {
@@ -98,9 +98,9 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { progress, status } = result.current;
+    const { degree, status } = result.current;
 
-    expect(progress).toBe(75);
+    expect(degree).toBe(75);
     expect(status).toBe('failed');
   });
 
@@ -121,9 +121,9 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { progress, status } = result.current;
+    const { degree, status } = result.current;
 
-    expect(progress).toBe(100);
+    expect(degree).toBe(100);
     expect(status).toBe('failed');
   });
 
@@ -145,10 +145,10 @@ describe('UseUpload hook', () => {
     await act(async () => await retry());
 
     // Then
-    const { progress, status } = result.current;
+    const { degree, status } = result.current;
 
-    expect(progress).toBe(100);
-    expect(status).toBe('succeeded');
+    expect(degree).toBe(100);
+    expect(status).toBe('passed');
   });
 
   it('retries when some chunk uploads failed', async () => {
@@ -172,10 +172,10 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { progress, status } = result.current;
+    const { degree, status } = result.current;
 
-    expect(progress).toBe(100);
-    expect(status).toBe('succeeded');
+    expect(degree).toBe(100);
+    expect(status).toBe('passed');
   });
 
   it('retries when failed to finish the upload', async () => {
@@ -197,9 +197,9 @@ describe('UseUpload hook', () => {
     await act(async () => await retry());
 
     // Then
-    const { progress, status } = result.current;
+    const { degree, status } = result.current;
 
-    expect(progress).toBe(100);
-    expect(status).toBe('succeeded');
+    expect(degree).toBe(100);
+    expect(status).toBe('passed');
   });
 });

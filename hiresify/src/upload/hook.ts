@@ -22,7 +22,7 @@ export function useUploadQueue() {
 }
 
 export function useUpload(args: { file: File; partSize: number }): {
-  progress: number;
+  degree: number;
   status: UploadStatus;
   abort: SimpleAsyncThunk;
   pause: SimpleAsyncThunk;
@@ -37,8 +37,8 @@ export function useUpload(args: { file: File; partSize: number }): {
   const uploadIdRef = useRef<string>('');
   const controllers = useRef<AbortController[]>([]).current;
 
-  const [progress, setProgress] = useState<number>(0);
-  const [status, setStatus] = useState<UploadStatus>('running');
+  const [degree, setDegree] = useState<number>(0);
+  const [status, setStatus] = useState<UploadStatus>(null);
 
   const factory = useCallback(
     (args: { controller: AbortController; part: UploadPart }) => {
@@ -61,7 +61,7 @@ export function useUpload(args: { file: File; partSize: number }): {
         }
 
         const doneSize = store.getDoneSize();
-        setProgress((doneSize / file.size) * 100);
+        setDegree((doneSize / file.size) * 100);
 
         if (store.getAllClear()) {
           // Clear abort controllers.
@@ -73,7 +73,7 @@ export function useUpload(args: { file: File; partSize: number }): {
 
           try {
             const response = await api.finish({ fileName, uploadId });
-            setStatus(response.ok ? 'succeeded' : 'failed');
+            setStatus(response.ok ? 'passed' : 'failed');
           } catch {
             setStatus('failed');
           }
@@ -84,8 +84,6 @@ export function useUpload(args: { file: File; partSize: number }): {
   );
 
   const start = useCallback(async () => {
-    setStatus('running');
-
     const enqueueJobs = async () => {
       while (true) {
         const part = store.nextPart();
@@ -104,6 +102,7 @@ export function useUpload(args: { file: File; partSize: number }): {
     };
 
     if (uploadIdRef.current) {
+      setStatus('active');
       await enqueueJobs();
     } else {
       try {
@@ -116,6 +115,7 @@ export function useUpload(args: { file: File; partSize: number }): {
         uploadIdRef.current = await response.text();
         await store.init({ file, partSize });
 
+        setStatus('active');
         await enqueueJobs();
       } catch {
         setStatus('failed');
@@ -134,8 +134,6 @@ export function useUpload(args: { file: File; partSize: number }): {
   }, [controllers, store]);
 
   const retry = useCallback(async () => {
-    setStatus('running');
-
     if (store.getDoneSize() < file.size) {
       await store.retry();
       await start();
@@ -148,7 +146,7 @@ export function useUpload(args: { file: File; partSize: number }): {
           fileName: file.name,
           uploadId: uploadIdRef.current,
         });
-        setStatus(response.ok ? 'succeeded' : 'failed');
+        setStatus(response.ok ? 'passed' : 'failed');
       } catch {
         setStatus('failed');
       }
@@ -163,7 +161,7 @@ export function useUpload(args: { file: File; partSize: number }): {
   }, [pause]);
 
   return {
-    progress,
+    degree,
     status,
     abort,
     pause,
