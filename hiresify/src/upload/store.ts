@@ -34,7 +34,7 @@ export default class UploadMemoryStore {
       const offset = (index - 1) * partSize;
       const chunk = file.slice(offset, Math.min(offset + partSize, file.size));
       this.toSendParts.push({ index, chunk });
-      defer();
+      await defer();
     }
 
     this.doneInit = true;
@@ -79,7 +79,7 @@ export default class UploadMemoryStore {
   public async pause(): Promise<void> {
     for (const part of this.onDutyParts) {
       this.toSendParts.push(part);
-      defer();
+      await defer();
     }
 
     this.onDutyParts.clear();
@@ -88,7 +88,7 @@ export default class UploadMemoryStore {
   public async retry(): Promise<void> {
     for (const part of this.failedParts) {
       this.toSendParts.push(part);
-      defer();
+      await defer();
     }
 
     this.failedParts.length = 0;
