@@ -6,7 +6,7 @@ import UploadMemoryStore from '../store';
 import type { UploadPart } from '../type';
 
 describe('UploadMemoryStore', () => {
-  const byte = new Uint8Array([0x00]);
+  const byte = new Uint8Array(1);
   const file = new File([byte], 'blob.bin', {
     type: 'application/octet-stream',
   });

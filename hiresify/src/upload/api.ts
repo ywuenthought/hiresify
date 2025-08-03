@@ -70,11 +70,10 @@ export async function upload(args: {
 
   const form = new FormData();
   form.append('file', part.chunk);
-  form.append('index', String(part.index));
   form.append('upload_id', uploadId);
 
   try {
-    return await fetch(blobUrls.upload, {
+    return await fetch(`${blobUrls.upload}/${part.index}`, {
       method: 'PATCH',
       body: form,
       credentials: 'include',

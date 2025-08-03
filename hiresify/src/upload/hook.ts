@@ -77,9 +77,7 @@ export function useUpload(args: { file: File; partSize: number }) {
       throw new Error(`Impossible to upload ${file.name}.`);
     }
 
-    const uploadId = (await response.json()) as string;
-    uploadIdRef.current = uploadId;
-
+    uploadIdRef.current = await response.text();
     store.init({ file, partSize });
   }, [file, partSize, store]);
 

@@ -12,9 +12,9 @@ export type BackendBlob = {
   // The MIME type of this blob file.
   mimeType: string | null;
 
-  // The date and time when the blob was created.
-  createdAt: Date;
+  // The ISO date and time when the blob was created.
+  createdAt: string;
 
-  // The date and time when the blob is valid through.
-  validThru: Date;
+  // The ISO date and time when the blob is valid through.
+  validThru: string;
 };

@@ -46,6 +46,18 @@ describe('LoginCallback UI component', () => {
   });
 
   it('navigates to authUrl after being rendered', async () => {
+    // Given
+    vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => {
+      if (
+        node instanceof HTMLMetaElement &&
+        node.httpEquiv.toLowerCase() === 'refresh'
+      ) {
+        const match = node.content.match(/url=(?<url>.+)$/);
+        window.location.href = match?.groups?.url as string;
+      }
+      return node;
+    });
+
     // When
     render(<LoginCallback />);
     await waitFor(() => window.location.href !== undefined);
