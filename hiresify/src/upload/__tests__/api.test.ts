@@ -109,8 +109,5 @@ describe('Multipart Upload APIs', () => {
     // Then
     expect(calledEndpoints).toEqual([blobUrls.upload]);
     expect(response.status).toBe(200);
-
-    const blob = await response.json();
-    expect(blob.fileName).toBe(fileName);
   });
 });

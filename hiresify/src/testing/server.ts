@@ -5,7 +5,6 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
-import type { BackendBlob } from '@/backend-type';
 import { blobUrls, tokenUrls } from '@/urls';
 
 const handlers = [
@@ -21,24 +20,8 @@ const handlers = [
   http.delete(blobUrls.upload, () => {
     return new HttpResponse(null, { status: 204 });
   }),
-  http.put(blobUrls.upload, async ({ request }) => {
-    const data = await request.formData();
-
-    const createdAt = new Date(Date.now());
-    const validThru = new Date(createdAt.getTime() + 1000);
-
-    const blob: Omit<BackendBlob, 'createdAt' | 'validThru'> & {
-      createdAt: string;
-      validThru: string;
-    } = {
-      uid: 'blob-uid',
-      fileName: data.get('file_name') as string,
-      mimeType: 'image',
-      createdAt: createdAt.toISOString(),
-      validThru: validThru.toISOString(),
-    };
-
-    return HttpResponse.json(blob, { status: 200 });
+  http.put(blobUrls.upload, async () => {
+    return HttpResponse.json(null, { status: 200 });
   }),
 ];
 
