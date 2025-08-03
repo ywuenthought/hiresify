@@ -55,7 +55,7 @@ export function useUpload(args: { file: File; partSize: number }) {
             if (response.ok) {
               setComplete(true);
             } else {
-              throw new Error(`Failed to finish the upload for ${file.name}.`);
+              throw new Error(`Failed to upload ${file.name}.`);
             }
           }
         } else {

@@ -27,7 +27,10 @@ const handlers = [
     const createdAt = new Date(Date.now());
     const validThru = new Date(createdAt.getTime() + 1000);
 
-    const blob: BackendBlob = {
+    const blob: Omit<BackendBlob, 'createdAt' | 'validThru'> & {
+      createdAt: string;
+      validThru: string;
+    } = {
       uid: 'blob-uid',
       fileName: data.get('file_name') as string,
       mimeType: 'image',

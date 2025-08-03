@@ -111,6 +111,6 @@ describe('Multipart Upload APIs', () => {
     expect(response.status).toBe(200);
 
     const blob = await response.json();
-    console.log(blob);
+    expect(blob.fileName).toBe(fileName);
   });
 });
