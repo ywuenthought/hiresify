@@ -16,7 +16,7 @@ export async function cancel(args: { uploadId: string }): Promise<Response> {
       credentials: 'include',
     });
   } catch {
-    throw new Error('Network error or aborted.');
+    throw new Error('Network crashed.');
   }
 }
 
@@ -36,7 +36,7 @@ export async function create(args: { file: File }): Promise<Response> {
       credentials: 'include',
     });
   } catch {
-    throw new Error('Network error or aborted.');
+    throw new Error('Network crashed.');
   }
 }
 
@@ -57,7 +57,7 @@ export async function finish(args: {
       credentials: 'include',
     });
   } catch {
-    throw new Error('Network error or aborted.');
+    throw new Error('Network crashed.');
   }
 }
 
@@ -79,7 +79,11 @@ export async function upload(args: {
       credentials: 'include',
       signal: controller.signal,
     });
-  } catch {
-    throw new Error('Network error or aborted.');
+  } catch (error) {
+    throw new Error(
+      error instanceof DOMException && error.name === 'AbortError'
+        ? 'Request aborted.'
+        : 'Network crashed.'
+    );
   }
 }

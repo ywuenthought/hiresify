@@ -56,7 +56,13 @@ export function useUpload(args: { file: File; partSize: number }): {
           } else {
             store.failPart({ part });
           }
-        } catch {
+        } catch (error) {
+          const { message } = error as Error;
+
+          if (message === 'Request aborted.') {
+            return;
+          }
+
           store.failPart({ part });
         }
 

@@ -67,7 +67,7 @@ describe('Multipart Upload APIs', () => {
 
     // When/Then
     await expect(upload({ part, uploadId, controller })).rejects.toThrow(
-      'Network error or aborted.'
+      'Request aborted.'
     );
 
     expect(calledEndpoints).toEqual([expectedEndpoint]);
