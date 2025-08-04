@@ -2,48 +2,45 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import { Delete, InsertDriveFile, Movie, Photo } from '@mui/icons-material';
-import {
-  IconButton,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-} from '@mui/material';
+import { InsertDriveFile, Movie, Photo } from '@mui/icons-material';
+import { Box, Stack, Typography } from '@mui/material';
+import type { ReactNode } from 'react';
+
+const iconPerMedia = {
+  image: <Photo />,
+  video: <Movie />,
+  unknown: <InsertDriveFile />,
+};
 
 type FileProfileProps = {
   fileName: string;
-  fileType?: 'image' | 'video';
-  removeFile: () => void;
+  fileType?: 'image' | 'video' | 'unknown';
+  majorButton?: ReactNode;
+  minorButton?: ReactNode;
 };
 
 export default function FileProfile(props: FileProfileProps) {
-  const { fileName, fileType } = props;
-  const { removeFile } = props;
-
-  let mediaIcon;
-
-  switch (fileType) {
-    case 'image':
-      mediaIcon = <Photo />;
-      break;
-    case 'video':
-      mediaIcon = <Movie />;
-      break;
-    default:
-      mediaIcon = <InsertDriveFile />;
-      break;
-  }
+  const { fileName, fileType = 'unknown', majorButton, minorButton } = props;
+  const mediaIcon = iconPerMedia[fileType];
 
   return (
-    <ListItem
-      secondaryAction={
-        <IconButton onClick={removeFile}>
-          <Delete />
-        </IconButton>
-      }
-    >
-      <ListItemIcon>{mediaIcon}</ListItemIcon>
-      <ListItemText primary={fileName} />
-    </ListItem>
+    <Box sx={{ width: '100%' }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{
+          alignItems: 'center',
+          display: 'flex',
+          justifyContent: 'flex-start',
+        }}
+      >
+        {mediaIcon}
+        <Typography variant="body1" sx={{ flexGrow: 1, textAlign: 'left' }}>
+          {fileName}
+        </Typography>
+        {majorButton}
+        {minorButton}
+      </Stack>
+    </Box>
   );
 }

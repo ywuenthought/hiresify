@@ -38,7 +38,7 @@ export function useUpload(args: { file: File; partSize: number }): {
   const controllers = useRef<AbortController[]>([]).current;
 
   const [degree, setDegree] = useState<number>(0);
-  const [status, setStatus] = useState<UploadStatus>(null);
+  const [status, setStatus] = useState<UploadStatus>('active');
 
   const factory = useCallback(
     (args: { controller: AbortController; part: UploadPart }) => {
@@ -112,7 +112,7 @@ export function useUpload(args: { file: File; partSize: number }): {
           return setStatus('failed');
         }
 
-        uploadIdRef.current = await response.text();
+        uploadIdRef.current = (await response.json()) as string;
         await store.init({ file, partSize });
 
         setStatus('active');

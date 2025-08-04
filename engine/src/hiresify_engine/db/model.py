@@ -118,7 +118,7 @@ class BlobORM(Base):
     )
 
     #: The blob key to identify this blob in the blob store.
-    blob_key: Mapped[str] = mapped_column(String(74), nullable=False)
+    blob_key: Mapped[str] = mapped_column(String(256), nullable=False)
 
     #: The name of this blob file.
     file_name: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -147,7 +147,7 @@ class UploadORM(Base):
     uid: Mapped[str] = mapped_column(String(128), nullable=False)
 
     #: The blob key to identify the blob in the blob store.
-    blob_key: Mapped[str] = mapped_column(String(74), nullable=False)
+    blob_key: Mapped[str] = mapped_column(String(256), nullable=False)
 
     #: The date and time when the upload was created.
     created_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)

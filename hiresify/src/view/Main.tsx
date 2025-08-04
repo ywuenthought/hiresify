@@ -2,24 +2,25 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import { Box, Divider, List, Paper, Stack, Typography } from '@mui/material';
+import { Box, Paper, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
 
 import bg from '@/assets/bg.jpg';
 import Background from '@/component/Background';
-import FileProfile from '@/component/FileProfile';
 import LogoutButton from '@/component/LogoutButton';
+import FileController from '@/composite/FileController';
+import { CHUNK_SIZE } from '@/const';
 import { routes } from '@/routes';
 import { tokenUrls } from '@/urls';
 
 export default function Main() {
   const navigate = useNavigate();
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<Set<File>>(new Set());
 
   const onDrop = useCallback((curFiles: File[]) => {
-    setFiles((preFiles) => [...preFiles, ...curFiles]);
+    setFiles((preFiles) => new Set([...preFiles, ...curFiles]));
   }, []);
   const { getInputProps, getRootProps, isDragActive } = useDropzone({ onDrop });
 
@@ -87,18 +88,20 @@ export default function Main() {
             width: 700,
           }}
         >
-          <List>
-            {files.map((file, index) => (
-              <>
-                <FileProfile
-                  fileName={file.name}
-                  key={`fileProfile:${index}`}
-                  removeFile={() => undefined}
-                />
-                <Divider />
-              </>
-            ))}
-          </List>
+          {Array.from(files).map((file, index) => (
+            <FileController
+              key={`controller:${index}`}
+              file={file}
+              partSize={CHUNK_SIZE}
+              removeFile={() =>
+                setFiles((preFiles) => {
+                  const curFiles = new Set(preFiles);
+                  curFiles.delete(file);
+                  return curFiles;
+                })
+              }
+            />
+          ))}
         </Paper>
       </Stack>
     </Background>

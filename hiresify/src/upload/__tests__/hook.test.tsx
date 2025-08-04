@@ -23,7 +23,7 @@ describe('UseUpload hook', () => {
 
   beforeEach(() => {
     vi.spyOn(api, 'create').mockImplementation(async () => {
-      return new Response(`upload-id`, { status: 201 });
+      return Response.json('upload-id', { status: 201 });
     });
 
     vi.spyOn(api, 'upload').mockImplementation(async () => {
@@ -131,7 +131,7 @@ describe('UseUpload hook', () => {
     // Given
     vi.spyOn(api, 'create')
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
-      .mockResolvedValueOnce(new Response(`upload-id`, { status: 201 }));
+      .mockResolvedValueOnce(Response.json('upload-id', { status: 201 }));
 
     const { result } = renderHook(() => useUpload({ file, partSize }), {
       wrapper,

@@ -2,43 +2,31 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import { Pause } from '@mui/icons-material';
-import {
-  Box,
-  IconButton,
-  LinearProgress,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { LinearProgress, Stack, Typography } from '@mui/material';
 
 type ProgressBarProps = {
   progress: number;
-  pauseUpload: () => void;
 };
 
 export default function ProgressBar(props: ProgressBarProps) {
   const { progress } = props;
-  const { pauseUpload } = props;
-
-  const progressPercetage = progress * 100;
 
   return (
-    <Box sx={{ height: 4, width: 60 }}>
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{
-          alignItems: 'center',
-          display: 'flex',
-          justifyContent: 'center',
-        }}
-      >
-        <IconButton onClick={pauseUpload}>
-          <Pause />
-        </IconButton>
-        <LinearProgress value={progressPercetage} variant="determinate" />
-        <Typography variant="body1">{progressPercetage}</Typography>
-      </Stack>
-    </Box>
+    <Stack
+      direction="row"
+      spacing={1}
+      sx={{
+        alignItems: 'center',
+        display: 'flex',
+        justifyContent: 'flex-start',
+      }}
+    >
+      <LinearProgress
+        value={progress}
+        variant="determinate"
+        sx={{ flexGrow: 1 }}
+      />
+      <Typography variant="body1">{`${progress.toFixed(0)}%`}</Typography>
+    </Stack>
   );
 }

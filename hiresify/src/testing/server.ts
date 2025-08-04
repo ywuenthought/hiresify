@@ -12,7 +12,7 @@ const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
   http.post(blobUrls.upload, () => {
-    return new HttpResponse('upload-id', { status: 201 });
+    return HttpResponse.json('upload-id', { status: 201 });
   }),
   http.patch(new RegExp(`^${blobUrls.upload}/[1-9]\\d*$`), () => {
     return new HttpResponse(null, { status: 200 });
