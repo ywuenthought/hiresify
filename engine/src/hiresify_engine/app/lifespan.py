@@ -47,6 +47,8 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
 
     yield
 
-    await blob.dispose()
+    async with blob.start_session(config.production) as session:
+        await session.dispose()
+
     await cache.dispose()
     await repo.dispose()

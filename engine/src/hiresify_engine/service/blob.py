@@ -17,7 +17,7 @@ from hiresify_engine.model import UploadPart
 
 
 class BlobService:
-    """A wrapper class providing APIs to manage the blob store."""
+    """A wrapper class providing an API to start a blob session."""
 
     def __init__(
         self,
@@ -36,12 +36,10 @@ class BlobService:
         self._access_key = access_key
         self._secret_key = secret_key
 
-        self._client: S3Client | None = None
-
     @asynccontextmanager
     async def start_session(
         self, production: bool = False,
-    ) -> ty.AsyncGenerator["BlobService", None]:
+    ) -> ty.AsyncGenerator["BlobSession", None]:
         """Start an AIOHTTP TCP session for managing files."""
         config = AioConfig(
             retries=dict(max_attempts=3),
@@ -58,25 +56,24 @@ class BlobService:
             region_name=self._region_tag,
             use_ssl=production,
         ) as client:
-            self._client = client
-            try:
-                yield self
-            finally:
-                self._client = None
+            yield BlobSession(client)
+
+
+class BlobSession:
+    """A wrapper class providing APIs to manage the blob store."""
+
+    def __init__(self, client: S3Client) -> None:
+        """Initialize a new instance of BlobSession."""
+        self._client = client
 
     async def init_bucket(self) -> None:
         """Initialize the bucket in the blob store."""
-        if self._client is None:
-            raise RuntimeError("S3 client has not been initialized.")
-
         resp = await self._client.list_buckets()
         if all(bucket["Name"] != BUCKET_NAME for bucket in resp["Buckets"]):
             await self._client.create_bucket(Bucket=BUCKET_NAME)
 
     async def dispose(self) -> None:
         """Dispose of resources held by the blob service."""
-        if self._client is not None:
-            raise RuntimeError("S3 client is still active.")
 
     #################
     # blob management
@@ -84,9 +81,6 @@ class BlobService:
 
     async def start_upload(self, blob_key: str) -> str:
         """Start a session for a multipart upload of a file."""
-        if self._client is None:
-            raise RuntimeError("S3 client has not been initialized.")
-
         resp = await self._client.create_multipart_upload(
             Bucket=BUCKET_NAME,
             Key=blob_key,
@@ -102,9 +96,6 @@ class BlobService:
         upload_id: str,
     ) -> None:
         """Upload the given part of a media file."""
-        if self._client is None:
-            raise RuntimeError("S3 client has not been initialized.")
-
         await self._client.upload_part(
             Body=data_chunk,
             Bucket=BUCKET_NAME,
@@ -115,9 +106,6 @@ class BlobService:
 
     async def finish_upload(self, blob_key: str, upload_id: str) -> None:
         """Finish the session for a multipart upload of a file."""
-        if self._client is None:
-            raise RuntimeError("S3 client has not been initialized.")
-
         upload_parts = await self.report_parts(blob_key, upload_id)
         await self._client.complete_multipart_upload(
             Bucket=BUCKET_NAME,
@@ -134,9 +122,6 @@ class BlobService:
 
     async def cancel_upload(self, blob_key: str, upload_id: str) -> None:
         """Cancel the session for a multipart upload of a file."""
-        if self._client is None:
-            raise RuntimeError("S3 client has not been initialized.")
-
         await self._client.abort_multipart_upload(
             Bucket=BUCKET_NAME,
             Key=blob_key,
@@ -145,9 +130,6 @@ class BlobService:
 
     async def report_parts(self, blob_key: str, upload_id: str) -> list[UploadPart]:
         """Report the parts of a file that were already uploaded."""
-        if self._client is None:
-            raise RuntimeError("S3 client has not been initialized.")
-
         resp = await self._client.list_parts(
             Bucket=BUCKET_NAME,
             Key=blob_key,
@@ -168,7 +150,4 @@ class BlobService:
 
     async def delete_blob(self, blob_key: str) -> None:
         """Delete the blob given its blob key."""
-        if self._client is None:
-            raise RuntimeError("S3 client has not been initialized.")
-
         await self._client.delete_object(Bucket=BUCKET_NAME, Key=blob_key)

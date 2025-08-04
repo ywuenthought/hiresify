@@ -18,7 +18,7 @@ async def service() -> ty.AsyncGenerator[TestBlobService, None]:
     async with service.start_session() as session:
         await session.init_bucket()
 
-    yield session
+    yield service
 
 
 @pytest.fixture(scope="function")

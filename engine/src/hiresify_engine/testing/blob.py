@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from uuid import uuid4
 
-from hiresify_engine.service.blob import BlobService
+from hiresify_engine.service.blob import BlobService, BlobSession
 
 
 @dataclass(frozen=True)
@@ -134,14 +134,11 @@ class TestBlobService(BlobService):
 
     def __init__(self) -> None:
         """Initialize a new instance of this class."""
-        self._client = MockBlobStore()  # type: ignore[assignment]
+        self._store = MockBlobStore()
 
     @asynccontextmanager
     async def start_session(
         self, production: bool = False,
-    ) -> ty.AsyncGenerator["TestBlobService", None]:
+    ) -> ty.AsyncGenerator[BlobSession, None]:
         """Start a session for managing files."""
-        try:
-            yield self
-        finally:
-            pass
+        yield BlobSession(self._store)  # type: ignore[arg-type]
