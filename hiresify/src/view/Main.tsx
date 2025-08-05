@@ -2,27 +2,33 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import { Box, Paper, Stack, Typography } from '@mui/material';
+import { Box, Paper, Stack } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
 
 import bg from '@/assets/bg.jpg';
 import Background from '@/component/Background';
+import DragDropBox from '@/component/DragDropBox';
 import LogoutButton from '@/component/LogoutButton';
 import FileController from '@/composite/FileController';
 import { CHUNK_SIZE } from '@/const';
 import { routes } from '@/routes';
 import { tokenUrls } from '@/urls';
+import { getUuid4 } from '@/util';
 
 export default function Main() {
   const navigate = useNavigate();
-  const [files, setFiles] = useState<Set<File>>(new Set());
+  const [files, setFiles] = useState<Map<string, File>>(new Map());
 
   const onDrop = useCallback((curFiles: File[]) => {
-    setFiles((preFiles) => new Set([...preFiles, ...curFiles]));
+    setFiles(
+      (preFiles) =>
+        new Map([
+          ...preFiles,
+          ...curFiles.map((file) => [getUuid4(), file] as [string, File]),
+        ])
+    );
   }, []);
-  const { getInputProps, getRootProps, isDragActive } = useDropzone({ onDrop });
 
   useEffect(() => {
     const refreshToken = async () => {
@@ -53,32 +59,7 @@ export default function Main() {
           justifyContent: 'center',
         }}
       >
-        <Box
-          {...getRootProps()}
-          sx={{
-            bgcolor: isDragActive ? '#808080' : '#ffffff',
-            border: '2px dashed #808080',
-            cursor: 'pointer',
-            height: 150,
-            padding: 4,
-            width: 700,
-            zIndex: 0,
-          }}
-        >
-          <Stack
-            sx={{
-              alignItems: 'center',
-              display: 'flex',
-              height: '100%',
-              justifyContent: 'center',
-            }}
-          >
-            <input {...getInputProps()} />
-            <Typography gutterBottom variant="h5">
-              Drag and drop files here, or click to select.
-            </Typography>
-          </Stack>
-        </Box>
+        <DragDropBox onDrop={onDrop} />
         <Paper
           elevation={4}
           sx={{
@@ -88,15 +69,15 @@ export default function Main() {
             width: 700,
           }}
         >
-          {Array.from(files).map((file, index) => (
+          {Array.from(files.entries()).map(([uid, file]) => (
             <FileController
-              key={`controller:${index}`}
+              key={`controller:${uid}`}
               file={file}
               partSize={CHUNK_SIZE}
               removeFile={() =>
                 setFiles((preFiles) => {
-                  const curFiles = new Set(preFiles);
-                  curFiles.delete(file);
+                  const curFiles = new Map(preFiles);
+                  curFiles.delete(uid);
                   return curFiles;
                 })
               }

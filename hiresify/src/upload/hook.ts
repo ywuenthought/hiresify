@@ -69,20 +69,22 @@ export function useUpload(args: { file: File; partSize: number }): {
         const doneSize = store.getDoneSize();
         setDegree((doneSize / file.size) * 100);
 
-        if (store.getAllClear()) {
-          // Clear abort controllers.
-          controllers.length = 0;
+        if (!store.getAllClear()) {
+          return;
+        }
 
-          if (doneSize !== file.size) {
-            return setStatus('failed');
-          }
+        // Clear abort controllers.
+        controllers.length = 0;
 
-          try {
-            const response = await api.finish({ fileName, uploadId });
-            setStatus(response.ok ? 'passed' : 'failed');
-          } catch {
-            setStatus('failed');
-          }
+        if (doneSize !== file.size) {
+          return setStatus('failed');
+        }
+
+        try {
+          const response = await api.finish({ fileName, uploadId });
+          setStatus(response.ok ? 'passed' : 'failed');
+        } catch {
+          setStatus('failed');
         }
       };
     },
@@ -161,8 +163,12 @@ export function useUpload(args: { file: File; partSize: number }): {
 
   const abort = useCallback(async () => {
     await pause();
-
     const uploadId = uploadIdRef.current;
+
+    if (!uploadId) {
+      return;
+    }
+
     await api.cancel({ uploadId });
   }, [pause]);
 
