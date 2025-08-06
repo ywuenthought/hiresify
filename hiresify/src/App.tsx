@@ -13,6 +13,7 @@ import Home from './view/Home';
 import LoginCallback from './view/LoginCallback';
 import Main from './view/Main';
 import RegisterCallback from './view/RegisterCallback';
+import RequireAuthorized from './view/RequireAuthorized';
 
 export default function App() {
   return (
@@ -20,7 +21,14 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to={routes.main.root} replace />} />
         <Route path={routes.home.root} element={<Home />} />
-        <Route path={routes.main.root} element={<Main />} />
+        <Route
+          path={routes.main.root}
+          element={
+            <RequireAuthorized homePath={routes.home.root}>
+              <Main />
+            </RequireAuthorized>
+          }
+        />
         <Route
           path={
             `${routes.home.root}` +

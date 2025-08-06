@@ -3,8 +3,7 @@
 // See the LICENSE file for more details.
 
 import { Box, Paper, Stack } from '@mui/material';
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useState } from 'react';
 
 import bg from '@/assets/bg.jpg';
 import Background from '@/component/Background';
@@ -12,12 +11,9 @@ import DragDropBox from '@/component/DragDropBox';
 import LogoutButton from '@/component/LogoutButton';
 import FileController from '@/composite/FileController';
 import { CHUNK_SIZE } from '@/const';
-import { routes } from '@/routes';
-import { tokenUrls } from '@/urls';
 import { getUuid4 } from '@/util';
 
 export default function Main() {
-  const navigate = useNavigate();
   const [files, setFiles] = useState<Map<string, File>>(new Map());
 
   const onDrop = useCallback((curFiles: File[]) => {
@@ -29,21 +25,6 @@ export default function Main() {
         ])
     );
   }, []);
-
-  useEffect(() => {
-    const refreshToken = async () => {
-      const resp = await fetch(tokenUrls.refresh, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!resp.ok) {
-        navigate(routes.home.root);
-      }
-    };
-
-    refreshToken();
-  }, [navigate]);
 
   return (
     <Background imageAddress={bg}>
