@@ -24,7 +24,7 @@ export default function App() {
         <Route
           path={routes.main.root}
           element={
-            <RequireAuthorized homePath={routes.home.root}>
+            <RequireAuthorized>
               <Main />
             </RequireAuthorized>
           }

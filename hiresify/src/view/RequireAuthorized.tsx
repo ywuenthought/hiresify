@@ -7,15 +7,15 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { routes } from '@/routes';
 import { tokenUrls } from '@/urls';
 
 type RequireAuthorizedProps = {
   children: ReactNode;
-  homePath: string;
 };
 
 export default function RequireAuthorized(props: RequireAuthorizedProps) {
-  const { children, homePath } = props;
+  const { children } = props;
 
   const navigate = useNavigate();
 
@@ -29,14 +29,14 @@ export default function RequireAuthorized(props: RequireAuthorizedProps) {
       });
 
       if (!resp.ok) {
-        navigate(homePath);
+        navigate(routes.home.root);
       }
 
       setAuthorized(resp.ok);
     };
 
     refreshToken();
-  }, [homePath, navigate]);
+  }, [navigate]);
 
   if (!authorized) {
     return (
