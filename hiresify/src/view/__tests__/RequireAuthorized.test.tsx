@@ -23,10 +23,11 @@ import { routes } from '@/routes';
 import server from '@/testing/server';
 import { tokenUrls } from '@/urls';
 
-import Main from '../Main';
+import RequireAuthorized from '../RequireAuthorized';
 
-describe('Main view', () => {
+describe('RequireAuthorized view', () => {
   const calledEndpoints: string[] = [];
+  const children = <></>;
 
   beforeAll(() => {
     server.listen();
@@ -57,7 +58,9 @@ describe('Main view', () => {
     );
 
     // When
-    const { baseElement: root } = render(<Main />);
+    const { baseElement: root } = render(
+      <RequireAuthorized>{children}</RequireAuthorized>
+    );
 
     // Then
     expect(root).toBeTruthy();
@@ -73,7 +76,7 @@ describe('Main view', () => {
     );
 
     // When
-    render(<Main />);
+    render(<RequireAuthorized>{children}</RequireAuthorized>);
 
     // Then
     await waitFor(() => expect(calledEndpoints).toEqual([tokenUrls.refresh]));
@@ -90,7 +93,7 @@ describe('Main view', () => {
     );
 
     // When
-    render(<Main />);
+    render(<RequireAuthorized>{children}</RequireAuthorized>);
 
     // Then
     await waitFor(() => expect(calledEndpoints).toEqual([tokenUrls.refresh]));
