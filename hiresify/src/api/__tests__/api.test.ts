@@ -5,8 +5,7 @@
 import server from '@/testing/server';
 import { blobUrls } from '@/urls';
 
-import { cancel, create, finish, upload } from '../api';
-import type { UploadPart } from '../type';
+import { cancel, create, finish, upload } from '../blob';
 
 describe('Multipart Upload APIs', () => {
   const calledEndpoints: string[] = [];
@@ -57,24 +56,26 @@ describe('Multipart Upload APIs', () => {
 
   it('uploads file chunks that is abortable', async () => {
     // Given
-    const part: UploadPart = { index: 1, chunk: file };
+    const chunk = file;
+    const index = 1;
     const uploadId = 'upload-id';
 
     const controller = new AbortController();
     controller.abort();
 
-    const expectedEndpoint = `${blobUrls.upload}/${part.index}`;
+    const expectedEndpoint = `${blobUrls.upload}/${index}`;
 
     // When/Then
-    await expect(upload({ part, uploadId, controller })).rejects.toThrow(
-      'Request aborted.'
-    );
+    await expect(
+      upload({ chunk, index, uploadId, controller })
+    ).rejects.toThrow('Request aborted.');
 
     expect(calledEndpoints).toEqual([expectedEndpoint]);
 
     // When
     const response = await upload({
-      part,
+      chunk,
+      index,
       uploadId,
       controller: new AbortController(),
     });

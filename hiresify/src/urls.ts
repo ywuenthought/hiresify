@@ -21,6 +21,8 @@ export const userUrls = {
 };
 
 export const blobUrls = {
+  delete: `${API_ORIGIN}/blob/delete`,
+  fetch: `${API_ORIGIN}/blob/fetch`,
   upload: `${API_ORIGIN}/blob/upload`,
 };
 

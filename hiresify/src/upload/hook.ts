@@ -4,9 +4,9 @@
 
 import { useCallback, useContext, useRef, useState } from 'react';
 
+import * as api from '@/api/blob';
 import { defer } from '@/util';
 
-import * as api from './api';
 import { UploadQueueContext } from './queue';
 import UploadMemoryStore from './store';
 import type { SimpleAsyncThunk, UploadPart, UploadStatus } from './type';
@@ -43,13 +43,19 @@ export function useUpload(args: { file: File; partSize: number }): {
   const factory = useCallback(
     (args: { controller: AbortController; part: UploadPart }) => {
       const { controller, part } = args;
+      const { chunk, index } = part;
 
       const fileName = file.name;
       const uploadId = uploadIdRef.current;
 
       return async (): Promise<void> => {
         try {
-          const response = await api.upload({ part, uploadId, controller });
+          const response = await api.upload({
+            chunk,
+            index,
+            uploadId,
+            controller,
+          });
 
           if (response.ok) {
             store.passPart({ part });

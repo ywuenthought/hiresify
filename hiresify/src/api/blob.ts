@@ -4,8 +4,6 @@
 
 import { blobUrls } from '@/urls';
 
-import type { UploadPart } from './type';
-
 export async function cancel(args: { uploadId: string }): Promise<Response> {
   const { uploadId } = args;
   const url = `${blobUrls.upload}?upload_id=${encodeURIComponent(uploadId)}`;
@@ -40,6 +38,30 @@ export async function create(args: { file: File }): Promise<Response> {
   }
 }
 
+export async function remove(args: { blobUid: string }): Promise<Response> {
+  const { blobUid } = args;
+
+  try {
+    return await fetch(`${blobUrls.delete}?blob_uid=${blobUid}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+  } catch {
+    throw new Error('Network crashed.');
+  }
+}
+
+export async function fetchAll(): Promise<Response> {
+  try {
+    return await fetch(blobUrls.fetch, {
+      method: 'GET',
+      credentials: 'include',
+    });
+  } catch {
+    throw new Error('Network crashed.');
+  }
+}
+
 export async function finish(args: {
   fileName: string;
   uploadId: string;
@@ -62,18 +84,19 @@ export async function finish(args: {
 }
 
 export async function upload(args: {
-  part: UploadPart;
+  chunk: Blob;
+  index: number;
   uploadId: string;
   controller: AbortController;
 }): Promise<Response> {
-  const { part, uploadId, controller } = args;
+  const { chunk, index, uploadId, controller } = args;
 
   const form = new FormData();
-  form.append('file', part.chunk);
+  form.append('file', chunk);
   form.append('upload_id', uploadId);
 
   try {
-    return await fetch(`${blobUrls.upload}/${part.index}`, {
+    return await fetch(`${blobUrls.upload}/${index}`, {
       method: 'PATCH',
       body: form,
       credentials: 'include',

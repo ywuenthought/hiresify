@@ -5,7 +5,8 @@
 import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import * as api from '../api';
+import * as api from '@/api/blob';
+
 import { useUpload } from '../hook';
 import UploadQueueProvider from '../provider';
 
