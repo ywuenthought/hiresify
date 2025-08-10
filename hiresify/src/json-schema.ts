@@ -10,7 +10,7 @@ export type BlobSchema = {
   fileName: string;
 
   // The MIME type of this blob file.
-  mimeType: string | null;
+  mimeType: string;
 
   // The date and time when the blob was created.
   createdAt: string;

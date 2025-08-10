@@ -3,10 +3,11 @@
 // Access, use, and distribution is subject to written agreement
 // by and between Enthought, Inc. and Daiichi Sankyo.
 
-import { combineSlices } from '@reduxjs/toolkit';
+import { createAsyncThunk } from '@reduxjs/toolkit';
 
-import blobReducer from '@/feature/blob/slice';
+import { fetchAll } from '@/api/blob';
 
-const rootReducer = combineSlices({ blob: blobReducer });
-
-export default rootReducer;
+export const fetchAllBlobs = createAsyncThunk(
+  'blob/fetchAll',
+  async () => await fetchAll()
+);
