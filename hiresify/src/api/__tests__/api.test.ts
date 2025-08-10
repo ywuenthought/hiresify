@@ -47,11 +47,11 @@ describe('Multipart Upload APIs', () => {
     expect(calledEndpoints).toEqual([]);
 
     // When
-    const response = await create({ file });
+    const { code } = await create({ file });
 
     // Then
     expect(calledEndpoints).toEqual([blobUrls.upload]);
-    expect(response.status).toBe(201);
+    expect(code).toBe(201);
   });
 
   it('uploads file chunks that is abortable', async () => {
@@ -73,7 +73,7 @@ describe('Multipart Upload APIs', () => {
     expect(calledEndpoints).toEqual([expectedEndpoint]);
 
     // When
-    const response = await upload({
+    const { code } = await upload({
       chunk,
       index,
       uploadId,
@@ -82,7 +82,7 @@ describe('Multipart Upload APIs', () => {
 
     // Then
     expect(calledEndpoints).toEqual([expectedEndpoint, expectedEndpoint]);
-    expect(response.status).toBe(200);
+    expect(code).toBe(200);
   });
 
   it('cancels the file upload this time', async () => {
@@ -90,13 +90,13 @@ describe('Multipart Upload APIs', () => {
     const uploadId = 'upload-id';
 
     // When
-    const response = await cancel({ uploadId });
+    const { code } = await cancel({ uploadId });
 
     // Then
     expect(calledEndpoints).toEqual([
       `${blobUrls.upload}?upload_id=${uploadId}`,
     ]);
-    expect(response.status).toBe(204);
+    expect(code).toBe(204);
   });
 
   it('finishes the file upload', async () => {
@@ -105,10 +105,10 @@ describe('Multipart Upload APIs', () => {
     const uploadId = 'upload-id';
 
     // When
-    const response = await finish({ fileName, uploadId });
+    const { code } = await finish({ fileName, uploadId });
 
     // Then
     expect(calledEndpoints).toEqual([blobUrls.upload]);
-    expect(response.status).toBe(200);
+    expect(code).toBe(200);
   });
 });

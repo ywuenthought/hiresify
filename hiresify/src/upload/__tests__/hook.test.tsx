@@ -6,6 +6,7 @@ import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import * as api from '@/api/blob';
+import { getTestBackendBlob } from '@/testing/blob';
 
 import { useUpload } from '../hook';
 import UploadQueueProvider from '../provider';
@@ -24,15 +25,15 @@ describe('UseUpload hook', () => {
 
   beforeEach(() => {
     vi.spyOn(api, 'create').mockImplementation(async () => {
-      return Response.json('upload-id', { status: 201 });
+      return { text: 'upload-id', code: 201 };
     });
 
     vi.spyOn(api, 'upload').mockImplementation(async () => {
-      return new Response(null, { status: 200 });
+      return { ok: true, code: 200 };
     });
 
     vi.spyOn(api, 'finish').mockImplementation(async () => {
-      return new Response(null, { status: 200 });
+      return { blob: getTestBackendBlob(), code: 200 };
     });
   });
 
@@ -86,7 +87,7 @@ describe('UseUpload hook', () => {
     // Given
     vi.spyOn(api, 'upload')
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
-      .mockResolvedValue(new Response(null, { status: 200 }));
+      .mockResolvedValue({ ok: true, code: 200 });
 
     const { result } = renderHook(() => useUpload({ file, partSize }), {
       wrapper,
@@ -132,7 +133,7 @@ describe('UseUpload hook', () => {
     // Given
     vi.spyOn(api, 'create')
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
-      .mockResolvedValueOnce(Response.json('upload-id', { status: 201 }));
+      .mockResolvedValueOnce({ text: 'upload-id', code: 201 });
 
     const { result } = renderHook(() => useUpload({ file, partSize }), {
       wrapper,
@@ -157,7 +158,7 @@ describe('UseUpload hook', () => {
     vi.spyOn(api, 'upload')
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
-      .mockResolvedValue(new Response(null, { status: 200 }));
+      .mockResolvedValue({ ok: true, code: 200 });
 
     const { result } = renderHook(() => useUpload({ file, partSize }), {
       wrapper,

@@ -2,9 +2,7 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import type { BlobSchema } from './json-schema';
-
-export type BackendBlob = {
+export type BlobSchema = {
   // The UID of this blob.
   uid: string;
 
@@ -15,20 +13,8 @@ export type BackendBlob = {
   mimeType: string | null;
 
   // The date and time when the blob was created.
-  createdAt: Date;
+  createdAt: string;
 
   // The date and time when the blob is valid through.
-  validThru: Date;
+  validThru: string;
 };
-
-export function buildBlobBySchema(args: { schema: BlobSchema }): BackendBlob {
-  const {
-    schema: { createdAt, validThru, ...rest },
-  } = args;
-
-  return {
-    ...rest,
-    createdAt: new Date(createdAt),
-    validThru: new Date(validThru),
-  };
-}

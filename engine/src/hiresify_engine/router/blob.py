@@ -108,7 +108,7 @@ async def upload_chunk(
         )
 
 
-@router.put("/upload")
+@router.put("/upload", response_model=Blob)
 async def finish_upload(
     upload_id: str = Form(..., max_length=128),
     file_name: str = Form(..., max_length=256),
@@ -117,7 +117,7 @@ async def finish_upload(
     config: AppConfigDep,
     repo: RepositoryDep,
     request: Request,
-) -> None:
+) -> Blob:
     """Finish the upload specified by the given upload ID."""
     token = verify_token(
         request.cookies,
@@ -132,7 +132,7 @@ async def finish_upload(
     await repo.remove_upload(upload_id)
 
     created_at, valid_thru = get_interval_from_now(86400 * config.upload_ttl)
-    await repo.create_blob(
+    return await repo.create_blob(
         token.user_uid,
         blob_key=upload.blob_key,
         file_name=file_name,

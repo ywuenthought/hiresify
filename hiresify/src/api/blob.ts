@@ -4,21 +4,37 @@
 
 import { blobUrls } from '@/urls';
 
-export async function cancel(args: { uploadId: string }): Promise<Response> {
+import type {
+  BlobResponse,
+  BlobsResponse,
+  BoolResponse,
+  TextResponse,
+} from './type';
+import {
+  buildBlobResponse,
+  buildBlobsResponse,
+  buildBoolResponse,
+  buildTextResponse,
+} from './util';
+
+export async function cancel(args: {
+  uploadId: string;
+}): Promise<BoolResponse> {
   const { uploadId } = args;
   const url = `${blobUrls.upload}?upload_id=${encodeURIComponent(uploadId)}`;
 
   try {
-    return await fetch(url, {
+    const response = await fetch(url, {
       method: 'DELETE',
       credentials: 'include',
     });
+    return await buildBoolResponse({ response });
   } catch {
     throw new Error('Network crashed.');
   }
 }
 
-export async function create(args: { file: File }): Promise<Response> {
+export async function create(args: { file: File }): Promise<TextResponse> {
   const { file } = args;
   if (file.size < 4096) {
     throw new Error('File is too small to upload.');
@@ -28,35 +44,38 @@ export async function create(args: { file: File }): Promise<Response> {
   form.append('file', file);
 
   try {
-    return await fetch(blobUrls.upload, {
+    const response = await fetch(blobUrls.upload, {
       method: 'POST',
       body: form,
       credentials: 'include',
     });
+    return await buildTextResponse({ response });
   } catch {
     throw new Error('Network crashed.');
   }
 }
 
-export async function remove(args: { blobUid: string }): Promise<Response> {
+export async function remove(args: { blobUid: string }): Promise<BoolResponse> {
   const { blobUid } = args;
 
   try {
-    return await fetch(`${blobUrls.delete}?blob_uid=${blobUid}`, {
+    const response = await fetch(`${blobUrls.delete}?blob_uid=${blobUid}`, {
       method: 'DELETE',
       credentials: 'include',
     });
+    return await buildBoolResponse({ response });
   } catch {
     throw new Error('Network crashed.');
   }
 }
 
-export async function fetchAll(): Promise<Response> {
+export async function fetchAll(): Promise<BlobsResponse> {
   try {
-    return await fetch(blobUrls.fetch, {
+    const response = await fetch(blobUrls.fetch, {
       method: 'GET',
       credentials: 'include',
     });
+    return await buildBlobsResponse({ response });
   } catch {
     throw new Error('Network crashed.');
   }
@@ -65,7 +84,7 @@ export async function fetchAll(): Promise<Response> {
 export async function finish(args: {
   fileName: string;
   uploadId: string;
-}): Promise<Response> {
+}): Promise<BlobResponse> {
   const { fileName, uploadId } = args;
 
   const form = new FormData();
@@ -73,11 +92,12 @@ export async function finish(args: {
   form.append('upload_id', uploadId);
 
   try {
-    return await fetch(blobUrls.upload, {
+    const response = await fetch(blobUrls.upload, {
       method: 'PUT',
       body: form,
       credentials: 'include',
     });
+    return await buildBlobResponse({ response });
   } catch {
     throw new Error('Network crashed.');
   }
@@ -88,7 +108,7 @@ export async function upload(args: {
   index: number;
   uploadId: string;
   controller: AbortController;
-}): Promise<Response> {
+}): Promise<BoolResponse> {
   const { chunk, index, uploadId, controller } = args;
 
   const form = new FormData();
@@ -96,12 +116,13 @@ export async function upload(args: {
   form.append('upload_id', uploadId);
 
   try {
-    return await fetch(`${blobUrls.upload}/${index}`, {
+    const response = await fetch(`${blobUrls.upload}/${index}`, {
       method: 'PATCH',
       body: form,
       credentials: 'include',
       signal: controller.signal,
     });
+    return await buildBoolResponse({ response });
   } catch (error) {
     throw new Error(
       error instanceof DOMException && error.name === 'AbortError'

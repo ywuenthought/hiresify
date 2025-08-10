@@ -8,9 +8,9 @@ export async function defer() {
   await new Promise<void>((resolve) => queueMicrotask(resolve));
 }
 
-export async function getDetail(resp: Response): Promise<string> {
+export async function getDetail(resp: Response): Promise<string | undefined> {
   const { detail }: { detail?: string } = await resp.json();
-  return `HTTP ${resp.status}${detail ? `: ${detail}` : ''}`;
+  return detail;
 }
 
 export function getManyItems(keys: string[]) {

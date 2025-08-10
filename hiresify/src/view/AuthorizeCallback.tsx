@@ -48,7 +48,7 @@ export default function AuthorizeCallback() {
       });
 
       if (!resp.ok) {
-        setError(await getDetail(resp));
+        setError((await getDetail(resp)) ?? '');
         return;
       }
 

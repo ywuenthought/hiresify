@@ -5,6 +5,7 @@
 import { useCallback, useContext, useRef, useState } from 'react';
 
 import * as api from '@/api/blob';
+import type { BackendBlob } from '@/backend-type';
 import { defer } from '@/util';
 
 import { UploadQueueContext } from './queue';
@@ -24,6 +25,7 @@ export function useUploadQueue() {
 export function useUpload(args: { file: File; partSize: number }): {
   degree: number;
   status: UploadStatus;
+  synced: BackendBlob | null;
   abort: SimpleAsyncThunk;
   pause: SimpleAsyncThunk;
   retry: SimpleAsyncThunk;
@@ -39,6 +41,7 @@ export function useUpload(args: { file: File; partSize: number }): {
 
   const [degree, setDegree] = useState<number>(0);
   const [status, setStatus] = useState<UploadStatus>('active');
+  const [synced, setSynced] = useState<BackendBlob | null>(null);
 
   const factory = useCallback(
     (args: { controller: AbortController; part: UploadPart }) => {
@@ -50,14 +53,14 @@ export function useUpload(args: { file: File; partSize: number }): {
 
       return async (): Promise<void> => {
         try {
-          const response = await api.upload({
+          const { ok } = await api.upload({
             chunk,
             index,
             uploadId,
             controller,
           });
 
-          if (response.ok) {
+          if (ok) {
             store.passPart({ part });
           } else {
             store.failPart({ part });
@@ -87,8 +90,10 @@ export function useUpload(args: { file: File; partSize: number }): {
         }
 
         try {
-          const response = await api.finish({ fileName, uploadId });
-          setStatus(response.ok ? 'passed' : 'failed');
+          const { blob = null } = await api.finish({ fileName, uploadId });
+
+          setSynced(blob);
+          setStatus(blob ? 'passed' : 'failed');
         } catch {
           setStatus('failed');
         }
@@ -120,13 +125,13 @@ export function useUpload(args: { file: File; partSize: number }): {
       await enqueueJobs();
     } else {
       try {
-        const response = await api.create({ file });
+        const { text: uploadId } = await api.create({ file });
 
-        if (!response.ok) {
+        if (!uploadId) {
           return setStatus('failed');
         }
 
-        uploadIdRef.current = (await response.json()) as string;
+        uploadIdRef.current = uploadId;
         await store.init({ file, partSize });
 
         setStatus('active');
@@ -156,11 +161,13 @@ export function useUpload(args: { file: File; partSize: number }): {
       controllers.length = 0;
 
       try {
-        const response = await api.finish({
+        const { blob = null } = await api.finish({
           fileName: file.name,
           uploadId: uploadIdRef.current,
         });
-        setStatus(response.ok ? 'passed' : 'failed');
+
+        setSynced(blob);
+        setStatus(blob ? 'passed' : 'failed');
       } catch {
         setStatus('failed');
       }
@@ -181,6 +188,7 @@ export function useUpload(args: { file: File; partSize: number }): {
   return {
     degree,
     status,
+    synced,
     abort,
     pause,
     retry,
