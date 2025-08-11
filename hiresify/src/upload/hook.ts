@@ -2,20 +2,33 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import { useCallback, useContext, useRef, useState } from 'react';
+import { bindActionCreators } from '@reduxjs/toolkit';
+import { useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 import * as api from '@/api/blob';
 import { useAppDispatch } from '@/app/hooks';
+import type { BackendBlob } from '@/backend-type';
 import {
   insertPersistedImage,
   insertPersistedVideo,
   removeInTransitMedia,
 } from '@/feature/blob/slice';
+import type { IndexedFile } from '@/type';
 import { defer, isImage, isVideo } from '@/util';
 
 import { UploadQueueContext } from './queue';
 import UploadMemoryStore from './store';
 import type { SimpleAsyncThunk, UploadPart, UploadStatus } from './type';
+
+const buildActionCreators = (args: { uid: string }) => {
+  const { uid } = args;
+
+  return {
+    insertImage: (args: { blob: BackendBlob }) => insertPersistedImage(args),
+    insertVideo: (args: { blob: BackendBlob }) => insertPersistedVideo(args),
+    removeMedia: () => removeInTransitMedia({ uid }),
+  };
+};
 
 export function useUploadQueue() {
   const context = useContext(UploadQueueContext);
@@ -37,10 +50,13 @@ export type UseUploadReturnType = {
 };
 
 export function useUpload(args: {
-  file: File;
+  file: IndexedFile;
   partSize: number;
 }): UseUploadReturnType {
-  const { file, partSize } = args;
+  const {
+    file: { uid, file },
+    partSize,
+  } = args;
 
   const queue = useUploadQueue();
   const store = useRef<UploadMemoryStore>(new UploadMemoryStore()).current;
@@ -52,6 +68,10 @@ export function useUpload(args: {
   const [status, setStatus] = useState<UploadStatus>('active');
 
   const dispatch = useAppDispatch();
+  const actions = useMemo(
+    () => bindActionCreators(buildActionCreators({ uid }), dispatch),
+    [uid, dispatch]
+  );
 
   const factory = useCallback(
     (args: { controller: AbortController; part: UploadPart }) => {
@@ -104,14 +124,12 @@ export function useUpload(args: {
 
           if (blob) {
             if (isImage(blob)) {
-              dispatch(insertPersistedImage({ blob }));
+              actions.insertImage({ blob });
             }
             if (isVideo(blob)) {
-              dispatch(insertPersistedVideo({ blob }));
+              actions.insertVideo({ blob });
             }
-
-            const { uid } = blob;
-            dispatch(removeInTransitMedia({ uid }));
+            actions.removeMedia();
           }
 
           setStatus(blob ? 'passed' : 'failed');
@@ -120,7 +138,7 @@ export function useUpload(args: {
         }
       };
     },
-    [controllers, file, store, dispatch]
+    [actions, controllers, file, store]
   );
 
   const start = useCallback(async () => {
@@ -189,14 +207,12 @@ export function useUpload(args: {
 
         if (blob) {
           if (isImage(blob)) {
-            dispatch(insertPersistedImage({ blob }));
+            actions.insertImage({ blob });
           }
           if (isVideo(blob)) {
-            dispatch(insertPersistedVideo({ blob }));
+            actions.insertVideo({ blob });
           }
-
-          const { uid } = blob;
-          dispatch(removeInTransitMedia({ uid }));
+          actions.removeMedia();
         }
 
         setStatus(blob ? 'passed' : 'failed');
@@ -204,7 +220,7 @@ export function useUpload(args: {
         setStatus('failed');
       }
     }
-  }, [controllers, file, store, dispatch, start]);
+  }, [actions, controllers, file, store, start]);
 
   const abort = useCallback(async () => {
     await pause();
@@ -215,7 +231,8 @@ export function useUpload(args: {
     }
 
     await api.cancel({ uploadId });
-  }, [pause]);
+    actions.removeMedia();
+  }, [actions, pause]);
 
   return {
     degree,

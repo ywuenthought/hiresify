@@ -54,9 +54,9 @@ export default function Main() {
             width: 700,
           }}
         >
-          {inTransitMedia.map(({ uid, file }) => (
+          {inTransitMedia.map((file) => (
             <InTransitFile
-              key={`controller:${uid}`}
+              key={`controller:${file.uid}`}
               file={file}
               partSize={CHUNK_SIZE}
             />

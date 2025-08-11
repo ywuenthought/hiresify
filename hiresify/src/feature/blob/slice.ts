@@ -9,8 +9,8 @@ import { createAppSlice } from '@/app/createAppSlice';
 import type { BackendBlob } from '@/backend-type';
 import { isImage, isVideo } from '@/util';
 
+import type { IndexedFile } from '../../type';
 import { fetchAllBlobs } from './thunk';
-import type { IndexedFile } from './type';
 
 const selectId = (entity: { uid: string }) => entity.uid;
 

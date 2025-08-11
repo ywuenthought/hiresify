@@ -9,6 +9,7 @@ import { Provider } from 'react-redux';
 import * as api from '@/api/blob';
 import { makeStore } from '@/app/store';
 import { getTestBackendBlob } from '@/testing/blob';
+import { getUuid4 } from '@/util';
 
 import { useUpload } from '../hook';
 import UploadQueueProvider from '../provider';
@@ -16,9 +17,12 @@ import UploadQueueProvider from '../provider';
 describe('UseUpload hook', () => {
   const partSize = 1024;
   const byte = new Uint8Array(4 * partSize);
-  const file = new File([byte], 'blob.bin', {
-    type: 'application/octet-stream',
-  });
+  const file = {
+    uid: getUuid4(),
+    file: new File([byte], 'blob.bin', {
+      type: 'application/octet-stream',
+    }),
+  };
 
   const wrapper = (args: { children: ReactNode }) => {
     const store = makeStore();

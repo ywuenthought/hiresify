@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import FileProfile from '@/component/FileProfile';
 import ProgressBar from '@/component/ProgressBar';
+import type { IndexedFile } from '@/type';
 import { useUpload } from '@/upload/hook';
 
 const SPINNINGWHEEL = <CircularProgress size={30} />;
@@ -19,12 +20,13 @@ const iconPerStatus = {
 };
 
 type InTransitFileProps = {
-  file: File;
+  file: IndexedFile;
   partSize: number;
 };
 
 export default function InTransitFile(props: InTransitFileProps) {
   const { file, partSize } = props;
+  const { name: fileName } = file.file;
 
   const { degree, status, abort, pause, retry, start } = useUpload({
     file,
@@ -86,7 +88,7 @@ export default function InTransitFile(props: InTransitFileProps) {
           }}
         >
           <FileProfile
-            fileName={file.name}
+            fileName={fileName}
             majorButton={
               abortOff ? (
                 SPINNINGWHEEL
