@@ -4,8 +4,10 @@
 
 import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { Provider } from 'react-redux';
 
 import * as api from '@/api/blob';
+import { makeStore } from '@/app/store';
 import { getTestBackendBlob } from '@/testing/blob';
 
 import { useUpload } from '../hook';
@@ -19,8 +21,14 @@ describe('UseUpload hook', () => {
   });
 
   const wrapper = (args: { children: ReactNode }) => {
+    const store = makeStore();
     const { children } = args;
-    return <UploadQueueProvider>{children}</UploadQueueProvider>;
+
+    return (
+      <Provider store={store}>
+        <UploadQueueProvider>{children}</UploadQueueProvider>
+      </Provider>
+    );
   };
 
   beforeEach(() => {

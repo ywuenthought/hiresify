@@ -4,21 +4,27 @@
 
 import { CssBaseline } from '@mui/material';
 import { StrictMode } from 'react';
+import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 
 import App from './App.tsx';
+import { makeStore } from './app/store.ts';
 import { UPLOAD_CONCURRENCY } from './const.ts';
 import UploadQueueProvider from './upload/provider.tsx';
 
 export default function Root() {
+  const store = makeStore();
+
   return (
     <StrictMode>
-      <CssBaseline />
-      <BrowserRouter>
-        <UploadQueueProvider concurrency={UPLOAD_CONCURRENCY}>
-          <App />
-        </UploadQueueProvider>
-      </BrowserRouter>
+      <Provider store={store}>
+        <CssBaseline />
+        <BrowserRouter>
+          <UploadQueueProvider concurrency={UPLOAD_CONCURRENCY}>
+            <App />
+          </UploadQueueProvider>
+        </BrowserRouter>
+      </Provider>
     </StrictMode>
   );
 }

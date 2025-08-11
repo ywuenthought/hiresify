@@ -10,26 +10,40 @@ import type { BackendBlob } from '@/backend-type';
 import { isImage, isVideo } from '@/util';
 
 import { fetchAllBlobs } from './thunk';
+import type { IndexedFile } from './type';
 
 const selectId = (entity: { uid: string }) => entity.uid;
 
-const imageAdapter = createEntityAdapter<BackendBlob, string>({ selectId });
-const videoAdapter = createEntityAdapter<BackendBlob, string>({ selectId });
+const inTransitMediaAdapter = createEntityAdapter<IndexedFile, string>({
+  selectId,
+});
+const persistedImageAdapter = createEntityAdapter<BackendBlob, string>({
+  selectId,
+});
+const persistedVideoAdapter = createEntityAdapter<BackendBlob, string>({
+  selectId,
+});
 
-const { selectAll: selectImageEntities } = imageAdapter.getSelectors();
-const { selectAll: selectVideoEntities } = videoAdapter.getSelectors();
+const { selectAll: selectInTransitMediaEntities } =
+  inTransitMediaAdapter.getSelectors();
+const { selectAll: selectPersistedImageEntities } =
+  persistedImageAdapter.getSelectors();
+const { selectAll: selectPersistedVideoEntities } =
+  persistedVideoAdapter.getSelectors();
 
 type BlobState = {
-  entities: {
+  inTransit: EntityState<IndexedFile, string>;
+  persisted: {
     images: EntityState<BackendBlob, string>;
     videos: EntityState<BackendBlob, string>;
   };
 };
 
 const initialState: BlobState = {
-  entities: {
-    images: imageAdapter.getInitialState(),
-    videos: videoAdapter.getInitialState(),
+  inTransit: inTransitMediaAdapter.getInitialState(),
+  persisted: {
+    images: persistedImageAdapter.getInitialState(),
+    videos: persistedVideoAdapter.getInitialState(),
   },
 };
 
@@ -37,8 +51,16 @@ const blobSlice = createAppSlice({
   name: 'blob',
   initialState,
   reducers: (create) => ({
-    insertImage: create.preparedReducer(
-      (blob: BackendBlob) => ({ payload: { blob } }),
+    insertInTransitMedia: create.preparedReducer(
+      (args: { file: IndexedFile }) => ({ payload: args }),
+      (state, action) => {
+        const { file } = action.payload;
+        inTransitMediaAdapter.addOne(state.inTransit, file);
+      }
+    ),
+
+    insertPersistedImage: create.preparedReducer(
+      (args: { blob: BackendBlob }) => ({ payload: args }),
       (state, action) => {
         const { blob } = action.payload;
 
@@ -46,12 +68,12 @@ const blobSlice = createAppSlice({
           return;
         }
 
-        imageAdapter.addOne(state.entities.images, blob);
+        persistedImageAdapter.addOne(state.persisted.images, blob);
       }
     ),
 
-    insertVideo: create.preparedReducer(
-      (blob: BackendBlob) => ({ payload: { blob } }),
+    insertPersistedVideo: create.preparedReducer(
+      (args: { blob: BackendBlob }) => ({ payload: args }),
       (state, action) => {
         const { blob } = action.payload;
 
@@ -59,23 +81,31 @@ const blobSlice = createAppSlice({
           return;
         }
 
-        videoAdapter.addOne(state.entities.videos, blob);
+        persistedVideoAdapter.addOne(state.persisted.videos, blob);
       }
     ),
 
-    removeImage: create.preparedReducer(
-      (blobUid: string) => ({ payload: { blobUid } }),
+    removeInTransitMedia: create.preparedReducer(
+      (args: { uid: string }) => ({ payload: args }),
       (state, action) => {
-        const { blobUid } = action.payload;
-        imageAdapter.removeOne(state.entities.images, blobUid);
+        const { uid } = action.payload;
+        inTransitMediaAdapter.removeOne(state.inTransit, uid);
       }
     ),
 
-    removeVideo: create.preparedReducer(
-      (blobUid: string) => ({ payload: { blobUid } }),
+    removePersistedImage: create.preparedReducer(
+      (args: { uid: string }) => ({ payload: args }),
       (state, action) => {
-        const { blobUid } = action.payload;
-        videoAdapter.removeOne(state.entities.videos, blobUid);
+        const { uid } = action.payload;
+        persistedImageAdapter.removeOne(state.persisted.images, uid);
+      }
+    ),
+
+    removePersistedVideo: create.preparedReducer(
+      (args: { uid: string }) => ({ payload: args }),
+      (state, action) => {
+        const { uid } = action.payload;
+        persistedVideoAdapter.removeOne(state.persisted.videos, uid);
       }
     ),
   }),
@@ -85,18 +115,22 @@ const blobSlice = createAppSlice({
 
       blobs.forEach((blob) => {
         if (isImage(blob)) {
-          imageAdapter.addOne(state.entities.images, blob);
+          persistedImageAdapter.addOne(state.persisted.images, blob);
         }
 
         if (isVideo(blob)) {
-          videoAdapter.addOne(state.entities.videos, blob);
+          persistedVideoAdapter.addOne(state.persisted.videos, blob);
         }
       });
     });
   },
   selectors: {
-    selectAllImages: (state) => selectImageEntities(state.entities.images),
-    selectAllVideos: (state) => selectVideoEntities(state.entities.videos),
+    selectAllInTransitMedia: (state) =>
+      selectInTransitMediaEntities(state.inTransit),
+    selectAllPersistedImages: (state) =>
+      selectPersistedImageEntities(state.persisted.images),
+    selectAllPersistedVideos: (state) =>
+      selectPersistedVideoEntities(state.persisted.videos),
   },
 });
 
@@ -104,6 +138,16 @@ const { reducer } = blobSlice;
 
 export default reducer;
 
-export const { insertImage, insertVideo, removeImage, removeVideo } =
-  blobSlice.actions;
-export const { selectAllImages, selectAllVideos } = blobSlice.selectors;
+export const {
+  insertInTransitMedia,
+  insertPersistedImage,
+  insertPersistedVideo,
+  removeInTransitMedia,
+  removePersistedImage,
+  removePersistedVideo,
+} = blobSlice.actions;
+export const {
+  selectAllInTransitMedia,
+  selectAllPersistedImages,
+  selectAllPersistedVideos,
+} = blobSlice.selectors;

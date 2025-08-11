@@ -18,22 +18,19 @@ const iconPerStatus = {
   paused: <PlayArrow />,
 };
 
-type FileControllerProps = {
+type InTransitFileProps = {
   file: File;
   partSize: number;
-  removeFile: () => void;
 };
 
-export default function FileController(props: FileControllerProps) {
+export default function InTransitFile(props: InTransitFileProps) {
   const { file, partSize } = props;
-  const { removeFile } = props;
 
   const { degree, status, abort, pause, retry, start } = useUpload({
     file,
     partSize,
   });
 
-  const uploading = status !== 'passed';
   const [abortOff, setAbortOff] = useState<boolean>(false);
   const [otherOff, setOtherOff] = useState<boolean>(false);
 
@@ -41,9 +38,7 @@ export default function FileController(props: FileControllerProps) {
     setOtherOff(true);
     await abort();
     setOtherOff(false);
-
-    removeFile();
-  }, [abort, removeFile]);
+  }, [abort]);
 
   const handleOther = useCallback(async () => {
     setAbortOff(true);
@@ -70,6 +65,10 @@ export default function FileController(props: FileControllerProps) {
     startUpload();
   }, [start]);
 
+  if (status === 'passed') {
+    return <></>;
+  }
+
   return (
     <Box sx={{ height: 50, minWidth: 150, my: 4 }}>
       <Stack
@@ -89,28 +88,26 @@ export default function FileController(props: FileControllerProps) {
           <FileProfile
             fileName={file.name}
             majorButton={
-              uploading &&
-              (abortOff ? (
+              abortOff ? (
                 SPINNINGWHEEL
               ) : (
                 <IconButton disabled={otherOff} onClick={handleOther}>
                   {iconPerStatus[status]}
                 </IconButton>
-              ))
+              )
             }
             minorButton={
-              uploading &&
-              (otherOff ? (
+              otherOff ? (
                 SPINNINGWHEEL
               ) : (
                 <IconButton disabled={abortOff} onClick={handleAbort}>
                   <Close />
                 </IconButton>
-              ))
+              )
             }
           />
         </Stack>
-        {uploading && <ProgressBar progress={degree} />}
+        <ProgressBar progress={degree} />
       </Stack>
     </Box>
   );

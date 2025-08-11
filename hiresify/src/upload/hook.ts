@@ -5,8 +5,13 @@
 import { useCallback, useContext, useRef, useState } from 'react';
 
 import * as api from '@/api/blob';
-import type { BackendBlob } from '@/backend-type';
-import { defer } from '@/util';
+import { useAppDispatch } from '@/app/hooks';
+import {
+  insertPersistedImage,
+  insertPersistedVideo,
+  removeInTransitMedia,
+} from '@/feature/blob/slice';
+import { defer, isImage, isVideo } from '@/util';
 
 import { UploadQueueContext } from './queue';
 import UploadMemoryStore from './store';
@@ -22,15 +27,19 @@ export function useUploadQueue() {
   return context;
 }
 
-export function useUpload(args: { file: File; partSize: number }): {
+export type UseUploadReturnType = {
   degree: number;
   status: UploadStatus;
-  synced: BackendBlob | null;
   abort: SimpleAsyncThunk;
   pause: SimpleAsyncThunk;
   retry: SimpleAsyncThunk;
   start: SimpleAsyncThunk;
-} {
+};
+
+export function useUpload(args: {
+  file: File;
+  partSize: number;
+}): UseUploadReturnType {
   const { file, partSize } = args;
 
   const queue = useUploadQueue();
@@ -41,7 +50,8 @@ export function useUpload(args: { file: File; partSize: number }): {
 
   const [degree, setDegree] = useState<number>(0);
   const [status, setStatus] = useState<UploadStatus>('active');
-  const [synced, setSynced] = useState<BackendBlob | null>(null);
+
+  const dispatch = useAppDispatch();
 
   const factory = useCallback(
     (args: { controller: AbortController; part: UploadPart }) => {
@@ -90,16 +100,27 @@ export function useUpload(args: { file: File; partSize: number }): {
         }
 
         try {
-          const { blob = null } = await api.finish({ fileName, uploadId });
+          const { blob } = await api.finish({ fileName, uploadId });
 
-          setSynced(blob);
+          if (blob) {
+            if (isImage(blob)) {
+              dispatch(insertPersistedImage({ blob }));
+            }
+            if (isVideo(blob)) {
+              dispatch(insertPersistedVideo({ blob }));
+            }
+
+            const { uid } = blob;
+            dispatch(removeInTransitMedia({ uid }));
+          }
+
           setStatus(blob ? 'passed' : 'failed');
         } catch {
           setStatus('failed');
         }
       };
     },
-    [controllers, file, store]
+    [controllers, file, store, dispatch]
   );
 
   const start = useCallback(async () => {
@@ -161,18 +182,29 @@ export function useUpload(args: { file: File; partSize: number }): {
       controllers.length = 0;
 
       try {
-        const { blob = null } = await api.finish({
+        const { blob } = await api.finish({
           fileName: file.name,
           uploadId: uploadIdRef.current,
         });
 
-        setSynced(blob);
+        if (blob) {
+          if (isImage(blob)) {
+            dispatch(insertPersistedImage({ blob }));
+          }
+          if (isVideo(blob)) {
+            dispatch(insertPersistedVideo({ blob }));
+          }
+
+          const { uid } = blob;
+          dispatch(removeInTransitMedia({ uid }));
+        }
+
         setStatus(blob ? 'passed' : 'failed');
       } catch {
         setStatus('failed');
       }
     }
-  }, [controllers, file, store, start]);
+  }, [controllers, file, store, dispatch, start]);
 
   const abort = useCallback(async () => {
     await pause();
@@ -188,7 +220,6 @@ export function useUpload(args: { file: File; partSize: number }): {
   return {
     degree,
     status,
-    synced,
     abort,
     pause,
     retry,

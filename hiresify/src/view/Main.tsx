@@ -3,28 +3,32 @@
 // See the LICENSE file for more details.
 
 import { Box, Paper, Stack } from '@mui/material';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
+import { useAppSelector } from '@/app/hooks';
 import bg from '@/assets/bg.jpg';
 import Background from '@/component/Background';
 import DragDropBox from '@/component/DragDropBox';
 import LogoutButton from '@/component/LogoutButton';
-import FileController from '@/composite/FileController';
+import InTransitFile from '@/composite/InTransitFile';
 import { CHUNK_SIZE } from '@/const';
+import {
+  insertInTransitMedia,
+  selectAllInTransitMedia,
+} from '@/feature/blob/slice';
 import { getUuid4 } from '@/util';
 
 export default function Main() {
-  const [files, setFiles] = useState<Map<string, File>>(new Map());
+  const inTransitMedia = useAppSelector(selectAllInTransitMedia);
 
-  const onDrop = useCallback((curFiles: File[]) => {
-    setFiles(
-      (preFiles) =>
-        new Map([
-          ...preFiles,
-          ...curFiles.map((file) => [getUuid4(), file] as [string, File]),
-        ])
-    );
-  }, []);
+  const onDrop = useCallback(
+    (curFiles: File[]) =>
+      curFiles.forEach((curFile) => {
+        const file = { uid: getUuid4(), file: curFile };
+        insertInTransitMedia({ file });
+      }),
+    []
+  );
 
   return (
     <Background imageAddress={bg}>
@@ -50,18 +54,11 @@ export default function Main() {
             width: 700,
           }}
         >
-          {Array.from(files.entries()).map(([uid, file]) => (
-            <FileController
+          {inTransitMedia.map(({ uid, file }) => (
+            <InTransitFile
               key={`controller:${uid}`}
               file={file}
               partSize={CHUNK_SIZE}
-              removeFile={() =>
-                setFiles((preFiles) => {
-                  const curFiles = new Map(preFiles);
-                  curFiles.delete(uid);
-                  return curFiles;
-                })
-              }
             />
           ))}
         </Paper>
