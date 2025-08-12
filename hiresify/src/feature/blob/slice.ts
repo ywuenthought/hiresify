@@ -137,10 +137,10 @@ const blobSlice = createAppSlice({
       selectInTransitBlobEntities(state.inTransit),
     selectAllPersistedBlobs: (state) =>
       selectPersistedBlobEntities(state.persisted),
-    selectOneInTransitBlob: (state, blobUid: string) =>
-      selectInTransitBlobById(state.inTransit, blobUid),
-    selectOnePersistedBlob: (state, blobUid: string) =>
-      selectPersistedBlobById(state.persisted, blobUid),
+    selectOneInTransitBlob: (state, uid: string) =>
+      selectInTransitBlobById(state.inTransit, uid),
+    selectOnePersistedBlob: (state, uid: string) =>
+      selectPersistedBlobById(state.persisted, uid),
   },
 });
 

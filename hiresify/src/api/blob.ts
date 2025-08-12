@@ -34,14 +34,14 @@ export async function cancel(args: {
   }
 }
 
-export async function create(args: { blob: File }): Promise<TextResponse> {
-  const { blob } = args;
-  if (blob.size < 4096) {
+export async function create(args: { jsBlob: File }): Promise<TextResponse> {
+  const { jsBlob } = args;
+  if (jsBlob.size < 4096) {
     throw new Error('File is too small to upload.');
   }
 
   const form = new FormData();
-  form.append('file', blob);
+  form.append('file', jsBlob);
 
   try {
     const response = await fetch(blobUrls.upload, {

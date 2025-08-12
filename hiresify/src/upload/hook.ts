@@ -7,13 +7,8 @@ import { useCallback, useContext, useMemo, useRef } from 'react';
 
 import * as api from '@/api/blob';
 import { useAppDispatch } from '@/app/hooks';
-import {
-  insertPersistedBlob,
-  removeInTransitBlob,
-  updateInTransitBlob,
-} from '@/feature/blob/slice';
+import { updateInTransitBlob } from '@/feature/blob/slice';
 import { cancelThunk, finishThunk } from '@/feature/blob/thunk';
-import type { BlobSchema } from '@/json-schema';
 import type { FrontendBlob } from '@/type';
 import { defer } from '@/util';
 
@@ -21,23 +16,21 @@ import { UploadQueueContext } from './queue';
 import UploadMemoryStore from './store';
 import type { SimpleAsyncThunk, UploadPart } from './type';
 
-const buildActionCreators = (args: { name: string; uid: string }) => {
-  const { name, uid } = args;
+const buildActionCreators = (args: { blobUid: string; fileName: string }) => {
+  const { blobUid, fileName } = args;
 
   return {
     cancel: (args: { uploadId: string }) => {
       const { uploadId } = args;
-      return cancelThunk({ blobUid: uid, uploadId });
+      return cancelThunk({ blobUid, uploadId });
     },
     finish: (args: { uploadId: string }) => {
       const { uploadId } = args;
-      return finishThunk({ blobUid: uid, fileName: name, uploadId });
+      return finishThunk({ blobUid, fileName, uploadId });
     },
     update: (changes: Partial<Omit<FrontendBlob, 'uid' | 'blob'>>) => {
-      return updateInTransitBlob({ id: uid, changes });
+      return updateInTransitBlob({ id: blobUid, changes });
     },
-    insertBlob: (args: { blob: BlobSchema }) => insertPersistedBlob(args),
-    removeBlob: () => removeInTransitBlob({ uid }),
   };
 };
 
@@ -59,12 +52,12 @@ export type UseUploadReturnType = {
 };
 
 export function useUpload(args: {
-  blob: File;
-  uid: string;
+  jsBlob: File;
+  blobUid: string;
   partSize: number;
 }): UseUploadReturnType {
-  const { blob, uid, partSize } = args;
-  const { name } = blob;
+  const { jsBlob, blobUid, partSize } = args;
+  const { name: fileName, size: blobSize } = jsBlob;
 
   const queue = useUploadQueue();
   const store = useRef<UploadMemoryStore>(new UploadMemoryStore()).current;
@@ -74,8 +67,9 @@ export function useUpload(args: {
 
   const dispatch = useAppDispatch();
   const actions = useMemo(
-    () => bindActionCreators(buildActionCreators({ name, uid }), dispatch),
-    [name, uid, dispatch]
+    () =>
+      bindActionCreators(buildActionCreators({ fileName, blobUid }), dispatch),
+    [blobUid, fileName, dispatch]
   );
 
   const factory = useCallback(
@@ -109,7 +103,7 @@ export function useUpload(args: {
         }
 
         const doneSize = store.getDoneSize();
-        actions.update({ progress: (doneSize / blob.size) * 100 });
+        actions.update({ progress: (doneSize / blobSize) * 100 });
 
         if (!store.getAllClear()) {
           return;
@@ -118,7 +112,7 @@ export function useUpload(args: {
         // Clear abort controllers.
         controllers.length = 0;
 
-        if (doneSize !== blob.size) {
+        if (doneSize !== blobSize) {
           actions.update({ status: 'failed' });
           return;
         }
@@ -126,7 +120,7 @@ export function useUpload(args: {
         actions.finish({ uploadId });
       };
     },
-    [actions, controllers, blob, store]
+    [actions, blobSize, controllers, store]
   );
 
   const start = useCallback(async () => {
@@ -152,7 +146,7 @@ export function useUpload(args: {
       await enqueueJobs();
     } else {
       try {
-        const { text: uploadId } = await api.create({ blob });
+        const { text: uploadId } = await api.create({ jsBlob });
 
         if (!uploadId) {
           actions.update({ status: 'failed' });
@@ -160,7 +154,7 @@ export function useUpload(args: {
         }
 
         uploadIdRef.current = uploadId;
-        await store.init({ blob, partSize });
+        await store.init({ jsBlob, partSize });
 
         actions.update({ status: 'active' });
         await enqueueJobs();
@@ -168,7 +162,7 @@ export function useUpload(args: {
         actions.update({ status: 'failed' });
       }
     }
-  }, [actions, controllers, blob, partSize, queue, store, factory]);
+  }, [actions, controllers, jsBlob, partSize, queue, store, factory]);
 
   const pause = useCallback(async () => {
     while (controllers.length > 0) {
@@ -181,7 +175,7 @@ export function useUpload(args: {
   }, [actions, controllers, store]);
 
   const retry = useCallback(async () => {
-    if (store.getDoneSize() < blob.size) {
+    if (store.getDoneSize() < blobSize) {
       await store.retry();
       await start();
     } else {
@@ -191,7 +185,7 @@ export function useUpload(args: {
       const { current: uploadId } = uploadIdRef;
       actions.finish({ uploadId });
     }
-  }, [actions, controllers, blob, store, start]);
+  }, [actions, blobSize, controllers, store, start]);
 
   const abort = useCallback(async () => {
     await pause();

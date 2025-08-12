@@ -3,9 +3,10 @@
 // See the LICENSE file for more details.
 
 import { Box, Paper, Stack } from '@mui/material';
-import { useCallback, useRef } from 'react';
+import { bindActionCreators } from '@reduxjs/toolkit';
+import { useCallback, useMemo, useRef } from 'react';
 
-import { useAppSelector } from '@/app/hooks';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import bg from '@/assets/bg.jpg';
 import Background from '@/component/Background';
 import DragDropBox from '@/component/DragDropBox';
@@ -19,9 +20,21 @@ import {
 import type { FrontendBlob } from '@/type';
 import { getUuid4 } from '@/util';
 
+const buildActionCreators = () => {
+  return {
+    insert: (args: { blob: FrontendBlob }) => insertInTransitBlob(args),
+  };
+};
+
 export default function Main() {
   const indexedJSBlobs = useRef<Map<string, File>>(new Map()).current;
   const inTransitBlobs = useAppSelector(selectAllInTransitBlobs);
+
+  const dispatch = useAppDispatch();
+  const actions = useMemo(
+    () => bindActionCreators(buildActionCreators(), dispatch),
+    [dispatch]
+  );
 
   const onDrop = useCallback(
     (curFiles: File[]) =>
@@ -35,9 +48,9 @@ export default function Main() {
         };
 
         indexedJSBlobs.set(uid, file);
-        insertInTransitBlob({ blob });
+        actions.insert({ blob });
       }),
-    [indexedJSBlobs]
+    [actions, indexedJSBlobs]
   );
 
   return (
@@ -69,7 +82,7 @@ export default function Main() {
             return (
               <InTransitFile
                 key={`controller:${uid}`}
-                blob={indexedJSBlobs.get(uid) as File}
+                jsBlob={indexedJSBlobs.get(uid) as File}
                 frontendBlob={frontendBlob}
                 partSize={CHUNK_SIZE}
                 removeBlob={() => indexedJSBlobs.delete(uid)}

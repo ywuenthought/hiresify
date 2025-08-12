@@ -25,9 +25,9 @@ import UploadQueueProvider from '../provider';
 
 describe('UseUpload hook', () => {
   const partSize = 1024;
-  const blob = getTestJSFile({ partNums: 4, partSize });
-  const frontendBlob = getTestFrontendBlob();
-  const { uid } = frontendBlob;
+  const jsBlob = getTestJSFile({ partNums: 4, partSize });
+  const blob = getTestFrontendBlob();
+  const { uid: blobUid } = blob;
 
   const store = makeStore();
   const wrapper = (args: { children: ReactNode }) => {
@@ -41,7 +41,7 @@ describe('UseUpload hook', () => {
   };
 
   beforeEach(() => {
-    store.dispatch(insertInTransitBlob({ blob: frontendBlob }));
+    store.dispatch(insertInTransitBlob({ blob }));
 
     vi.spyOn(api, 'create').mockImplementation(async () => {
       return { text: 'upload-id', code: 201 };
@@ -57,7 +57,7 @@ describe('UseUpload hook', () => {
   });
 
   afterEach(() => {
-    store.dispatch(removeInTransitBlob({ uid }));
+    store.dispatch(removeInTransitBlob({ uid: blobUid }));
     vi.restoreAllMocks();
   });
 
@@ -67,9 +67,10 @@ describe('UseUpload hook', () => {
       new Error('Network error or aborted.')
     );
 
-    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useUpload({ jsBlob, blobUid, partSize }),
+      { wrapper }
+    );
 
     const { start } = result.current;
 
@@ -78,7 +79,10 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { progress, status } = selectOneInTransitBlob(store.getState(), uid);
+    const { progress, status } = selectOneInTransitBlob(
+      store.getState(),
+      blobUid
+    );
 
     expect(progress).toBe(0);
     expect(status).toBe('failed');
@@ -86,9 +90,10 @@ describe('UseUpload hook', () => {
 
   it('uploads all file chunks successfully', async () => {
     // Given
-    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useUpload({ jsBlob, blobUid, partSize }),
+      { wrapper }
+    );
 
     const { start } = result.current;
 
@@ -98,7 +103,7 @@ describe('UseUpload hook', () => {
 
     // Then
     const state = store.getState();
-    const inTransitBlob = selectOneInTransitBlob(state, uid);
+    const inTransitBlob = selectOneInTransitBlob(state, blobUid);
     const persistedBlob = selectOnePersistedBlob(state, 'blob-uid');
 
     expect(inTransitBlob).toBeUndefined();
@@ -111,9 +116,10 @@ describe('UseUpload hook', () => {
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
       .mockResolvedValue({ ok: true, code: 200 });
 
-    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useUpload({ jsBlob, blobUid, partSize }),
+      { wrapper }
+    );
 
     const { start } = result.current;
 
@@ -122,7 +128,10 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { progress, status } = selectOneInTransitBlob(store.getState(), uid);
+    const { progress, status } = selectOneInTransitBlob(
+      store.getState(),
+      blobUid
+    );
 
     expect(progress).toBe(75);
     expect(status).toBe('failed');
@@ -134,9 +143,10 @@ describe('UseUpload hook', () => {
       new Error('Network error or aborted.')
     );
 
-    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useUpload({ jsBlob, blobUid, partSize }),
+      { wrapper }
+    );
 
     const { start } = result.current;
 
@@ -145,7 +155,10 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { progress, status } = selectOneInTransitBlob(store.getState(), uid);
+    const { progress, status } = selectOneInTransitBlob(
+      store.getState(),
+      blobUid
+    );
 
     expect(progress).toBe(100);
     expect(status).toBe('failed');
@@ -157,9 +170,10 @@ describe('UseUpload hook', () => {
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
       .mockResolvedValueOnce({ text: 'upload-id', code: 201 });
 
-    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useUpload({ jsBlob, blobUid, partSize }),
+      { wrapper }
+    );
 
     const { retry, start } = result.current;
 
@@ -170,7 +184,7 @@ describe('UseUpload hook', () => {
 
     // Then
     const state = store.getState();
-    const inTransitBlob = selectOneInTransitBlob(state, uid);
+    const inTransitBlob = selectOneInTransitBlob(state, blobUid);
     const persistedBlob = selectOnePersistedBlob(state, 'blob-uid');
 
     expect(inTransitBlob).toBeUndefined();
@@ -184,9 +198,10 @@ describe('UseUpload hook', () => {
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
       .mockResolvedValue({ ok: true, code: 200 });
 
-    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useUpload({ jsBlob, blobUid, partSize }),
+      { wrapper }
+    );
 
     const { retry, start } = result.current;
 
@@ -199,7 +214,7 @@ describe('UseUpload hook', () => {
 
     // Then
     const state = store.getState();
-    const inTransitBlob = selectOneInTransitBlob(state, uid);
+    const inTransitBlob = selectOneInTransitBlob(state, blobUid);
     const persistedBlob = selectOnePersistedBlob(state, 'blob-uid');
 
     expect(inTransitBlob).toBeUndefined();
@@ -212,9 +227,10 @@ describe('UseUpload hook', () => {
       new Error('Network error or aborted.')
     );
 
-    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useUpload({ jsBlob, blobUid, partSize }),
+      { wrapper }
+    );
 
     const { retry, start } = result.current;
 
@@ -226,7 +242,7 @@ describe('UseUpload hook', () => {
 
     // Then
     const state = store.getState();
-    const inTransitBlob = selectOneInTransitBlob(state, uid);
+    const inTransitBlob = selectOneInTransitBlob(state, blobUid);
     const persistedBlob = selectOnePersistedBlob(state, 'blob-uid');
 
     expect(inTransitBlob).toBeUndefined();

@@ -20,17 +20,21 @@ const iconPerStatus = {
 };
 
 type InTransitFileProps = {
-  blob: File;
+  jsBlob: File;
   frontendBlob: FrontendBlob;
   partSize: number;
   removeBlob: () => void;
 };
 
 export default function InTransitFile(props: InTransitFileProps) {
-  const { blob, frontendBlob, partSize, removeBlob } = props;
-  const { uid, fileName, progress, status } = frontendBlob;
+  const { jsBlob, frontendBlob, partSize, removeBlob } = props;
+  const { uid: blobUid, fileName, progress, status } = frontendBlob;
 
-  const { abort, pause, retry, start } = useUpload({ blob, uid, partSize });
+  const { abort, pause, retry, start } = useUpload({
+    jsBlob,
+    blobUid,
+    partSize,
+  });
 
   const [abortOff, setAbortOff] = useState<boolean>(false);
   const [otherOff, setOtherOff] = useState<boolean>(false);
