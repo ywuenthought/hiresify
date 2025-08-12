@@ -22,17 +22,17 @@ export default class UploadMemoryStore {
   // The total size of the uploaded parts.
   private doneSize: number = 0;
 
-  public async init(args: { file: File; partSize: number }): Promise<void> {
+  public async init(args: { blob: File; partSize: number }): Promise<void> {
     if (this.doneInit) {
       return;
     }
 
-    const { file, partSize } = args;
-    const count = Math.ceil(file.size / partSize);
+    const { blob, partSize } = args;
+    const count = Math.ceil(blob.size / partSize);
 
     for (let index = 1; index <= count; index += 1) {
       const offset = (index - 1) * partSize;
-      const chunk = file.slice(offset, Math.min(offset + partSize, file.size));
+      const chunk = blob.slice(offset, Math.min(offset + partSize, blob.size));
       this.toSendParts.push({ index, chunk });
       await defer();
     }

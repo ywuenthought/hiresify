@@ -7,13 +7,13 @@ import { createEntityAdapter, type EntityState } from '@reduxjs/toolkit';
 
 import { createAppSlice } from '@/app/createAppSlice';
 import type { BackendBlob } from '@/backend-type';
+import type { FrontendBlob } from '@/type';
 
-import type { IndexedFile } from '../../type';
 import { fetchAllBlobs } from './thunk';
 
 const selectId = (entity: { uid: string }) => entity.uid;
 
-const inTransitBlobAdapter = createEntityAdapter<IndexedFile, string>({
+const inTransitBlobAdapter = createEntityAdapter<FrontendBlob, string>({
   selectId,
 });
 const persistedBlobAdapter = createEntityAdapter<BackendBlob, string>({
@@ -26,7 +26,7 @@ const { selectAll: selectPersistedBlobEntities } =
   persistedBlobAdapter.getSelectors();
 
 type BlobState = {
-  inTransit: EntityState<IndexedFile, string>;
+  inTransit: EntityState<FrontendBlob, string>;
   persisted: EntityState<BackendBlob, string>;
 };
 
@@ -40,7 +40,7 @@ const blobSlice = createAppSlice({
   initialState,
   reducers: (create) => ({
     insertInTransitBlob: create.preparedReducer(
-      (args: { file: IndexedFile }) => ({ payload: args }),
+      (args: { file: FrontendBlob }) => ({ payload: args }),
       (state, action) => {
         const { file } = action.payload;
         inTransitBlobAdapter.addOne(state.inTransit, file);

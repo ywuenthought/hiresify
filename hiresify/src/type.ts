@@ -3,4 +3,16 @@
 // Access, use, and distribution is subject to written agreement
 // by and between Enthought, Inc. and Daiichi Sankyo.
 
-export type IndexedFile = { file: File; uid: string };
+export type FrontendBlob = {
+  // The UID of this blob.
+  uid: string;
+
+  // The pointer to the actual bytes.
+  blob: File;
+
+  // The progress of the upload.
+  progress: number;
+
+  // The status of the upload.
+  status: 'active' | 'failed' | 'passed' | 'paused';
+};

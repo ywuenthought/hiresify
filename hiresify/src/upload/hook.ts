@@ -9,7 +9,6 @@ import * as api from '@/api/blob';
 import { useAppDispatch } from '@/app/hooks';
 import type { BackendBlob } from '@/backend-type';
 import { insertPersistedBlob, removeInTransitBlob } from '@/feature/blob/slice';
-import type { IndexedFile } from '@/type';
 import { defer } from '@/util';
 
 import { UploadQueueContext } from './queue';
@@ -45,13 +44,11 @@ export type UseUploadReturnType = {
 };
 
 export function useUpload(args: {
-  file: IndexedFile;
+  blob: File;
+  uid: string;
   partSize: number;
 }): UseUploadReturnType {
-  const {
-    file: { uid, file },
-    partSize,
-  } = args;
+  const { blob, uid, partSize } = args;
 
   const queue = useUploadQueue();
   const store = useRef<UploadMemoryStore>(new UploadMemoryStore()).current;
@@ -73,7 +70,7 @@ export function useUpload(args: {
       const { controller, part } = args;
       const { chunk, index } = part;
 
-      const fileName = file.name;
+      const fileName = blob.name;
       const uploadId = uploadIdRef.current;
 
       return async (): Promise<void> => {
@@ -101,7 +98,7 @@ export function useUpload(args: {
         }
 
         const doneSize = store.getDoneSize();
-        setDegree((doneSize / file.size) * 100);
+        setDegree((doneSize / blob.size) * 100);
 
         if (!store.getAllClear()) {
           return;
@@ -110,7 +107,7 @@ export function useUpload(args: {
         // Clear abort controllers.
         controllers.length = 0;
 
-        if (doneSize !== file.size) {
+        if (doneSize !== blob.size) {
           return setStatus('failed');
         }
 
@@ -128,7 +125,7 @@ export function useUpload(args: {
         }
       };
     },
-    [actions, controllers, file, store]
+    [actions, controllers, blob, store]
   );
 
   const start = useCallback(async () => {
@@ -154,14 +151,14 @@ export function useUpload(args: {
       await enqueueJobs();
     } else {
       try {
-        const { text: uploadId } = await api.create({ file });
+        const { text: uploadId } = await api.create({ blob });
 
         if (!uploadId) {
           return setStatus('failed');
         }
 
         uploadIdRef.current = uploadId;
-        await store.init({ file, partSize });
+        await store.init({ blob, partSize });
 
         setStatus('active');
         await enqueueJobs();
@@ -169,7 +166,7 @@ export function useUpload(args: {
         setStatus('failed');
       }
     }
-  }, [controllers, file, partSize, queue, store, factory]);
+  }, [controllers, blob, partSize, queue, store, factory]);
 
   const pause = useCallback(async () => {
     while (controllers.length > 0) {
@@ -182,7 +179,7 @@ export function useUpload(args: {
   }, [controllers, store]);
 
   const retry = useCallback(async () => {
-    if (store.getDoneSize() < file.size) {
+    if (store.getDoneSize() < blob.size) {
       await store.retry();
       await start();
     } else {
@@ -190,13 +187,13 @@ export function useUpload(args: {
       controllers.length = 0;
 
       try {
-        const { blob } = await api.finish({
-          fileName: file.name,
+        const { blob: backendBlob } = await api.finish({
+          fileName: blob.name,
           uploadId: uploadIdRef.current,
         });
 
-        if (blob) {
-          actions.insertBlob({ blob });
+        if (backendBlob) {
+          actions.insertBlob({ blob: backendBlob });
           actions.removeBlob();
         }
 
@@ -205,7 +202,7 @@ export function useUpload(args: {
         setStatus('failed');
       }
     }
-  }, [actions, controllers, file, store, start]);
+  }, [actions, controllers, blob, store, start]);
 
   const abort = useCallback(async () => {
     await pause();

@@ -7,21 +7,21 @@ import type { UploadPart } from '../type';
 
 describe('UploadMemoryStore', () => {
   const byte = new Uint8Array(1);
-  const file = new File([byte], 'blob.bin', {
+  const blob = new File([byte], 'blob.bin', {
     type: 'application/octet-stream',
   });
 
   it('gives next parts to upload', async () => {
     // Given
     const store = new UploadMemoryStore();
-    await store.init({ file, partSize: 1 });
+    await store.init({ blob, partSize: 1 });
 
     // When
     const part = store.nextPart();
 
     // Then
     expect(part).not.toBeUndefined();
-    expect(part).toEqual({ index: 1, chunk: file.slice(0, 1) });
+    expect(part).toEqual({ index: 1, chunk: blob.slice(0, 1) });
     expect(store.getDoneSize()).toBe(0);
 
     // When/Then
@@ -38,7 +38,7 @@ describe('UploadMemoryStore', () => {
   it('sets a part upload to be failed', async () => {
     // Given
     const store = new UploadMemoryStore();
-    await store.init({ file, partSize: 1 });
+    await store.init({ blob, partSize: 1 });
 
     // When
     const part = store.nextPart() as UploadPart;
@@ -58,7 +58,7 @@ describe('UploadMemoryStore', () => {
   it('sets a part upload to be passed', async () => {
     // Given
     const store = new UploadMemoryStore();
-    await store.init({ file, partSize: 1 });
+    await store.init({ blob, partSize: 1 });
 
     // When
     const part = store.nextPart() as UploadPart;

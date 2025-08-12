@@ -17,12 +17,11 @@ import UploadQueueProvider from '../provider';
 describe('UseUpload hook', () => {
   const partSize = 1024;
   const byte = new Uint8Array(4 * partSize);
-  const file = {
-    uid: getUuid4(),
-    file: new File([byte], 'blob.bin', {
-      type: 'application/octet-stream',
-    }),
-  };
+
+  const uid = getUuid4();
+  const blob = new File([byte], 'blob.bin', {
+    type: 'application/octet-stream',
+  });
 
   const wrapper = (args: { children: ReactNode }) => {
     const store = makeStore();
@@ -59,7 +58,7 @@ describe('UseUpload hook', () => {
       new Error('Network error or aborted.')
     );
 
-    const { result } = renderHook(() => useUpload({ file, partSize }), {
+    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
       wrapper,
     });
 
@@ -78,7 +77,7 @@ describe('UseUpload hook', () => {
 
   it('uploads all file chunks successfully', async () => {
     // Given
-    const { result } = renderHook(() => useUpload({ file, partSize }), {
+    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
       wrapper,
     });
 
@@ -101,7 +100,7 @@ describe('UseUpload hook', () => {
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
       .mockResolvedValue({ ok: true, code: 200 });
 
-    const { result } = renderHook(() => useUpload({ file, partSize }), {
+    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
       wrapper,
     });
 
@@ -124,7 +123,7 @@ describe('UseUpload hook', () => {
       new Error('Network error or aborted.')
     );
 
-    const { result } = renderHook(() => useUpload({ file, partSize }), {
+    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
       wrapper,
     });
 
@@ -147,7 +146,7 @@ describe('UseUpload hook', () => {
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
       .mockResolvedValueOnce({ text: 'upload-id', code: 201 });
 
-    const { result } = renderHook(() => useUpload({ file, partSize }), {
+    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
       wrapper,
     });
 
@@ -172,7 +171,7 @@ describe('UseUpload hook', () => {
       .mockRejectedValueOnce(new Error('Network error or aborted.'))
       .mockResolvedValue({ ok: true, code: 200 });
 
-    const { result } = renderHook(() => useUpload({ file, partSize }), {
+    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
       wrapper,
     });
 
@@ -198,7 +197,7 @@ describe('UseUpload hook', () => {
       new Error('Network error or aborted.')
     );
 
-    const { result } = renderHook(() => useUpload({ file, partSize }), {
+    const { result } = renderHook(() => useUpload({ blob, uid, partSize }), {
       wrapper,
     });
 

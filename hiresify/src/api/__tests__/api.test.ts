@@ -11,7 +11,7 @@ describe('Multipart Upload APIs', () => {
   const calledEndpoints: string[] = [];
 
   const byte = new Uint8Array(4096);
-  const file = new File([byte], 'blob.bin', {
+  const blob = new File([byte], 'blob.bin', {
     type: 'application/octet-stream',
   });
 
@@ -40,14 +40,14 @@ describe('Multipart Upload APIs', () => {
     });
 
     // When/Then
-    await expect(create({ file: emptyFile })).rejects.toThrow(
+    await expect(create({ blob: emptyFile })).rejects.toThrow(
       'File is too small to upload.'
     );
 
     expect(calledEndpoints).toEqual([]);
 
     // When
-    const { code } = await create({ file });
+    const { code } = await create({ blob });
 
     // Then
     expect(calledEndpoints).toEqual([blobUrls.upload]);
@@ -56,7 +56,7 @@ describe('Multipart Upload APIs', () => {
 
   it('uploads file chunks that is abortable', async () => {
     // Given
-    const chunk = file;
+    const chunk = blob;
     const index = 1;
     const uploadId = 'upload-id';
 
