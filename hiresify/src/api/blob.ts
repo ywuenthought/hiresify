@@ -55,32 +55,6 @@ export async function create(args: { blob: File }): Promise<TextResponse> {
   }
 }
 
-export async function remove(args: { blobUid: string }): Promise<BoolResponse> {
-  const { blobUid } = args;
-
-  try {
-    const response = await fetch(`${blobUrls.delete}?blob_uid=${blobUid}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    });
-    return await buildBoolResponse({ response });
-  } catch {
-    throw new Error('Network crashed.');
-  }
-}
-
-export async function fetchAll(): Promise<BlobsResponse> {
-  try {
-    const response = await fetch(blobUrls.fetch, {
-      method: 'GET',
-      credentials: 'include',
-    });
-    return await buildBlobsResponse({ response });
-  } catch {
-    throw new Error('Network crashed.');
-  }
-}
-
 export async function finish(args: {
   fileName: string;
   uploadId: string;
@@ -98,6 +72,32 @@ export async function finish(args: {
       credentials: 'include',
     });
     return await buildBlobResponse({ response });
+  } catch {
+    throw new Error('Network crashed.');
+  }
+}
+
+export async function gather(): Promise<BlobsResponse> {
+  try {
+    const response = await fetch(blobUrls.fetch, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    return await buildBlobsResponse({ response });
+  } catch {
+    throw new Error('Network crashed.');
+  }
+}
+
+export async function remove(args: { blobUid: string }): Promise<BoolResponse> {
+  const { blobUid } = args;
+
+  try {
+    const response = await fetch(`${blobUrls.delete}?blob_uid=${blobUid}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    return await buildBoolResponse({ response });
   } catch {
     throw new Error('Network crashed.');
   }

@@ -9,6 +9,7 @@ import * as api from '@/api/blob';
 import { useAppDispatch } from '@/app/hooks';
 import type { BackendBlob } from '@/backend-type';
 import { insertPersistedBlob, removeInTransitBlob } from '@/feature/blob/slice';
+import { cancelThunk } from '@/feature/blob/thunk';
 import { defer } from '@/util';
 
 import { UploadQueueContext } from './queue';
@@ -19,6 +20,10 @@ const buildActionCreators = (args: { uid: string }) => {
   const { uid } = args;
 
   return {
+    cancel: (args: { uploadId: string }) => {
+      const { uploadId } = args;
+      cancelThunk({ blobUid: uid, uploadId });
+    },
     insertBlob: (args: { blob: BackendBlob }) => insertPersistedBlob(args),
     removeBlob: () => removeInTransitBlob({ uid }),
   };
@@ -212,8 +217,7 @@ export function useUpload(args: {
       return;
     }
 
-    await api.cancel({ uploadId });
-    actions.removeBlob();
+    actions.cancel({ uploadId });
   }, [actions, pause]);
 
   return {

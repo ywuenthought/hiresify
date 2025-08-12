@@ -5,9 +5,17 @@
 
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
-import { fetchAll } from '@/api/blob';
+import { cancel, gather } from '@/api/blob';
 
-export const fetchAllBlobs = createAsyncThunk(
-  'blob/fetchAll',
-  async () => await fetchAll()
+export const gatherThunk = createAsyncThunk(
+  'blob/gather',
+  async () => await gather()
+);
+
+export const cancelThunk = createAsyncThunk(
+  'blob/cancel',
+  async (args: { blobUid: string; uploadId: string }) => {
+    const { uploadId } = args;
+    return await cancel({ uploadId });
+  }
 );
