@@ -88,10 +88,9 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { degree, status } = result.current;
+    const { degree } = result.current;
 
     expect(degree).toBe(100);
-    expect(status).toBe('passed');
   });
 
   it('uploads all file chunks with some failed', async () => {
@@ -158,10 +157,9 @@ describe('UseUpload hook', () => {
     await act(async () => await retry());
 
     // Then
-    const { degree, status } = result.current;
+    const { degree } = result.current;
 
     expect(degree).toBe(100);
-    expect(status).toBe('passed');
   });
 
   it('retries when some chunk uploads failed', async () => {
@@ -185,10 +183,9 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { degree, status } = result.current;
+    const { degree } = result.current;
 
     expect(degree).toBe(100);
-    expect(status).toBe('passed');
   });
 
   it('retries when failed to finish the upload', async () => {
@@ -210,9 +207,8 @@ describe('UseUpload hook', () => {
     await act(async () => await retry());
 
     // Then
-    const { degree, status } = result.current;
+    const { degree } = result.current;
 
     expect(degree).toBe(100);
-    expect(status).toBe('passed');
   });
 });

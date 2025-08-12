@@ -9,20 +9,24 @@ import * as api from '@/api/blob';
 import { useAppDispatch } from '@/app/hooks';
 import type { BackendBlob } from '@/backend-type';
 import { insertPersistedBlob, removeInTransitBlob } from '@/feature/blob/slice';
-import { cancelThunk } from '@/feature/blob/thunk';
+import { cancelThunk, finishThunk } from '@/feature/blob/thunk';
 import { defer } from '@/util';
 
 import { UploadQueueContext } from './queue';
 import UploadMemoryStore from './store';
 import type { SimpleAsyncThunk, UploadPart, UploadStatus } from './type';
 
-const buildActionCreators = (args: { uid: string }) => {
-  const { uid } = args;
+const buildActionCreators = (args: { name: string; uid: string }) => {
+  const { name, uid } = args;
 
   return {
     cancel: (args: { uploadId: string }) => {
       const { uploadId } = args;
-      cancelThunk({ blobUid: uid, uploadId });
+      return cancelThunk({ blobUid: uid, uploadId });
+    },
+    finish: (args: { uploadId: string }) => {
+      const { uploadId } = args;
+      return finishThunk({ blobUid: uid, fileName: name, uploadId });
     },
     insertBlob: (args: { blob: BackendBlob }) => insertPersistedBlob(args),
     removeBlob: () => removeInTransitBlob({ uid }),
@@ -54,6 +58,7 @@ export function useUpload(args: {
   partSize: number;
 }): UseUploadReturnType {
   const { blob, uid, partSize } = args;
+  const { name } = blob;
 
   const queue = useUploadQueue();
   const store = useRef<UploadMemoryStore>(new UploadMemoryStore()).current;
@@ -66,8 +71,8 @@ export function useUpload(args: {
 
   const dispatch = useAppDispatch();
   const actions = useMemo(
-    () => bindActionCreators(buildActionCreators({ uid }), dispatch),
-    [uid, dispatch]
+    () => bindActionCreators(buildActionCreators({ name, uid }), dispatch),
+    [name, uid, dispatch]
   );
 
   const factory = useCallback(
@@ -75,7 +80,6 @@ export function useUpload(args: {
       const { controller, part } = args;
       const { chunk, index } = part;
 
-      const fileName = blob.name;
       const uploadId = uploadIdRef.current;
 
       return async (): Promise<void> => {
@@ -116,18 +120,7 @@ export function useUpload(args: {
           return setStatus('failed');
         }
 
-        try {
-          const { blob } = await api.finish({ fileName, uploadId });
-
-          if (blob) {
-            actions.insertBlob({ blob });
-            actions.removeBlob();
-          }
-
-          setStatus(blob ? 'passed' : 'failed');
-        } catch {
-          setStatus('failed');
-        }
+        actions.finish({ uploadId });
       };
     },
     [actions, controllers, blob, store]
@@ -190,22 +183,7 @@ export function useUpload(args: {
     } else {
       // Clear abort controllers.
       controllers.length = 0;
-
-      try {
-        const { blob: backendBlob } = await api.finish({
-          fileName: blob.name,
-          uploadId: uploadIdRef.current,
-        });
-
-        if (backendBlob) {
-          actions.insertBlob({ blob: backendBlob });
-          actions.removeBlob();
-        }
-
-        setStatus(blob ? 'passed' : 'failed');
-      } catch {
-        setStatus('failed');
-      }
+      actions.finish({ uploadId: uploadIdRef.current });
     }
   }, [actions, controllers, blob, store, start]);
 

@@ -9,7 +9,7 @@ import { createAppSlice } from '@/app/createAppSlice';
 import type { BackendBlob } from '@/backend-type';
 import type { FrontendBlob } from '@/type';
 
-import { cancelThunk, gatherThunk } from './thunk';
+import { cancelThunk, finishThunk, gatherThunk } from './thunk';
 
 const selectId = (entity: { uid: string }) => entity.uid;
 
@@ -81,6 +81,21 @@ const blobSlice = createAppSlice({
 
       const { blobUid } = action.meta.arg;
       inTransitBlobAdapter.removeOne(state.inTransit, blobUid);
+    });
+
+    builder.addCase(finishThunk.fulfilled, (state, action) => {
+      const { blob } = action.payload;
+      const { blobUid } = action.meta.arg;
+
+      if (blob) {
+        persistedBlobAdapter.addOne(state.persisted, blob);
+        inTransitBlobAdapter.removeOne(state.inTransit, blobUid);
+      } else {
+        inTransitBlobAdapter.updateOne(state.inTransit, {
+          id: blobUid,
+          changes: { status: 'failed' },
+        });
+      }
     });
 
     builder.addCase(gatherThunk.fulfilled, (state, action) => {
