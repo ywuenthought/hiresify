@@ -8,13 +8,9 @@ import { useCallback, useContext, useMemo, useRef, useState } from 'react';
 import * as api from '@/api/blob';
 import { useAppDispatch } from '@/app/hooks';
 import type { BackendBlob } from '@/backend-type';
-import {
-  insertPersistedImage,
-  insertPersistedVideo,
-  removeInTransitMedia,
-} from '@/feature/blob/slice';
+import { insertPersistedBlob, removeInTransitBlob } from '@/feature/blob/slice';
 import type { IndexedFile } from '@/type';
-import { defer, isImage, isVideo } from '@/util';
+import { defer } from '@/util';
 
 import { UploadQueueContext } from './queue';
 import UploadMemoryStore from './store';
@@ -24,9 +20,8 @@ const buildActionCreators = (args: { uid: string }) => {
   const { uid } = args;
 
   return {
-    insertImage: (args: { blob: BackendBlob }) => insertPersistedImage(args),
-    insertVideo: (args: { blob: BackendBlob }) => insertPersistedVideo(args),
-    removeMedia: () => removeInTransitMedia({ uid }),
+    insertBlob: (args: { blob: BackendBlob }) => insertPersistedBlob(args),
+    removeBlob: () => removeInTransitBlob({ uid }),
   };
 };
 
@@ -123,13 +118,8 @@ export function useUpload(args: {
           const { blob } = await api.finish({ fileName, uploadId });
 
           if (blob) {
-            if (isImage(blob)) {
-              actions.insertImage({ blob });
-            }
-            if (isVideo(blob)) {
-              actions.insertVideo({ blob });
-            }
-            actions.removeMedia();
+            actions.insertBlob({ blob });
+            actions.removeBlob();
           }
 
           setStatus(blob ? 'passed' : 'failed');
@@ -206,13 +196,8 @@ export function useUpload(args: {
         });
 
         if (blob) {
-          if (isImage(blob)) {
-            actions.insertImage({ blob });
-          }
-          if (isVideo(blob)) {
-            actions.insertVideo({ blob });
-          }
-          actions.removeMedia();
+          actions.insertBlob({ blob });
+          actions.removeBlob();
         }
 
         setStatus(blob ? 'passed' : 'failed');
@@ -231,7 +216,7 @@ export function useUpload(args: {
     }
 
     await api.cancel({ uploadId });
-    actions.removeMedia();
+    actions.removeBlob();
   }, [actions, pause]);
 
   return {

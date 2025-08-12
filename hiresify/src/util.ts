@@ -4,8 +4,6 @@
 
 import { v4 as uuid4 } from 'uuid';
 
-import type { BackendBlob } from './backend-type';
-
 export async function defer() {
   await new Promise<void>((resolve) => queueMicrotask(resolve));
 }
@@ -25,14 +23,6 @@ export function getManyUuids(length: number) {
 
 export function getUuid4() {
   return uuid4().replace(/-/g, '');
-}
-
-export function isImage(blob: BackendBlob) {
-  return blob.mimeType.startsWith('image');
-}
-
-export function isVideo(blob: BackendBlob) {
-  return blob.mimeType.startsWith('video');
 }
 
 export function mustGet(key: string): string {

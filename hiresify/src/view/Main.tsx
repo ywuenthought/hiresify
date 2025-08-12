@@ -13,19 +13,19 @@ import LogoutButton from '@/component/LogoutButton';
 import InTransitFile from '@/composite/InTransitFile';
 import { CHUNK_SIZE } from '@/const';
 import {
-  insertInTransitMedia,
-  selectAllInTransitMedia,
+  insertInTransitBlob,
+  selectAllInTransitBlobs,
 } from '@/feature/blob/slice';
 import { getUuid4 } from '@/util';
 
 export default function Main() {
-  const inTransitMedia = useAppSelector(selectAllInTransitMedia);
+  const inTransitBlobs = useAppSelector(selectAllInTransitBlobs);
 
   const onDrop = useCallback(
     (curFiles: File[]) =>
       curFiles.forEach((curFile) => {
         const file = { uid: getUuid4(), file: curFile };
-        insertInTransitMedia({ file });
+        insertInTransitBlob({ file });
       }),
     []
   );
@@ -54,7 +54,7 @@ export default function Main() {
             width: 700,
           }}
         >
-          {inTransitMedia.map((file) => (
+          {inTransitBlobs.map((file) => (
             <InTransitFile
               key={`controller:${file.uid}`}
               file={file}
