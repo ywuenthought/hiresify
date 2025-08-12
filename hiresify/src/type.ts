@@ -7,8 +7,8 @@ export type FrontendBlob = {
   // The UID of this blob.
   uid: string;
 
-  // The pointer to the actual bytes.
-  blob: File;
+  // The name of this blob.
+  fileName: string;
 
   // The progress of the upload.
   progress: number;

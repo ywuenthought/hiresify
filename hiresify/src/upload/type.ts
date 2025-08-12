@@ -10,5 +10,3 @@ export type UploadPart = {
   // The chunk of the parent file.
   readonly chunk: Blob;
 };
-
-export type UploadStatus = 'active' | 'failed' | 'passed' | 'paused';

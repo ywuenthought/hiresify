@@ -3,18 +3,23 @@
 // See the LICENSE file for more details.
 
 import { bindActionCreators } from '@reduxjs/toolkit';
-import { useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useMemo, useRef } from 'react';
 
 import * as api from '@/api/blob';
 import { useAppDispatch } from '@/app/hooks';
-import type { BackendBlob } from '@/backend-type';
-import { insertPersistedBlob, removeInTransitBlob } from '@/feature/blob/slice';
+import {
+  insertPersistedBlob,
+  removeInTransitBlob,
+  updateInTransitBlob,
+} from '@/feature/blob/slice';
 import { cancelThunk, finishThunk } from '@/feature/blob/thunk';
+import type { BlobSchema } from '@/json-schema';
+import type { FrontendBlob } from '@/type';
 import { defer } from '@/util';
 
 import { UploadQueueContext } from './queue';
 import UploadMemoryStore from './store';
-import type { SimpleAsyncThunk, UploadPart, UploadStatus } from './type';
+import type { SimpleAsyncThunk, UploadPart } from './type';
 
 const buildActionCreators = (args: { name: string; uid: string }) => {
   const { name, uid } = args;
@@ -28,7 +33,10 @@ const buildActionCreators = (args: { name: string; uid: string }) => {
       const { uploadId } = args;
       return finishThunk({ blobUid: uid, fileName: name, uploadId });
     },
-    insertBlob: (args: { blob: BackendBlob }) => insertPersistedBlob(args),
+    update: (changes: Partial<Omit<FrontendBlob, 'uid' | 'blob'>>) => {
+      return updateInTransitBlob({ id: uid, changes });
+    },
+    insertBlob: (args: { blob: BlobSchema }) => insertPersistedBlob(args),
     removeBlob: () => removeInTransitBlob({ uid }),
   };
 };
@@ -44,8 +52,6 @@ export function useUploadQueue() {
 }
 
 export type UseUploadReturnType = {
-  degree: number;
-  status: UploadStatus;
   abort: SimpleAsyncThunk;
   pause: SimpleAsyncThunk;
   retry: SimpleAsyncThunk;
@@ -66,9 +72,6 @@ export function useUpload(args: {
   const uploadIdRef = useRef<string>('');
   const controllers = useRef<AbortController[]>([]).current;
 
-  const [degree, setDegree] = useState<number>(0);
-  const [status, setStatus] = useState<UploadStatus>('active');
-
   const dispatch = useAppDispatch();
   const actions = useMemo(
     () => bindActionCreators(buildActionCreators({ name, uid }), dispatch),
@@ -79,8 +82,7 @@ export function useUpload(args: {
     (args: { controller: AbortController; part: UploadPart }) => {
       const { controller, part } = args;
       const { chunk, index } = part;
-
-      const uploadId = uploadIdRef.current;
+      const { current: uploadId } = uploadIdRef;
 
       return async (): Promise<void> => {
         try {
@@ -107,7 +109,7 @@ export function useUpload(args: {
         }
 
         const doneSize = store.getDoneSize();
-        setDegree((doneSize / blob.size) * 100);
+        actions.update({ progress: (doneSize / blob.size) * 100 });
 
         if (!store.getAllClear()) {
           return;
@@ -117,7 +119,8 @@ export function useUpload(args: {
         controllers.length = 0;
 
         if (doneSize !== blob.size) {
-          return setStatus('failed');
+          actions.update({ status: 'failed' });
+          return;
         }
 
         actions.finish({ uploadId });
@@ -145,26 +148,27 @@ export function useUpload(args: {
     };
 
     if (uploadIdRef.current) {
-      setStatus('active');
+      actions.update({ status: 'active' });
       await enqueueJobs();
     } else {
       try {
         const { text: uploadId } = await api.create({ blob });
 
         if (!uploadId) {
-          return setStatus('failed');
+          actions.update({ status: 'failed' });
+          return;
         }
 
         uploadIdRef.current = uploadId;
         await store.init({ blob, partSize });
 
-        setStatus('active');
+        actions.update({ status: 'active' });
         await enqueueJobs();
       } catch {
-        setStatus('failed');
+        actions.update({ status: 'failed' });
       }
     }
-  }, [controllers, blob, partSize, queue, store, factory]);
+  }, [actions, controllers, blob, partSize, queue, store, factory]);
 
   const pause = useCallback(async () => {
     while (controllers.length > 0) {
@@ -173,8 +177,8 @@ export function useUpload(args: {
     }
 
     await store.pause();
-    setStatus('paused');
-  }, [controllers, store]);
+    actions.update({ status: 'paused' });
+  }, [actions, controllers, store]);
 
   const retry = useCallback(async () => {
     if (store.getDoneSize() < blob.size) {
@@ -183,13 +187,15 @@ export function useUpload(args: {
     } else {
       // Clear abort controllers.
       controllers.length = 0;
-      actions.finish({ uploadId: uploadIdRef.current });
+
+      const { current: uploadId } = uploadIdRef;
+      actions.finish({ uploadId });
     }
   }, [actions, controllers, blob, store, start]);
 
   const abort = useCallback(async () => {
     await pause();
-    const uploadId = uploadIdRef.current;
+    const { current: uploadId } = uploadIdRef;
 
     if (!uploadId) {
       return;
@@ -198,12 +204,5 @@ export function useUpload(args: {
     actions.cancel({ uploadId });
   }, [actions, pause]);
 
-  return {
-    degree,
-    status,
-    abort,
-    pause,
-    retry,
-    start,
-  };
+  return { abort, pause, retry, start };
 }

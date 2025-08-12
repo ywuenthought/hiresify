@@ -6,7 +6,7 @@
 import { createEntityAdapter, type EntityState } from '@reduxjs/toolkit';
 
 import { createAppSlice } from '@/app/createAppSlice';
-import type { BackendBlob } from '@/backend-type';
+import type { BlobSchema } from '@/json-schema';
 import type { FrontendBlob } from '@/type';
 
 import { cancelThunk, finishThunk, gatherThunk, removeThunk } from './thunk';
@@ -16,18 +16,22 @@ const selectId = (entity: { uid: string }) => entity.uid;
 const inTransitBlobAdapter = createEntityAdapter<FrontendBlob, string>({
   selectId,
 });
-const persistedBlobAdapter = createEntityAdapter<BackendBlob, string>({
+const persistedBlobAdapter = createEntityAdapter<BlobSchema, string>({
   selectId,
 });
 
-const { selectAll: selectInTransitBlobEntities } =
-  inTransitBlobAdapter.getSelectors();
-const { selectAll: selectPersistedBlobEntities } =
-  persistedBlobAdapter.getSelectors();
+const {
+  selectAll: selectInTransitBlobEntities,
+  selectById: selectInTransitBlobById,
+} = inTransitBlobAdapter.getSelectors();
+const {
+  selectAll: selectPersistedBlobEntities,
+  selectById: selectPersistedBlobById,
+} = persistedBlobAdapter.getSelectors();
 
 type BlobState = {
   inTransit: EntityState<FrontendBlob, string>;
-  persisted: EntityState<BackendBlob, string>;
+  persisted: EntityState<BlobSchema, string>;
 };
 
 const initialState: BlobState = {
@@ -40,15 +44,15 @@ const blobSlice = createAppSlice({
   initialState,
   reducers: (create) => ({
     insertInTransitBlob: create.preparedReducer(
-      (args: { file: FrontendBlob }) => ({ payload: args }),
+      (args: { blob: FrontendBlob }) => ({ payload: args }),
       (state, action) => {
-        const { file } = action.payload;
-        inTransitBlobAdapter.addOne(state.inTransit, file);
+        const { blob } = action.payload;
+        inTransitBlobAdapter.addOne(state.inTransit, blob);
       }
     ),
 
     insertPersistedBlob: create.preparedReducer(
-      (args: { blob: BackendBlob }) => ({ payload: args }),
+      (args: { blob: BlobSchema }) => ({ payload: args }),
       (state, action) => {
         const { blob } = action.payload;
         persistedBlobAdapter.addOne(state.persisted, blob);
@@ -68,6 +72,17 @@ const blobSlice = createAppSlice({
       (state, action) => {
         const { uid } = action.payload;
         persistedBlobAdapter.removeOne(state.persisted, uid);
+      }
+    ),
+
+    updateInTransitBlob: create.preparedReducer(
+      (args: {
+        id: string;
+        changes: Partial<Omit<FrontendBlob, 'uid' | 'blob'>>;
+      }) => ({ payload: args }),
+      (state, action) => {
+        const { id, changes } = action.payload;
+        inTransitBlobAdapter.updateOne(state.inTransit, { id, changes });
       }
     ),
   }),
@@ -122,6 +137,10 @@ const blobSlice = createAppSlice({
       selectInTransitBlobEntities(state.inTransit),
     selectAllPersistedBlobs: (state) =>
       selectPersistedBlobEntities(state.persisted),
+    selectOneInTransitBlob: (state, blobUid: string) =>
+      selectInTransitBlobById(state.inTransit, blobUid),
+    selectOnePersistedBlob: (state, blobUid: string) =>
+      selectPersistedBlobById(state.persisted, blobUid),
   },
 });
 
@@ -134,6 +153,11 @@ export const {
   insertPersistedBlob,
   removeInTransitBlob,
   removePersistedBlob,
+  updateInTransitBlob,
 } = blobSlice.actions;
-export const { selectAllInTransitBlobs, selectAllPersistedBlobs } =
-  blobSlice.selectors;
+export const {
+  selectAllInTransitBlobs,
+  selectAllPersistedBlobs,
+  selectOneInTransitBlob,
+  selectOnePersistedBlob,
+} = blobSlice.selectors;

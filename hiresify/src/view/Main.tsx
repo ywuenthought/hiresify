@@ -3,7 +3,7 @@
 // See the LICENSE file for more details.
 
 import { Box, Paper, Stack } from '@mui/material';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 
 import { useAppSelector } from '@/app/hooks';
 import bg from '@/assets/bg.jpg';
@@ -16,18 +16,28 @@ import {
   insertInTransitBlob,
   selectAllInTransitBlobs,
 } from '@/feature/blob/slice';
+import type { FrontendBlob } from '@/type';
 import { getUuid4 } from '@/util';
 
 export default function Main() {
+  const indexedJSBlobs = useRef<Map<string, File>>(new Map()).current;
   const inTransitBlobs = useAppSelector(selectAllInTransitBlobs);
 
   const onDrop = useCallback(
     (curFiles: File[]) =>
-      curFiles.forEach((curFile) => {
-        const file = { uid: getUuid4(), file: curFile };
-        insertInTransitBlob({ file });
+      curFiles.forEach((file) => {
+        const uid = getUuid4();
+        const blob: FrontendBlob = {
+          uid,
+          fileName: file.name,
+          progress: 0,
+          status: 'active',
+        };
+
+        indexedJSBlobs.set(uid, file);
+        insertInTransitBlob({ blob });
       }),
-    []
+    [indexedJSBlobs]
   );
 
   return (
@@ -54,13 +64,18 @@ export default function Main() {
             width: 700,
           }}
         >
-          {inTransitBlobs.map((file) => (
-            <InTransitFile
-              key={`controller:${file.uid}`}
-              file={file}
-              partSize={CHUNK_SIZE}
-            />
-          ))}
+          {inTransitBlobs.map((frontendBlob) => {
+            const { uid } = frontendBlob;
+            return (
+              <InTransitFile
+                key={`controller:${uid}`}
+                blob={indexedJSBlobs.get(uid) as File}
+                frontendBlob={frontendBlob}
+                partSize={CHUNK_SIZE}
+                removeBlob={() => indexedJSBlobs.delete(uid)}
+              />
+            );
+          })}
         </Paper>
       </Stack>
     </Background>

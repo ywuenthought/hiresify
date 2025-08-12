@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import FileProfile from '@/component/FileProfile';
 import ProgressBar from '@/component/ProgressBar';
-import type { IndexedFile } from '@/type';
+import type { FrontendBlob } from '@/type';
 import { useUpload } from '@/upload/hook';
 
 const SPINNINGWHEEL = <CircularProgress size={30} />;
@@ -20,18 +20,17 @@ const iconPerStatus = {
 };
 
 type InTransitFileProps = {
-  file: IndexedFile;
+  blob: File;
+  frontendBlob: FrontendBlob;
   partSize: number;
+  removeBlob: () => void;
 };
 
 export default function InTransitFile(props: InTransitFileProps) {
-  const { file, partSize } = props;
-  const { name: fileName } = file.file;
+  const { blob, frontendBlob, partSize, removeBlob } = props;
+  const { uid, fileName, progress, status } = frontendBlob;
 
-  const { degree, status, abort, pause, retry, start } = useUpload({
-    file,
-    partSize,
-  });
+  const { abort, pause, retry, start } = useUpload({ blob, uid, partSize });
 
   const [abortOff, setAbortOff] = useState<boolean>(false);
   const [otherOff, setOtherOff] = useState<boolean>(false);
@@ -40,7 +39,9 @@ export default function InTransitFile(props: InTransitFileProps) {
     setOtherOff(true);
     await abort();
     setOtherOff(false);
-  }, [abort]);
+
+    removeBlob();
+  }, [abort, removeBlob]);
 
   const handleOther = useCallback(async () => {
     setAbortOff(true);
@@ -109,7 +110,7 @@ export default function InTransitFile(props: InTransitFileProps) {
             }
           />
         </Stack>
-        <ProgressBar progress={degree} />
+        <ProgressBar progress={progress} />
       </Stack>
     </Box>
   );

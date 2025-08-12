@@ -2,7 +2,6 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import { buildBlobBySchema } from '@/backend-type';
 import type { BlobSchema } from '@/json-schema';
 import { getDetail } from '@/util';
 
@@ -23,8 +22,8 @@ export async function buildBlobResponse(args: {
   };
 
   if (response.ok) {
-    const schema: BlobSchema = await response.json();
-    blobResponse.blob = buildBlobBySchema({ schema });
+    const blob: BlobSchema = await response.json();
+    blobResponse.blob = blob;
   } else {
     blobResponse.err = await getDetail(response);
   }
@@ -43,10 +42,8 @@ export async function buildBlobsResponse(args: {
   };
 
   if (response.ok) {
-    const schemas: BlobSchema[] = await response.json();
-    schemas.forEach((schema) =>
-      blobsResponse.blobs.push(buildBlobBySchema({ schema }))
-    );
+    const blobs: BlobSchema[] = await response.json();
+    blobs.forEach((blob) => blobsResponse.blobs.push(blob));
   } else {
     blobsResponse.err = await getDetail(response);
   }

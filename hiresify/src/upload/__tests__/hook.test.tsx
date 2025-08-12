@@ -8,23 +8,29 @@ import { Provider } from 'react-redux';
 
 import * as api from '@/api/blob';
 import { makeStore } from '@/app/store';
-import { getTestBackendBlob } from '@/testing/blob';
-import { getUuid4 } from '@/util';
+import {
+  insertInTransitBlob,
+  removeInTransitBlob,
+  selectOneInTransitBlob,
+  selectOnePersistedBlob,
+} from '@/feature/blob/slice';
+import {
+  getTestBackendBlob,
+  getTestFrontendBlob,
+  getTestJSFile,
+} from '@/testing/blob';
 
 import { useUpload } from '../hook';
 import UploadQueueProvider from '../provider';
 
 describe('UseUpload hook', () => {
   const partSize = 1024;
-  const byte = new Uint8Array(4 * partSize);
+  const blob = getTestJSFile({ partNums: 4, partSize });
+  const frontendBlob = getTestFrontendBlob();
+  const { uid } = frontendBlob;
 
-  const uid = getUuid4();
-  const blob = new File([byte], 'blob.bin', {
-    type: 'application/octet-stream',
-  });
-
+  const store = makeStore();
   const wrapper = (args: { children: ReactNode }) => {
-    const store = makeStore();
     const { children } = args;
 
     return (
@@ -35,6 +41,8 @@ describe('UseUpload hook', () => {
   };
 
   beforeEach(() => {
+    store.dispatch(insertInTransitBlob({ blob: frontendBlob }));
+
     vi.spyOn(api, 'create').mockImplementation(async () => {
       return { text: 'upload-id', code: 201 };
     });
@@ -49,6 +57,7 @@ describe('UseUpload hook', () => {
   });
 
   afterEach(() => {
+    store.dispatch(removeInTransitBlob({ uid }));
     vi.restoreAllMocks();
   });
 
@@ -69,9 +78,9 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { degree, status } = result.current;
+    const { progress, status } = selectOneInTransitBlob(store.getState(), uid);
 
-    expect(degree).toBe(0);
+    expect(progress).toBe(0);
     expect(status).toBe('failed');
   });
 
@@ -88,9 +97,12 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { degree } = result.current;
+    const state = store.getState();
+    const inTransitBlob = selectOneInTransitBlob(state, uid);
+    const persistedBlob = selectOnePersistedBlob(state, 'blob-uid');
 
-    expect(degree).toBe(100);
+    expect(inTransitBlob).toBeUndefined();
+    expect(persistedBlob).not.toBeUndefined();
   });
 
   it('uploads all file chunks with some failed', async () => {
@@ -110,9 +122,9 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { degree, status } = result.current;
+    const { progress, status } = selectOneInTransitBlob(store.getState(), uid);
 
-    expect(degree).toBe(75);
+    expect(progress).toBe(75);
     expect(status).toBe('failed');
   });
 
@@ -133,9 +145,9 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { degree, status } = result.current;
+    const { progress, status } = selectOneInTransitBlob(store.getState(), uid);
 
-    expect(degree).toBe(100);
+    expect(progress).toBe(100);
     expect(status).toBe('failed');
   });
 
@@ -157,9 +169,12 @@ describe('UseUpload hook', () => {
     await act(async () => await retry());
 
     // Then
-    const { degree } = result.current;
+    const state = store.getState();
+    const inTransitBlob = selectOneInTransitBlob(state, uid);
+    const persistedBlob = selectOnePersistedBlob(state, 'blob-uid');
 
-    expect(degree).toBe(100);
+    expect(inTransitBlob).toBeUndefined();
+    expect(persistedBlob).not.toBeUndefined();
   });
 
   it('retries when some chunk uploads failed', async () => {
@@ -183,9 +198,12 @@ describe('UseUpload hook', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Then
-    const { degree } = result.current;
+    const state = store.getState();
+    const inTransitBlob = selectOneInTransitBlob(state, uid);
+    const persistedBlob = selectOnePersistedBlob(state, 'blob-uid');
 
-    expect(degree).toBe(100);
+    expect(inTransitBlob).toBeUndefined();
+    expect(persistedBlob).not.toBeUndefined();
   });
 
   it('retries when failed to finish the upload', async () => {
@@ -207,8 +225,11 @@ describe('UseUpload hook', () => {
     await act(async () => await retry());
 
     // Then
-    const { degree } = result.current;
+    const state = store.getState();
+    const inTransitBlob = selectOneInTransitBlob(state, uid);
+    const persistedBlob = selectOnePersistedBlob(state, 'blob-uid');
 
-    expect(degree).toBe(100);
+    expect(inTransitBlob).toBeUndefined();
+    expect(persistedBlob).not.toBeUndefined();
   });
 });
