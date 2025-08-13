@@ -49,6 +49,7 @@ def build(tag: str) -> None:
         "--quiet",
         "-o",
         str(REQUIREMENTS_FILE),
+        "--no-emit-project",
     ]
     if subprocess.run(cmd, check=False, cwd=PROJECT_ROOT).returncode:
         raise ClickException("Failed to export requirements.txt.")
