@@ -9,7 +9,7 @@ import * as api from '@/api/blob';
 import { useAppDispatch } from '@/app/hooks';
 import { updateInTransitBlob } from '@/feature/blob/slice';
 import { cancelThunk, finishThunk } from '@/feature/blob/thunk';
-import type { FrontendBlob } from '@/type';
+import type { InTransitBlob } from '@/type';
 import { defer } from '@/util';
 
 import { UploadQueueContext } from './queue';
@@ -28,7 +28,7 @@ const buildActionCreators = (args: { blobUid: string; fileName: string }) => {
       const { uploadId } = args;
       return finishThunk({ blobUid, fileName, uploadId });
     },
-    update: (changes: Partial<Omit<FrontendBlob, 'uid' | 'blob'>>) => {
+    update: (changes: Partial<Omit<InTransitBlob, 'uid' | 'blob'>>) => {
       return updateInTransitBlob({ id: blobUid, changes });
     },
   };

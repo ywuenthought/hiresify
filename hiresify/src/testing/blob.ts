@@ -3,9 +3,9 @@
 // See the LICENSE file for more details.
 
 import type { BlobSchema } from '@/json-schema';
-import type { FrontendBlob } from '@/type';
+import type { InTransitBlob } from '@/type';
 
-export function getTestBackendBlob(args?: Partial<BlobSchema>): BlobSchema {
+export function getTestBlobSchema(args?: Partial<BlobSchema>): BlobSchema {
   const {
     uid = 'blob-uid',
     fileName = 'image.png',
@@ -17,12 +17,17 @@ export function getTestBackendBlob(args?: Partial<BlobSchema>): BlobSchema {
   return { uid, fileName, mimeType, createdAt, validThru };
 }
 
-export function getTestFrontendBlob(
-  args?: Partial<FrontendBlob>
-): FrontendBlob {
-  const { uid = 'blob-uid', progress = 0, status = 'active' } = args ?? {};
+export function getTestInTransitBlob(
+  args?: Partial<InTransitBlob>
+): InTransitBlob {
+  const {
+    uid = 'blob-uid',
+    fileName = 'image.png',
+    progress = 0,
+    status = 'active',
+  } = args ?? {};
 
-  return { uid, progress, status };
+  return { uid, fileName, progress, status };
 }
 
 export function getTestJSFile(args?: {

@@ -19,12 +19,12 @@ import {
   selectAllInTransitBlobs,
   selectAllPersistedBlobs,
 } from '@/feature/blob/slice';
-import type { FrontendBlob } from '@/type';
+import type { InTransitBlob } from '@/type';
 import { getUuid4 } from '@/util';
 
 const buildActionCreators = () => {
   return {
-    insert: (args: { blob: FrontendBlob }) => insertInTransitBlob(args),
+    insert: (args: { blob: InTransitBlob }) => insertInTransitBlob(args),
   };
 };
 
@@ -50,7 +50,7 @@ export default function Main() {
     (curFiles: File[]) =>
       curFiles.forEach((file) => {
         const uid = getUuid4();
-        const blob: FrontendBlob = {
+        const blob: InTransitBlob = {
           uid,
           fileName: file.name,
           progress: 0,
@@ -87,23 +87,23 @@ export default function Main() {
             width: 700,
           }}
         >
-          {inTransitBlobs.map((frontendBlob) => {
-            const { uid } = frontendBlob;
+          {inTransitBlobs.map((inTransitBlob) => {
+            const { uid } = inTransitBlob;
             return (
               <InTransitFile
                 key={`controller:${uid}`}
                 jsBlob={indexedJSBlobs.get(uid) as File}
-                frontendBlob={frontendBlob}
+                inTransitBlob={inTransitBlob}
                 partSize={CHUNK_SIZE}
               />
             );
           })}
-          {persistedBlobs.map((backendBlob) => {
-            const { uid } = backendBlob;
+          {persistedBlobs.map((persistedBlob) => {
+            const { uid } = persistedBlob;
             return (
               <PersistedFile
                 key={`controller:${uid}`}
-                backendBlob={backendBlob}
+                persistedBlob={persistedBlob}
               />
             );
           })}

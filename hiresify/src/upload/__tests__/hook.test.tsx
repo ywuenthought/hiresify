@@ -15,8 +15,8 @@ import {
   selectOnePersistedBlob,
 } from '@/feature/blob/slice';
 import {
-  getTestBackendBlob,
-  getTestFrontendBlob,
+  getTestBlobSchema,
+  getTestInTransitBlob,
   getTestJSFile,
 } from '@/testing/blob';
 
@@ -26,7 +26,7 @@ import UploadQueueProvider from '../provider';
 describe('UseUpload hook', () => {
   const partSize = 1024;
   const jsBlob = getTestJSFile({ partNums: 4, partSize });
-  const blob = getTestFrontendBlob();
+  const blob = getTestInTransitBlob();
   const { uid: blobUid } = blob;
 
   const store = makeStore();
@@ -52,7 +52,7 @@ describe('UseUpload hook', () => {
     });
 
     vi.spyOn(api, 'finish').mockImplementation(async () => {
-      return { blob: getTestBackendBlob(), code: 200 };
+      return { blob: getTestBlobSchema(), code: 200 };
     });
   });
 

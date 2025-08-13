@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import FileProfile from '@/component/FileProfile';
 import ProgressBar from '@/component/ProgressBar';
-import type { FrontendBlob } from '@/type';
+import type { InTransitBlob } from '@/type';
 import { useUpload } from '@/upload/hook';
 
 const SPINNINGWHEEL = <CircularProgress size={30} />;
@@ -21,13 +21,13 @@ const iconPerStatus = {
 
 type InTransitFileProps = {
   jsBlob: File;
-  frontendBlob: FrontendBlob;
+  inTransitBlob: InTransitBlob;
   partSize: number;
 };
 
 export default function InTransitFile(props: InTransitFileProps) {
-  const { jsBlob, frontendBlob, partSize } = props;
-  const { uid: blobUid, fileName, progress, status } = frontendBlob;
+  const { jsBlob, inTransitBlob, partSize } = props;
+  const { uid: blobUid, fileName, progress, status } = inTransitBlob;
 
   const { abort, pause, retry, start } = useUpload({
     jsBlob,

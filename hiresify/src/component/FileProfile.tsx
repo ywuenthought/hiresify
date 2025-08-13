@@ -6,24 +6,15 @@ import { InsertDriveFile, Movie, Photo } from '@mui/icons-material';
 import { Box, Stack, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 
-import type { FileType } from '@/type';
-
-const iconPerMedia = {
-  image: <Photo fontSize="large" />,
-  video: <Movie fontSize="large" />,
-  unknown: <InsertDriveFile fontSize="large" />,
-};
-
 type FileProfileProps = {
   fileName: string;
-  fileType?: FileType;
+  mimeType?: string;
   majorButton?: ReactNode;
   minorButton?: ReactNode;
 };
 
 export default function FileProfile(props: FileProfileProps) {
-  const { fileName, fileType = 'unknown', majorButton, minorButton } = props;
-  const mediaIcon = iconPerMedia[fileType];
+  const { fileName, mimeType = 'unknown', majorButton, minorButton } = props;
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -36,7 +27,13 @@ export default function FileProfile(props: FileProfileProps) {
           justifyContent: 'flex-start',
         }}
       >
-        {mediaIcon}
+        {mimeType.startsWith('image') ? (
+          <Photo fontSize="large" />
+        ) : mimeType.startsWith('video') ? (
+          <Movie fontSize="large" />
+        ) : (
+          <InsertDriveFile fontSize="large" />
+        )}
         <Typography variant="body1" sx={{ flexGrow: 1, textAlign: 'left' }}>
           {fileName}
         </Typography>

@@ -7,27 +7,17 @@ import { Box, CircularProgress, IconButton, Stack } from '@mui/material';
 import { useCallback, useState } from 'react';
 
 import { useAppDispatch } from '@/app/hooks';
-import type { BackendBlob } from '@/backend-type';
 import FileProfile from '@/component/FileProfile';
 import { removeThunk } from '@/feature/blob/thunk';
-import type { FileType } from '@/type';
+import type { PersistedBlob } from '@/type';
 
 type PersistedFileProps = {
-  backendBlob: BackendBlob;
+  persistedBlob: PersistedBlob;
 };
 
 export default function PersistedFile(props: PersistedFileProps) {
-  const { backendBlob } = props;
-  const { uid: blobUid, fileName, mimeType } = backendBlob;
-
-  let fileType: FileType = 'unknown';
-
-  if (mimeType.startsWith('image')) {
-    fileType = 'image';
-  }
-  if (mimeType.startsWith('video')) {
-    fileType = 'video';
-  }
+  const { persistedBlob } = props;
+  const { uid: blobUid, fileName, mimeType } = persistedBlob;
 
   const dispatch = useAppDispatch();
   const [pending, setPending] = useState<boolean>(false);
@@ -51,7 +41,7 @@ export default function PersistedFile(props: PersistedFileProps) {
       >
         <FileProfile
           fileName={fileName}
-          fileType={fileType}
+          mimeType={mimeType}
           majorButton={
             pending ? (
               <CircularProgress size={30} />
