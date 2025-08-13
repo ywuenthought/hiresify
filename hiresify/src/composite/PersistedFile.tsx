@@ -2,115 +2,66 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import { Close, Pause, PlayArrow, Replay } from '@mui/icons-material';
+import { Delete } from '@mui/icons-material';
 import { Box, CircularProgress, IconButton, Stack } from '@mui/material';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
+import { useAppDispatch } from '@/app/hooks';
+import type { BackendBlob } from '@/backend-type';
 import FileProfile from '@/component/FileProfile';
-import ProgressBar from '@/component/ProgressBar';
-import { useUpload } from '@/upload/hook';
+import { removeThunk } from '@/feature/blob/thunk';
+import type { FileType } from '@/type';
 
-const SPINNINGWHEEL = <CircularProgress size={30} />;
-
-const iconPerStatus = {
-  active: <Pause />,
-  failed: <Replay />,
-  paused: <PlayArrow />,
+type PersistedFileProps = {
+  backendBlob: BackendBlob;
 };
 
-type FileControllerProps = {
-  file: File;
-  partSize: number;
-  removeFile: () => void;
-};
+export default function PersistedFile(props: PersistedFileProps) {
+  const { backendBlob } = props;
+  const { uid: blobUid, fileName, mimeType } = backendBlob;
 
-export default function FileController(props: FileControllerProps) {
-  const { file, partSize } = props;
-  const { removeFile } = props;
+  let fileType: FileType = 'unknown';
 
-  const { degree, status, abort, pause, retry, start } = useUpload({
-    file,
-    partSize,
-  });
+  if (mimeType.startsWith('image')) {
+    fileType = 'image';
+  }
+  if (mimeType.startsWith('video')) {
+    fileType = 'video';
+  }
 
-  const uploading = status !== 'passed';
-  const [abortOff, setAbortOff] = useState<boolean>(false);
-  const [otherOff, setOtherOff] = useState<boolean>(false);
+  const dispatch = useAppDispatch();
+  const [pending, setPending] = useState<boolean>(false);
 
-  const handleAbort = useCallback(async () => {
-    setOtherOff(true);
-    await abort();
-    setOtherOff(false);
-
-    removeFile();
-  }, [abort, removeFile]);
-
-  const handleOther = useCallback(async () => {
-    setAbortOff(true);
-
-    switch (status) {
-      case 'active':
-        await pause();
-        break;
-      case 'failed':
-        await retry();
-        break;
-      case 'paused':
-        await start();
-        break;
-      default:
-        break;
-    }
-
-    setAbortOff(false);
-  }, [status, pause, retry, start]);
-
-  useEffect(() => {
-    const startUpload = async () => await start();
-    startUpload();
-  }, [start]);
+  const handleRemove = useCallback(async () => {
+    setPending(true);
+    await dispatch(removeThunk({ blobUid }));
+    setPending(false);
+  }, [blobUid, dispatch, setPending]);
 
   return (
     <Box sx={{ height: 50, minWidth: 150, my: 4 }}>
       <Stack
-        direction="column"
+        direction="row"
         spacing={1}
-        sx={{ height: '100%', width: '100%' }}
+        sx={{
+          alignItems: 'center',
+          display: 'flex',
+          justifyContent: 'flex-start',
+        }}
       >
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{
-            alignItems: 'center',
-            display: 'flex',
-            justifyContent: 'flex-start',
-          }}
-        >
-          <FileProfile
-            fileName={file.name}
-            majorButton={
-              uploading &&
-              (abortOff ? (
-                SPINNINGWHEEL
-              ) : (
-                <IconButton disabled={otherOff} onClick={handleOther}>
-                  {iconPerStatus[status]}
-                </IconButton>
-              ))
-            }
-            minorButton={
-              uploading &&
-              (otherOff ? (
-                SPINNINGWHEEL
-              ) : (
-                <IconButton disabled={abortOff} onClick={handleAbort}>
-                  <Close />
-                </IconButton>
-              ))
-            }
-          />
-        </Stack>
-        {uploading && <ProgressBar progress={degree} />}
+        <FileProfile
+          fileName={fileName}
+          fileType={fileType}
+          majorButton={
+            pending ? (
+              <CircularProgress size={30} />
+            ) : (
+              <IconButton onClick={handleRemove}>
+                <Delete />
+              </IconButton>
+            )
+          }
+        />
       </Stack>
     </Box>
   );

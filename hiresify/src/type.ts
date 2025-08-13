@@ -3,6 +3,8 @@
 // Access, use, and distribution is subject to written agreement
 // by and between Enthought, Inc. and Daiichi Sankyo.
 
+export type FileType = 'image' | 'video' | 'unknown';
+
 export type FrontendBlob = {
   // The UID of this blob.
   uid: string;

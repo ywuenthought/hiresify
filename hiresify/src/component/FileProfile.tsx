@@ -6,15 +6,17 @@ import { InsertDriveFile, Movie, Photo } from '@mui/icons-material';
 import { Box, Stack, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 
+import type { FileType } from '@/type';
+
 const iconPerMedia = {
-  image: <Photo />,
-  video: <Movie />,
-  unknown: <InsertDriveFile />,
+  image: <Photo fontSize="large" />,
+  video: <Movie fontSize="large" />,
+  unknown: <InsertDriveFile fontSize="large" />,
 };
 
 type FileProfileProps = {
   fileName: string;
-  fileType?: 'image' | 'video' | 'unknown';
+  fileType?: FileType;
   majorButton?: ReactNode;
   minorButton?: ReactNode;
 };

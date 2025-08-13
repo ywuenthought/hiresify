@@ -11,8 +11,10 @@ from pydantic.dataclasses import dataclass
 
 from hiresify_engine.util import check_tz
 
+from .config import DEFAULT_CONFIG
 
-@dataclass(frozen=True)
+
+@dataclass(frozen=True, config=DEFAULT_CONFIG)
 class Blob:
     """Wrap user-facing fields and methods for a blob."""
 

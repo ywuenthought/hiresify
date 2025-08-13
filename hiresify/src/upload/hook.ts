@@ -195,7 +195,7 @@ export function useUpload(args: {
       return;
     }
 
-    actions.cancel({ uploadId });
+    await actions.cancel({ uploadId });
   }, [actions, pause]);
 
   return { abort, pause, retry, start };

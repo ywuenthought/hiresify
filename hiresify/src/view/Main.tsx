@@ -12,10 +12,12 @@ import Background from '@/component/Background';
 import DragDropBox from '@/component/DragDropBox';
 import LogoutButton from '@/component/LogoutButton';
 import InTransitFile from '@/composite/InTransitFile';
+import PersistedFile from '@/composite/PersistedFile';
 import { CHUNK_SIZE } from '@/const';
 import {
   insertInTransitBlob,
   selectAllInTransitBlobs,
+  selectAllPersistedBlobs,
 } from '@/feature/blob/slice';
 import type { FrontendBlob } from '@/type';
 import { getUuid4 } from '@/util';
@@ -29,6 +31,7 @@ const buildActionCreators = () => {
 export default function Main() {
   const indexedJSBlobs = useRef<Map<string, File>>(new Map()).current;
   const inTransitBlobs = useAppSelector(selectAllInTransitBlobs);
+  const persistedBlobs = useAppSelector(selectAllPersistedBlobs);
   const blobUids = new Set(inTransitBlobs.map(({ uid }) => uid));
 
   indexedJSBlobs.forEach((_, uid) => {
@@ -92,6 +95,15 @@ export default function Main() {
                 jsBlob={indexedJSBlobs.get(uid) as File}
                 frontendBlob={frontendBlob}
                 partSize={CHUNK_SIZE}
+              />
+            );
+          })}
+          {persistedBlobs.map((backendBlob) => {
+            const { uid } = backendBlob;
+            return (
+              <PersistedFile
+                key={`controller:${uid}`}
+                backendBlob={backendBlob}
               />
             );
           })}
