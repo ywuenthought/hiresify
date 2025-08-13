@@ -23,11 +23,10 @@ type InTransitFileProps = {
   jsBlob: File;
   frontendBlob: FrontendBlob;
   partSize: number;
-  removeBlob: () => void;
 };
 
 export default function InTransitFile(props: InTransitFileProps) {
-  const { jsBlob, frontendBlob, partSize, removeBlob } = props;
+  const { jsBlob, frontendBlob, partSize } = props;
   const { uid: blobUid, fileName, progress, status } = frontendBlob;
 
   const { abort, pause, retry, start } = useUpload({
@@ -43,9 +42,7 @@ export default function InTransitFile(props: InTransitFileProps) {
     setOtherOff(true);
     await abort();
     setOtherOff(false);
-
-    removeBlob();
-  }, [abort, removeBlob]);
+  }, [abort]);
 
   const handleOther = useCallback(async () => {
     setAbortOff(true);

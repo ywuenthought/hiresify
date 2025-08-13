@@ -51,27 +51,11 @@ const blobSlice = createAppSlice({
       }
     ),
 
-    insertPersistedBlob: create.preparedReducer(
-      (args: { blob: BlobSchema }) => ({ payload: args }),
-      (state, action) => {
-        const { blob } = action.payload;
-        persistedBlobAdapter.addOne(state.persisted, blob);
-      }
-    ),
-
     removeInTransitBlob: create.preparedReducer(
       (args: { uid: string }) => ({ payload: args }),
       (state, action) => {
         const { uid } = action.payload;
         inTransitBlobAdapter.removeOne(state.inTransit, uid);
-      }
-    ),
-
-    removePersistedBlob: create.preparedReducer(
-      (args: { uid: string }) => ({ payload: args }),
-      (state, action) => {
-        const { uid } = action.payload;
-        persistedBlobAdapter.removeOne(state.persisted, uid);
       }
     ),
 
@@ -148,13 +132,8 @@ const { reducer } = blobSlice;
 
 export default reducer;
 
-export const {
-  insertInTransitBlob,
-  insertPersistedBlob,
-  removeInTransitBlob,
-  removePersistedBlob,
-  updateInTransitBlob,
-} = blobSlice.actions;
+export const { insertInTransitBlob, removeInTransitBlob, updateInTransitBlob } =
+  blobSlice.actions;
 export const {
   selectAllInTransitBlobs,
   selectAllPersistedBlobs,

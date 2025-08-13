@@ -29,6 +29,13 @@ const buildActionCreators = () => {
 export default function Main() {
   const indexedJSBlobs = useRef<Map<string, File>>(new Map()).current;
   const inTransitBlobs = useAppSelector(selectAllInTransitBlobs);
+  const blobUids = new Set(inTransitBlobs.map(({ uid }) => uid));
+
+  indexedJSBlobs.forEach((_, uid) => {
+    if (!blobUids.has(uid)) {
+      indexedJSBlobs.delete(uid);
+    }
+  });
 
   const dispatch = useAppDispatch();
   const actions = useMemo(
@@ -85,7 +92,6 @@ export default function Main() {
                 jsBlob={indexedJSBlobs.get(uid) as File}
                 frontendBlob={frontendBlob}
                 partSize={CHUNK_SIZE}
-                removeBlob={() => indexedJSBlobs.delete(uid)}
               />
             );
           })}
