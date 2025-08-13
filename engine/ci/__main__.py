@@ -3,17 +3,29 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
+import shutil
 import subprocess
 
 import click
 from click.exceptions import ClickException
 
-from .const import DEV_DOCKER_COMPOSE, DOCKER_FILE, PROJECT_ROOT
+from .const import DEV_DOCKER_COMPOSE, DOCKER_FILE, PROJECT_ROOT, REQUIREMENTS_FILE
 
 
 @click.group()
 def cli() -> None:
     """Manage CI tasks for this project."""
+
+
+@cli.command("build")
+def build_wheel() -> None:
+    """Build the wheel of this project."""
+    if (build_dir := PROJECT_ROOT / "build").is_dir():
+        shutil.rmtree(build_dir)
+
+    cmd = ["uv", "build", ".", "-o", "build", "--wheel"]
+    if subprocess.run(cmd, check=False, cwd=PROJECT_ROOT).returncode:
+        raise ClickException("Failed to build the wheel.")
 
 
 @cli.group()
@@ -31,15 +43,26 @@ def docker() -> None:
 def build(tag: str) -> None:
     """Build the Docker image of this project."""
     cmd = [
+        "uv",
+        "export",
+        "--frozen",
+        "--quiet",
+        "-o",
+        str(REQUIREMENTS_FILE),
+    ]
+    if subprocess.run(cmd, check=False, cwd=PROJECT_ROOT).returncode:
+        raise ClickException("Failed to export requirements.txt.")
+
+    cmd = [
         "docker",
         "build",
         "-f",
         str(DOCKER_FILE),
         "-t",
         f"hiresify:{tag}",
-        str(PROJECT_ROOT),
+        ".",
     ]
-    if subprocess.run(cmd, check=False).returncode:
+    if subprocess.run(cmd, check=False, cwd=PROJECT_ROOT).returncode:
         raise ClickException("Failed to build the Docker image.")
 
 

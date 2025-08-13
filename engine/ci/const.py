@@ -14,3 +14,5 @@ DOCKER_DIR = PROJECT_ROOT / "docker"
 DOCKER_FILE = DOCKER_DIR / "Dockerfile"
 
 DEV_DOCKER_COMPOSE = DOCKER_DIR / "compose.dev.yml"
+
+REQUIREMENTS_FILE = PROJECT_ROOT / "requirements.txt"

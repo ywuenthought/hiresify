@@ -33,8 +33,6 @@ services:
       test: ["CMD", "psql", "-U", "user", "-d", "hiresify", "-c", "SELECT 1"]
       timeout: 3s
     image: postgres:latest
-    ports:
-      - 5432:5432
     restart: always
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -48,18 +46,11 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       timeout: 3s
     image: redis:latest
-    ports:
-      - 6379:6379
     restart: always
+    volumes:
+      - rddata:/data
 
   fastapi:
-    command: >
-      uv run uvicorn hiresify_engine.app.main:app
-      --access-log
-      --host 0.0.0.0
-      --log-level debug
-      --port 8000
-      --workers 1
     container_name: fastapi
     depends_on:
       minio:
@@ -80,3 +71,4 @@ services:
 volumes:
   iodata:
   pgdata:
+  rddata:

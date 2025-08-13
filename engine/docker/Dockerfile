@@ -1,33 +1,38 @@
-FROM python:3.11-slim
+FROM ghcr.io/astral-sh/uv:debian-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential curl libmagic1 && \
+    apt-get install -y --no-install-recommends libmagic1 && \
     rm -rf /var/lib/apt/lists/*
-
-RUN python -m pip install uv
 
 RUN useradd --create-home --shell /bin/bash ywu
 
-WORKDIR /home/ywu/app
+WORKDIR /home/ywu
 
-RUN chown -R ywu:ywu /home/ywu/app
+RUN chown -R ywu:ywu /home/ywu
 
-COPY --chown=ywu:ywu src/ ./
 COPY --chown=ywu:ywu .python-version ./
-COPY --chown=ywu:ywu pyproject.toml ./
-COPY --chown=ywu:ywu uv.lock ./
+COPY --chown=ywu:ywu requirements.txt/ ./
+COPY --chown=ywu:ywu build ./build
 
 USER ywu
 
-RUN uv sync && \
-    uv pip install -e . && \
-    rm -rf ../.cache/pip ../.cache/uv /tmp/*
+RUN uv venv hiresify
 
-USER root
+RUN uv pip install --python hiresify/bin/python -r requirements.txt && \
+    rm requirements.txt
 
-RUN apt-get purge -y --auto-remove build-essential
+RUN uv pip install --python hiresify/bin/python build/*.whl && \
+    rm -rf build
 
-USER ywu
+RUN rm -rf /home/ywu/.cache/pip /home/ywu/.cache/uv /tmp/*
+
+CMD ["uv", "run", "--python", "hiresify/bin/python", \
+     "uvicorn", "hiresify_engine.app.main:app", \
+     "--access-log", \
+     "--host", "0.0.0.0", \
+     "--log-level", "debug", \
+     "--port", "8000", \
+     "--workers", "1"]
