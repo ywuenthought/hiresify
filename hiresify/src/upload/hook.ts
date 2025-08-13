@@ -2,7 +2,6 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
-import { bindActionCreators } from '@reduxjs/toolkit';
 import { useCallback, useContext, useMemo, useRef } from 'react';
 
 import * as api from '@/api/blob';
@@ -66,13 +65,12 @@ export function useUpload(args: {
   const controllers = useRef<AbortController[]>([]).current;
 
   const dispatch = useAppDispatch();
-  const actions = useMemo(
-    () =>
-      bindActionCreators(buildActionCreators({ fileName, blobUid }), dispatch),
-    [blobUid, fileName, dispatch]
+  const { cancel, finish, update } = useMemo(
+    () => buildActionCreators({ fileName, blobUid }),
+    [blobUid, fileName]
   );
 
-  const factory = useCallback(
+  const jobFactory = useCallback(
     (args: { controller: AbortController; part: UploadPart }) => {
       const { controller, part } = args;
       const { chunk, index } = part;
@@ -103,7 +101,7 @@ export function useUpload(args: {
         }
 
         const doneSize = store.getDoneSize();
-        actions.update({ progress: (doneSize / blobSize) * 100 });
+        dispatch(update({ progress: (doneSize / blobSize) * 100 }));
 
         if (!store.getAllClear()) {
           return;
@@ -113,14 +111,14 @@ export function useUpload(args: {
         controllers.length = 0;
 
         if (doneSize !== blobSize) {
-          actions.update({ status: 'failed' });
+          dispatch(update({ status: 'failed' }));
           return;
         }
 
-        actions.finish({ uploadId });
+        await dispatch(finish({ uploadId }));
       };
     },
-    [actions, blobSize, controllers, store]
+    [blobSize, controllers, store, dispatch, finish, update]
   );
 
   const start = useCallback(async () => {
@@ -135,34 +133,43 @@ export function useUpload(args: {
         const controller = new AbortController();
         controllers.push(controller);
 
-        const job = factory({ controller, part });
+        const job = jobFactory({ controller, part });
         queue.enqueue({ job });
         await defer();
       }
     };
 
     if (uploadIdRef.current) {
-      actions.update({ status: 'active' });
+      dispatch(update({ status: 'active' }));
       await enqueueJobs();
     } else {
       try {
         const { text: uploadId } = await api.create({ jsBlob });
 
         if (!uploadId) {
-          actions.update({ status: 'failed' });
+          dispatch(update({ status: 'failed' }));
           return;
         }
 
         uploadIdRef.current = uploadId;
         await store.init({ jsBlob, partSize });
 
-        actions.update({ status: 'active' });
+        dispatch(update({ status: 'active' }));
         await enqueueJobs();
       } catch {
-        actions.update({ status: 'failed' });
+        dispatch(update({ status: 'failed' }));
       }
     }
-  }, [actions, controllers, jsBlob, partSize, queue, store, factory]);
+  }, [
+    controllers,
+    jsBlob,
+    partSize,
+    queue,
+    store,
+    dispatch,
+    jobFactory,
+    update,
+  ]);
 
   const pause = useCallback(async () => {
     while (controllers.length > 0) {
@@ -171,8 +178,8 @@ export function useUpload(args: {
     }
 
     await store.pause();
-    actions.update({ status: 'paused' });
-  }, [actions, controllers, store]);
+    dispatch(update({ status: 'paused' }));
+  }, [controllers, store, dispatch, update]);
 
   const retry = useCallback(async () => {
     if (store.getDoneSize() < blobSize) {
@@ -183,9 +190,9 @@ export function useUpload(args: {
       controllers.length = 0;
 
       const { current: uploadId } = uploadIdRef;
-      actions.finish({ uploadId });
+      await dispatch(finish({ uploadId }));
     }
-  }, [actions, blobSize, controllers, store, start]);
+  }, [blobSize, controllers, store, dispatch, finish, start]);
 
   const abort = useCallback(async () => {
     await pause();
@@ -195,8 +202,8 @@ export function useUpload(args: {
       return;
     }
 
-    await actions.cancel({ uploadId });
-  }, [actions, pause]);
+    await dispatch(cancel({ uploadId }));
+  }, [cancel, dispatch, pause]);
 
   return { abort, pause, retry, start };
 }
