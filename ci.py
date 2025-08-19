@@ -20,14 +20,6 @@ DEPLOY_DIR = ROOT_DIR / "deploy"
 
 CLOUD_INIT = DEPLOY_DIR / "cloud_init.yaml"
 
-token_option = click.option(
-    "-t",
-    "--token",
-    envvar="K3S_TOKEN",
-    help="The K3S token used to register agent nodes.",
-    required=True,
-)
-
 
 @click.group()
 def cli() -> None:
@@ -45,7 +37,13 @@ def deploy_local() -> None:
 
 
 @deploy_local.command("create")
-@token_option
+@click.option(
+    "-t",
+    "--token",
+    envvar="K3S_TOKEN",
+    help="The K3S token used to register agent nodes.",
+    required=True,
+)
 def local_create(token: str) -> None:
     """Create the node cluster for a local deployment."""
     server_cmd = [
@@ -72,19 +70,30 @@ def local_create(token: str) -> None:
     if subprocess.run(server_cmd, check=False).returncode:
         raise ClickException("Failed to reboot the server node.")
 
-    _launch_k3s_server(token)
+    server_cmd = [
+        "multipass",
+        "exec",
+        "server",
+        "--",
+        "sh",
+        "-c",
+        (
+            "curl -sfL https://get.k3s.io | "
+            f'INSTALL_K3S_EXEC="server" sh -s - --token {token}'
+        ),
+    ]
+
+    if subprocess.run(server_cmd, check=False).returncode:
+        raise ClickException("Failed to launch the K3s server.")
 
 
 @deploy_local.command("up")
-@token_option
-def local_spin_up(token: str) -> None:
+def local_spin_up() -> None:
     """Spin up the node cluster for a local deployment."""
     server_cmd = ["multipass", "start", "server"]
 
     if subprocess.run(server_cmd, check=False).returncode:
         raise ClickException("Failed to create the server node.")
-
-    _launch_k3s_server(token)
 
 
 @deploy_local.command("down")
@@ -114,25 +123,6 @@ def local_spin_down(purge: bool) -> None:
 
     if subprocess.run(server_cmd, check=False).returncode:
         raise ClickException("Failed to spin down the server node.")
-
-
-def _launch_k3s_server(token: str) -> None:
-    """Launch the K3s server inside the server node."""
-    cmd = [
-        "multipass",
-        "exec",
-        "server",
-        "--",
-        "sh",
-        "-c",
-        (
-            "curl -sfL https://get.k3s.io | "
-            f'INSTALL_K3S_EXEC="server" sh -s - --token {token}'
-        ),
-    ]
-
-    if subprocess.run(cmd, check=False).returncode:
-        raise ClickException("Failed to launch the K8s server.")
 
 
 if __name__ == "__main__":
