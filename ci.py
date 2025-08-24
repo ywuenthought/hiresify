@@ -9,6 +9,8 @@
 # ///
 
 import subprocess
+import textwrap
+import time
 from pathlib import Path
 
 import click
@@ -22,6 +24,18 @@ CLOUD_INIT = DEPLOY_DIR / "cloud_init.yaml"
 
 K3S_URL = "https://get.k3s.io"
 
+K3S_VERSION = "1.33.3+k3s1"
+
+K3S_PREFIX = f"curl -sfL {K3S_URL} | INSTALL_K3S_VERSION=v{K3S_VERSION} sh -s -"
+
+HELM_URL = "https://get.helm.sh"
+
+HELM_VERSION = "3.18.6"
+
+HELM_PLATFORM = "linux-amd64"
+
+HELM_ARCHIVE = f"helm-v{HELM_VERSION}-{HELM_PLATFORM}.tar.gz"
+
 SERVER = "server"
 
 LOAD_BALANCER = "balancer"
@@ -33,11 +47,11 @@ REDIS = "redis"
 POSTGRES = "postgres"
 
 NODE_CONFIGS = {
-    SERVER: dict(cpus=1, disk="4G", memory="1G"),
-    LOAD_BALANCER: dict(cpus=1, disk="4G", memory="1G"),
-    FASTAPI: dict(cpus=2, disk="4G", memory="1G"),
-    REDIS: dict(cpus=2, disk="4G", memory="2G"),
-    POSTGRES: dict(cpus=2, disk="8G", memory="1G"),
+    SERVER: dict(cpus=2, disk="8G", memory="2G"),
+    LOAD_BALANCER: dict(cpus=1, disk="8G", memory="1G"),
+    FASTAPI: dict(cpus=1, disk="8G", memory="1G"),
+    REDIS: dict(cpus=1, disk="8G", memory="2G"),
+    POSTGRES: dict(cpus=1, disk="16G", memory="1G"),
 }
 
 
@@ -64,39 +78,49 @@ def cluster_create(token: str) -> None:
 
     # -- create the server node.
 
-    _create_k3s_node(name=SERVER, **NODE_CONFIGS[SERVER])
+    if _create_k3s_node(name=SERVER, **NODE_CONFIGS[SERVER]):
+        click.secho(f"Failed to launch node {SERVER}.", fg="red")
+        return
 
-    # -- launch the K3s server on the server node.
+    if _exec(f"{K3S_PREFIX} server --token {token}"):
+        click.secho(f"Failed to launch the K3s server.", fg="red")
+        return
 
-    _launch_k3s_server(node=SERVER, token=token)
+    # -- install helm from a binary release.
+
+    helm_cmd = (
+        f"curl -sfL -o {HELM_ARCHIVE} {HELM_URL}/{HELM_ARCHIVE} && "
+        f"tar -zxvf {HELM_ARCHIVE} && "
+        f"sudo mv {HELM_PLATFORM}/helm /usr/local/bin && "
+        f"rm -rf {HELM_ARCHIVE} {HELM_PLATFORM}"
+    )
+
+    if _exec(helm_cmd):
+        click.secho(f"Failed to install and configure helm.", fg="red")
+        return
 
     # -- get the server node URL.
 
-    cmd = ["multipass", "info", "server"]
+    if (server := _get_server_url()) is None:
+        click.secho("Failed to get the K3s server URL.", fg="red")
+        return
 
-    process = subprocess.run(cmd, capture_output=True, check=False, text=True)
-
-    if process.returncode:
-        raise ClickException("Failed to get the server node info.")
-
-    server_url = None
-    for line in process.stdout.splitlines():
-        if line.strip().startswith("IPv4"):
-            ip = line.split(":", 1)[1].strip()
-            # 6443 is the default port.
-            server_url = f"https://{ip}:6443"
-
-    if server_url is None:
-        raise ClickException("Failed to get the K3s server URL.")
-
-    # -- create the agent nodes and register them to the K3s server.
+    # -- create the agent nodes and register them with labels and taints.
 
     for name, config in NODE_CONFIGS.items():
         if name == SERVER:
             continue
 
-        _create_k3s_node(name=name, **config)
-        _launch_k3s_agent(node=name, server=server_url, token=token)
+        if _create_k3s_node(name=name, **config):
+            click.secho(f"Failed to launch node {name}.", fg="red")
+            return
+
+        if _exec(f"{K3S_PREFIX} agent --server {server} --token {token}", node=name):
+            click.secho(f"Failed to launch the K3s agent {name}.", fg="red")
+            return
+
+        _label_node(name, role=name)
+        _taint_node(name, dedicated=name)
 
 
 @cluster.command("up")
@@ -105,9 +129,7 @@ def cluster_spin_up() -> None:
     failed_nodes = []
 
     for name in NODE_CONFIGS:
-        cmd = ["multipass", "start", name]
-
-        if subprocess.run(cmd, check=False).returncode:
+        if _start(name):
             failed_nodes.append(name)
 
     if failed_nodes:
@@ -127,11 +149,7 @@ def cluster_spin_down(purge: bool) -> None:
 
     for name in NODE_CONFIGS:
         # Note: Use this aggressive global operation until a better solution is figured.
-        cmd = ["multipass", "delete", "--purge", name] if purge else [
-            "multipass", "stop", name
-        ]
-
-        if subprocess.run(cmd, check=False).returncode:
+        if (_delete(name, purge=purge) if purge else _stop(name)):
             failed_nodes.append(name)
 
     if failed_nodes:
@@ -141,12 +159,13 @@ def cluster_spin_down(purge: bool) -> None:
 # -- helper functions
 
 
-def _create_k3s_node(*, cpus: int, disk: str, memory: str, name: str) -> None:
+def _create_k3s_node(*, cpus: int, disk: str, memory: str, name: str) -> int:
     """Create a node in the local K3s cluster."""
+    if (network := _get_bridged_network()) is None:
+        click.secho("Failed to get the bridged network.", fg="red")
+        return
 
-    # -- launch the node from scratch.
-
-    cmd = [
+    launch_cmd = [
         "multipass",
         "launch",
         "24.04",
@@ -160,49 +179,181 @@ def _create_k3s_node(*, cpus: int, disk: str, memory: str, name: str) -> None:
         f"{memory}",
         "--name",
         f"{name}",
+        "--network",
+        network,
     ]
 
-    if subprocess.run(cmd, check=False).returncode:
-        raise ClickException(f"Failed to create node {name}.")
+    if code := subprocess.run(launch_cmd, check=False).returncode:
+        _delete(name, purge=True)
+        return code
 
-    # -- reboot the node due to package upgrades.
+    _restart(name)
 
-    cmd = ["multipass", "restart", "server"]
-
-    if subprocess.run(cmd, check=False).returncode:
-        raise ClickException(f"Failed to reboot node {name}.")
+    return 0
 
 
-def _launch_k3s_server(node: str, token: str) -> None:
-    """Launch a K3s server on the specified node."""
-    cmd = [
-        "multipass",
-        "exec",
-        node,
-        "--",
-        "sh",
-        "-c",
-        f'curl -sfL {K3S_URL} | sh -s - --token {token}',
-    ]
+def _delete(node: str, purge: bool = False) -> int:
+    """Delete the specified multipass instance."""
+    cmd = ["multipass", "delete"]
+    
+    if purge:
+        cmd.append("--purge")
 
-    if subprocess.run(cmd, check=False).returncode:
-        raise ClickException(f"Failed to launch the K3s server on node {node}.")
+    cmd.append(node)
+
+    return subprocess.run(cmd, check=False).returncode
 
 
-def _launch_k3s_agent(node: str, server: str, token: str) -> None:
-    """Launch a K3s agent on the specified node."""
-    cmd = [
-        "multipass",
-        "exec",
-        node,
-        "--",
-        "sh",
-        "-c",
-        f'curl -sfL {K3S_URL} | K3S_URL={server} sh -s - agent --token {token}',
-    ]
+def _exec(cmd: str, node: str = SERVER, quiet: bool = False) -> int:
+    """Execute a command on the specified node."""
+    cmd = ["multipass", "exec", node, "--", "bash", "-lc", cmd]
 
-    if subprocess.run(cmd, check=False).returncode:
-        raise ClickException(f"Failed to launch the K3s agent on node {node}.")
+    return subprocess.run(
+        cmd,
+        check=False,
+        stderr=subprocess.DEVNULL if quiet else None,
+        stdout=subprocess.DEVNULL if quiet else None,
+    ).returncode
+
+
+def _label_node(node: str, **kwargs: str) -> int:
+    """Label the specified node with the given key-value pairs."""
+    return _exec(
+        f"sudo kubectl label node {node} " +
+        " ".join([f"{key}={value}" for key, value in kwargs.items()])
+    )
+
+
+def _get_bridged_network() -> str | None:
+    """Get the bridged network to be used by nodes."""
+    result = subprocess.run(
+        ["multipass", "networks"],
+        capture_output=True,
+        check=False,
+        text=True,
+    ).stdout
+
+    _, *lines = result.strip().splitlines()
+    for line in lines:
+        name, network_type, *_ = line.split()
+        if network_type == "bridge":
+            return name
+
+    return None
+
+
+def _get_server_url() -> str | None:
+    """Get the URL to the K3s server."""
+    result = subprocess.run(
+        ["multipass", "info", SERVER],
+        capture_output=True,
+        check=False,
+        text=True,
+    ).stdout
+
+    for line in result.splitlines():
+        if line.strip().startswith("IPv4"):
+            ip = line.split(":", 1)[1].strip()
+            # 6443 is the default port.
+            return f"https://{ip}:6443"
+
+    return None
+
+
+def _restart(node: str) -> int:
+    """Restart the specified multipass instance."""
+    cmd = ["multipass", "restart", node]
+
+    if code := subprocess.run(cmd, check=False).returncode:
+        return code
+
+    if code := _wait_for_exec(node):
+        return code
+
+    if code := _wait_for_init(node):
+        return code
+
+    if code := _wait_for_sshd(node):
+        return code
+
+    return 0
+
+
+def _start(node: str) -> int:
+    """Start the specified multipass instance."""
+    cmd = ["multipass", "start", node]
+
+    if code := subprocess.run(cmd, check=False).returncode:
+        return code
+
+    if code := _wait_for_exec(node):
+        return code
+
+    if code := _wait_for_init(node):
+        return code
+
+    if code := _wait_for_sshd(node):
+        return code
+
+    return 0
+
+
+def _stop(node: str) -> int:
+    """Stop the specified multipass instance."""
+    cmd = ["multipass", "stop", node]
+
+    return subprocess.run(cmd, check=False).returncode
+
+
+def _taint_node(node: str, **kwargs: str) -> int:
+    """Taint the specified node with the given key-value pairs."""
+    return _exec(
+        f"sudo kubectl taint nodes {node} " +
+        " ".join([f"{key}={value}:NoSchedule" for key, value in kwargs.items()])
+    )
+
+
+def _wait_for_exec(node: str, retries: int = 60) -> int:
+    """Wait for the given node to accept exec."""
+    code = 1
+
+    while retries:
+        if (code := _exec("true", node=node, quiet=True)) == 0:
+            break
+
+        time.sleep(1)
+
+    return code
+
+
+def _wait_for_init(node: str, retries: int = 60) -> int:
+    """Wait for cloud-init to be ready inside the given node."""
+    cmd = textwrap.dedent(
+        f"""\
+        for i in {{1..{retries}}}; do
+          cloud-init status | grep -q 'done' && exit 0
+          sleep 1
+        done
+        echo "init not ready" >&2; exit 1
+        """
+    )
+
+    return _exec(cmd, node=node, quiet=True)
+
+
+def _wait_for_sshd(node: str, retries: int = 60) -> int:
+    """Wait for sshd to be ready inside the given node."""
+    cmd = textwrap.dedent(
+        f"""\
+        for i in {{1..{retries}}}; do
+          systemctl is-active --quiet ssh && exit 0
+          sleep 1
+        done
+        echo "sshd not ready" >&2; exit 1
+        """
+    )
+
+    return _exec(cmd, node=node, quiet=True)
 
 
 if __name__ == "__main__":
