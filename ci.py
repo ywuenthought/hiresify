@@ -338,7 +338,7 @@ def _wait_for_init(node: str, retries: int = 60) -> int:
         """
     )
 
-    return _exec(cmd, node=node, quiet=True)
+    return _exec(cmd, node=node)
 
 
 def _wait_for_sshd(node: str, retries: int = 60) -> int:
@@ -353,7 +353,7 @@ def _wait_for_sshd(node: str, retries: int = 60) -> int:
         """
     )
 
-    return _exec(cmd, node=node, quiet=True)
+    return _exec(cmd, node=node)
 
 
 if __name__ == "__main__":
