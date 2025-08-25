@@ -11,6 +11,8 @@
 import subprocess
 import textwrap
 import time
+import typing as ty
+from base64 import b64encode
 from pathlib import Path
 
 import click
@@ -22,11 +24,17 @@ DEPLOY_DIR = ROOT_DIR / "deploy"
 
 CLOUD_INIT = DEPLOY_DIR / "cloud_init.yaml"
 
+MANIFEST = DEPLOY_DIR / "manifest.yaml"
+
 K3S_URL = "https://get.k3s.io"
 
 K3S_VERSION = "1.33.3+k3s1"
 
 K3S_PREFIX = f"curl -sfL {K3S_URL} | INSTALL_K3S_VERSION=v{K3S_VERSION} sh -s -"
+
+DOCKER_HUB = "registry-1.docker.io"
+
+BITNAMI_OCI = f"oci://{DOCKER_HUB}/bitnamicharts"
 
 HELM_URL = "https://get.helm.sh"
 
@@ -40,18 +48,18 @@ SERVER = "server"
 
 LOAD_BALANCER = "balancer"
 
-FASTAPI = "fastapi"
-
-REDIS = "redis"
-
-POSTGRES = "postgres"
+HIRESIFY = "hiresify"
 
 NODE_CONFIGS = {
     SERVER: dict(cpus=2, disk="8G", memory="2G"),
     LOAD_BALANCER: dict(cpus=1, disk="8G", memory="1G"),
-    FASTAPI: dict(cpus=1, disk="8G", memory="1G"),
-    REDIS: dict(cpus=1, disk="8G", memory="2G"),
-    POSTGRES: dict(cpus=1, disk="16G", memory="1G"),
+    HIRESIFY: dict(cpus=2, disk="64G", memory="4G"),
+}
+
+SERVICE_VALUES = {
+    service: DEPLOY_DIR / f"{service}.yaml"
+    for service
+    in ("postgresql", "redis")
 }
 
 
@@ -82,7 +90,7 @@ def cluster_create(token: str) -> None:
         click.secho(f"Failed to launch node {SERVER}.", fg="red")
         return
 
-    if _exec(f"{K3S_PREFIX} server --token {token}"):
+    if _exec(f"{K3S_PREFIX} server --token {token} --write-kubeconfig-mode=644"):
         click.secho(f"Failed to launch the K3s server.", fg="red")
         return
 
@@ -91,11 +99,13 @@ def cluster_create(token: str) -> None:
     helm_cmd = (
         f"curl -sfL -o {HELM_ARCHIVE} {HELM_URL}/{HELM_ARCHIVE} && "
         f"tar -zxvf {HELM_ARCHIVE} && "
-        f"sudo mv {HELM_PLATFORM}/helm /usr/local/bin && "
-        f"rm -rf {HELM_ARCHIVE} {HELM_PLATFORM}"
+        f"mv {HELM_PLATFORM}/helm /usr/local/bin && "
+        f"rm -rf {HELM_ARCHIVE} {HELM_PLATFORM} && "
+        "mkdir -p ~/.kube && "
+        "cp /etc/rancher/k3s/k3s.yaml ~/.kube/config"
     )
 
-    if _exec(helm_cmd):
+    if _exec(helm_cmd, with_root_permission=True):
         click.secho(f"Failed to install and configure helm.", fg="red")
         return
 
@@ -124,7 +134,7 @@ def cluster_create(token: str) -> None:
 
 
 @cluster.command("up")
-def cluster_spin_up() -> None:
+def cluster_up() -> None:
     """Spin up the node cluster for a local deployment."""
     failed_nodes = []
 
@@ -143,7 +153,7 @@ def cluster_spin_up() -> None:
     help="Remove nodes from disk to free up space.",
     is_flag=True,
 )
-def cluster_spin_down(purge: bool) -> None:
+def cluster_down(purge: bool) -> None:
     """Spin down the node cluster for a local deployment."""
     failed_nodes = []
 
@@ -156,7 +166,93 @@ def cluster_spin_down(purge: bool) -> None:
         raise ClickException(f"Failed to spin down nodes: {', '.join(failed_nodes)}.")
 
 
+@cli.group()
+def predeploy() -> None:
+    """Perform pre-deployment operations on the local cluster."""
+
+
+@predeploy.command("config")
+@click.option(
+    "--postgres-password",
+    envvar="POSTGRES_PASSWORD",
+    help="The password used to access the PostgreSQL database.",
+    required=True,
+)
+@click.option(
+    "--redis-password",
+    envvar="REDIS_PASSWORD",
+    help="The password used to access the Redis server.",
+    required=True,
+)
+def predeploy_config(postgres_password: str, redis_password: str) -> None:
+    """Set up the pre-deployment configuration."""
+    template = MANIFEST.read_text(encoding="utf-8")
+
+    try:
+        MANIFEST.write_text(
+            template.format(
+                postgres_password=_encode_text(postgres_password),
+                redis_password=_encode_text(redis_password),
+            ),
+            encoding="utf-8",
+        )
+
+        _transfer(MANIFEST)
+        _apply_manifest(MANIFEST.name)
+    finally:
+        MANIFEST.write_text(template)
+
+
+@predeploy.command("login")
+@click.option(
+    "-u",
+    "--username",
+    envvar="DOCKER_USERNAME",
+    help="The username used to log into Docker Hub.",
+    required=True,
+)
+@click.option(
+    "-p",
+    "--password",
+    envvar="DOCKER_PASSWORD",
+    help="The password used to log into Docker Hub.",
+    required=True,
+)
+def predeploy_login(username: str, password: str) -> None:
+    """Log into Docker Hub using the given credentials."""
+    _exec(
+        f"echo {password} | helm registry login {DOCKER_HUB} "
+        f"--username {username} --password-stdin"
+    )
+
+
+@cli.group()
+def deploy() -> None:
+    """Manage a local deployment of this project."""
+
+
+@deploy.command("up")
+def deploy_up() -> None:
+    """Spin up the local deployment."""
+    for service, values in SERVICE_VALUES.items():
+        _transfer(values)
+        _exec(
+            f"helm upgrade --install {service} {BITNAMI_OCI}/{service} "
+            f"-n {HIRESIFY} -f {values.name}"
+        )
+
+
+@deploy.command("down")
+def deploy_down() -> None:
+    """Spin down the local deployment."""
+
+
 # -- helper functions
+
+
+def _apply_manifest(manifest: Path) -> int:
+    """Apply the given manifest on the server node."""
+    return _exec(f"kubectl apply -f {manifest}", node=SERVER)
 
 
 def _create_k3s_node(*, cpus: int, disk: str, memory: str, name: str) -> int:
@@ -194,19 +290,26 @@ def _create_k3s_node(*, cpus: int, disk: str, memory: str, name: str) -> int:
 
 def _delete(node: str, purge: bool = False) -> int:
     """Delete the specified multipass instance."""
-    cmd = ["multipass", "delete"]
-    
-    if purge:
-        cmd.append("--purge")
-
-    cmd.append(node)
+    cmd = ["multipass", "delete"] + (["--purge"] if purge else []) + [node]
 
     return subprocess.run(cmd, check=False).returncode
 
 
-def _exec(cmd: str, node: str = SERVER, quiet: bool = False) -> int:
+def _encode_text(text: str) -> str:
+    """Encode the given text in the base64 format."""
+    return b64encode(text.encode("utf-8")).decode("utf-8")
+
+
+def _exec(
+    cmd: str,
+    node: str = SERVER,
+    quiet: bool = False,
+    with_root_permission: bool = False,
+) -> int:
     """Execute a command on the specified node."""
-    cmd = ["multipass", "exec", node, "--", "bash", "-lc", cmd]
+    cmd = ["multipass", "exec", node, "--"] + (
+        ["sudo"] if with_root_permission else []
+    ) + ["bash", "-lc", cmd]
 
     return subprocess.run(
         cmd,
@@ -219,7 +322,7 @@ def _exec(cmd: str, node: str = SERVER, quiet: bool = False) -> int:
 def _label_node(node: str, **kwargs: str) -> int:
     """Label the specified node with the given key-value pairs."""
     return _exec(
-        f"sudo kubectl label node {node} " +
+        f"kubectl label node {node} " +
         " ".join([f"{key}={value}" for key, value in kwargs.items()])
     )
 
@@ -308,9 +411,19 @@ def _stop(node: str) -> int:
 def _taint_node(node: str, **kwargs: str) -> int:
     """Taint the specified node with the given key-value pairs."""
     return _exec(
-        f"sudo kubectl taint nodes {node} " +
+        f"kubectl taint nodes {node} " +
         " ".join([f"{key}={value}:NoSchedule" for key, value in kwargs.items()])
     )
+
+
+def _transfer(file: Path, node: str = SERVER, path: ty.Optional[Path] = None) -> int:
+    """Transfer a file from the host to the specified multipass instance."""
+    if path is not None:
+        _exec(f"mkdir -p {path.parent}", with_root_permission=True)
+
+    cmd = ["multipass", "transfer", file, f"{node}:{'' if path is None else path}"]
+
+    return subprocess.run(cmd, check=False).returncode
 
 
 def _wait_for_exec(node: str, retries: int = 60) -> int:

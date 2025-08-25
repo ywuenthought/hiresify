@@ -1,0 +1,70 @@
+image:
+  registry: docker.io
+  repository: bitnami/redis
+  tag: 8.2.1-debian-12-r0
+  pullPolicy: IfNotPresent
+  debug: false
+
+architecture: replication
+
+auth:
+  enabled: true
+  sentinel: true
+  existingSecret: redis-credentials
+  existingSecretPasswordKey: redis-password
+
+replica:
+  replicaCount: 3
+  configuration: |-
+    save 60 1000
+    appendonly no
+    appendfsync everysec
+    aof-use-rdb-preamble yes
+  containerPorts:
+    redis: 6379
+  resources:
+    requests:
+      cpu: 0.2
+      memory: 256Mi
+    limits:
+      cpu: 0.5
+      memory: 512Mi
+  persistence:
+    enabled: true
+    path: /data
+    size: 2Gi
+  service:
+    type: ClusterIP
+    ports:
+      redis: 6379
+  tolerations:
+    - key: "redis"
+      operator: "Exists"
+      effect: "NoSchedule"
+
+sentinel:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnami/redis-sentinel
+    tag: 8.2.1-debian-12-r0
+    pullPolicy: IfNotPresent
+    debug: false
+  quorum: 2
+  getMasterTimeout: 90
+  automateClusterRecovery: true
+  redisShutdownWaitFailover: true
+  downAfterMilliseconds: 60000
+  failoverTimeout: 180000
+  resources:
+    requests:
+      cpu: 0.05
+      memory: 64Mi
+    limits:
+      cpu: 0.1
+      memory: 256Mi
+  service:
+    type: ClusterIP
+    ports:
+      redis: 6379
+      sentinel: 26379

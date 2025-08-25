@@ -1,0 +1,117 @@
+image:
+  registry: docker.io
+  repository: bitnami/postgresql
+  tag: 17.6.0-debian-12-r0
+  pullPolicy: IfNotPresent
+  debug: false
+
+auth:
+  enablePostgresUser: false
+  username: user
+  existingSecret: postgres-credentials
+  secretKeys:
+    userPasswordKey: postgres-password
+    replicationPasswordKey: postgres-password
+
+architecture: replication
+
+replication:
+  synchronousCommit: "on"
+  numSynchronousReplicas: 1
+  applicationName: hiresify
+
+containerPorts:
+  postgresql: 5432
+
+primary:
+  extendedConfiguration: |
+    # Logging
+    logging_collector = on
+    log_statement = 'ddl'
+    log_min_duration_statement = 5000
+    log_checkpoints = on
+    log_connections = on
+    log_disconnections = on
+
+    # Memory & WAL
+    shared_buffers = 128MB
+    work_mem = 4MB
+    maintenance_work_mem = 64MB
+    effective_cache_size = 256MB
+    wal_level = replica
+    max_wal_senders = 10
+    max_replication_slots = 10
+
+    # Connections
+    max_connections = 100
+    idle_in_transaction_session_timeout = 10min
+
+    # General safety
+    hot_standby = on
+    timezone = 'UTC'
+  resources:
+    requests:
+      cpu: 0.2
+      memory: 256Mi
+    limits:
+      cpu: 0.5
+      memory: 512Mi
+  service:
+    type: ClusterIP
+    ports:
+      postgresql: 5432
+  persistence:
+    enabled: true
+    volumeName: "pgdata"
+    size: 8Gi
+  tolerations:
+    - key: "postgres"
+      operator: "Exists"
+      effect: "NoSchedule"
+
+readReplicas:
+  extendedConfiguration: |
+    # Logging
+    logging_collector = on
+    log_statement = 'ddl'
+    log_min_duration_statement = 5000
+    log_checkpoints = on
+    log_connections = on
+    log_disconnections = on
+
+    # Memory & WAL
+    shared_buffers = 128MB
+    work_mem = 4MB
+    maintenance_work_mem = 64MB
+    effective_cache_size = 256MB
+    wal_level = replica
+    max_wal_senders = 10
+    max_replication_slots = 10
+
+    # Connections
+    max_connections = 100
+    idle_in_transaction_session_timeout = 10min
+
+    # General safety
+    hot_standby = on
+    timezone = 'UTC'
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 128Mi
+    limits:
+      cpu: 0.2
+      memory: 256Mi
+  service:
+    type: ClusterIP
+    ports:
+      postgresql: 5432
+  persistence:
+    enabled: true
+    volumeName: "pgdata"
+    size: 8Gi
+  tolerations:
+    - key: "postgres"
+      operator: "Exists"
+      effect: "NoSchedule"
