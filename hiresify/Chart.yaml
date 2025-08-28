@@ -1,0 +1,21 @@
+apiVersion: v2
+name: hiresify
+version: 0.1.0
+description: |
+  Helm chart for deploying Hiresify, an AI-powered image and video upscaling service.
+  Includes Kubernetes manifests for backend APIs, worker services, and frontend UI,
+  with configurable resources, environment variables, and persistence options.
+type: application
+sources:
+  - https://github.com/ywuenthought/hiresify
+dependencies:
+  - name: minio
+    version: 17.0.21
+    repository: oci://registry-1.docker.io/bitnamicharts
+  - name: postgresql
+    version: 16.7.27
+    repository: oci://registry-1.docker.io/bitnamicharts
+  - name: redis
+    version: 22.0.7
+    repository: oci://registry-1.docker.io/bitnamicharts
+appVersion: "0.1.0"
