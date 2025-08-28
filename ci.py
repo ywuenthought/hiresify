@@ -198,6 +198,7 @@ def predeploy_config(
     try:
         MANIFEST.write_text(
             template.format(
+                minio_username=_encode_text("user"),
                 minio_password=_encode_text(minio_password),
                 postgresql_password=_encode_text(postgresql_password),
                 redis_password=_encode_text(redis_password),

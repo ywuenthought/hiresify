@@ -10,7 +10,7 @@ metadata:
   namespace: hiresify
 type: Opaque
 data:
-  minio-username: user
+  minio-username: {minio_username}
   minio-password: {minio_password}
 ---
 apiVersion: v1
