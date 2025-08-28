@@ -34,6 +34,12 @@ def build_wheel() -> None:
         raise ClickException("Failed to build the wheel.")
 
 
+@cli.command()
+def ip() -> None:
+    """Show the IP address of the host."""
+    click.echo(_get_host_ip())
+
+
 @cli.group()
 def docker() -> None:
     """Manage Docker-related CI tasks."""
@@ -91,7 +97,7 @@ def push(local: bool, tag: str) -> None:
 
     if local:
         port = DOCKER_REGISTRY["port"]
-        registry_url = f"localhost:{port}"
+        registry_url = f"{_get_host_ip()}:{port}"
         target_image = f"{registry_url}/{image}"
         cmd = f"docker tag {image} {target_image} && docker push {target_image}"
 
@@ -119,7 +125,7 @@ def registry_up() -> None:
         "run",
         "-d",
         "-p",
-        f"{port}:{port}",
+        f"0.0.0.0:{port}:{port}",
         "--restart=always",
         "--name",
         DOCKER_REGISTRY["name"],
@@ -207,6 +213,25 @@ def stack_down(ctx: click.Context, tag: str) -> None:
     ]
     if subprocess.run(cmd, check=False, env=dict(TAG=tag)).returncode:
         raise ClickException("Failed to stop the container stack.")
+
+
+# -- helper functions
+
+
+def _get_host_ip() -> str:
+    """Get the IP address of the host."""
+    process = subprocess.run(
+        "ip -4 addr show dev mpqemubr0 | grep inet | awk '{print $2}' | cut -d/ -f1",
+        capture_output=True,
+        check=False,
+        shell=True,
+        text=True,
+    )
+
+    if process.returncode:
+        raise ClickException("Failed to get the host IP.")
+
+    return process.stdout.rstrip()
 
 
 if __name__ == "__main__":
