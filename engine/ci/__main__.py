@@ -9,7 +9,13 @@ import subprocess
 import click
 from click.exceptions import ClickException
 
-from .const import DEV_DOCKER_COMPOSE, DOCKER_FILE, PROJECT_ROOT, REQUIREMENTS_FILE
+from .const import (
+    DEV_DOCKER_COMPOSE,
+    DOCKER_FILE,
+    DOCKER_REGISTRY,
+    PROJECT_ROOT,
+    REQUIREMENTS_FILE,
+)
 
 
 @click.group()
@@ -65,6 +71,84 @@ def build(tag: str) -> None:
     ]
     if subprocess.run(cmd, check=False, cwd=PROJECT_ROOT).returncode:
         raise ClickException("Failed to build the Docker image.")
+
+
+@docker.command()
+@click.option(
+    "--local",
+    help="To push the image to the local registry.",
+    is_flag=True,
+)
+@click.option(
+    "-t",
+    "--tag",
+    default="latest",
+    envvar="TAG",
+)
+def push(local: bool, tag: str) -> None:
+    """Push the Docker image of this project."""
+    image = f"hiresify:{tag}"
+
+    if local:
+        port = DOCKER_REGISTRY["port"]
+        registry_url = f"localhost:{port}"
+        target_image = f"{registry_url}/{image}"
+        cmd = f"docker tag {image} {target_image} && docker push {target_image}"
+
+        if subprocess.run(
+            cmd,
+            check=False,
+            shell=True,
+            stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+        ).returncode:
+            raise ClickException("Failed to push the image to the local registry.")
+
+
+@docker.group()
+def registry() -> None:
+    """Manage a local Docker registry hosting this project."""
+
+
+@registry.command("up")
+def registry_up() -> None:
+    """Spin up the local Docker registry."""
+    port = DOCKER_REGISTRY["port"]
+    cmd = [
+        "docker",
+        "run",
+        "-d",
+        "-p",
+        f"{port}:{port}",
+        "--restart=always",
+        "--name",
+        DOCKER_REGISTRY["name"],
+        "registry:latest",
+    ]
+
+    if subprocess.run(
+        cmd,
+        check=False,
+        stderr=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+    ).returncode:
+        raise ClickException("Failed to start the local Docker registry.")
+
+
+@registry.command("down")
+def registry_down() -> None:
+    """Spin down the local Docker registry."""
+    name = DOCKER_REGISTRY["name"]
+    cmd = f"docker stop {name} && docker rm {name}"
+
+    if subprocess.run(
+        cmd,
+        check=False,
+        shell=True,
+        stderr=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+    ).returncode:
+        raise ClickException("Failed to stop the local Docker registry.")
 
 
 @docker.group()
