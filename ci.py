@@ -46,13 +46,10 @@ HELM_ARCHIVE = f"helm-v{HELM_VERSION}-{HELM_PLATFORM}.tar.gz"
 
 SERVER = "server"
 
-LOAD_BALANCER = "balancer"
-
 HIRESIFY = "hiresify"
 
 NODE_CONFIGS = {
     SERVER: dict(cpus=2, disk="8G", memory="2G"),
-    LOAD_BALANCER: dict(cpus=1, disk="8G", memory="1G"),
     HIRESIFY: dict(cpus=4, disk="64G", memory="4G"),
 }
 
@@ -109,13 +106,11 @@ def cluster_create(token: str) -> None:
         click.secho(f"Failed to install and configure helm.", fg="red")
         return
 
-    # -- get the server node URL.
+    # -- create the agent nodes.
 
-    if (server := _get_server_url()) is None:
+    if (url := _get_server_url()) is None:
         click.secho("Failed to get the K3s server URL.", fg="red")
         return
-
-    # -- create the agent nodes and register them with labels and taints.
 
     for name, config in NODE_CONFIGS.items():
         if name == SERVER:
@@ -125,7 +120,7 @@ def cluster_create(token: str) -> None:
             click.secho(f"Failed to launch node {name}.", fg="red")
             return
 
-        if _exec(f"{K3S_PREFIX} agent --server {server} --token {token}", node=name):
+        if _exec(f"{K3S_PREFIX} agent --server {url} --token {token}", node=name):
             click.secho(f"Failed to launch the K3s agent {name}.", fg="red")
             return
 
