@@ -53,13 +53,13 @@ HIRESIFY = "hiresify"
 NODE_CONFIGS = {
     SERVER: dict(cpus=2, disk="8G", memory="2G"),
     LOAD_BALANCER: dict(cpus=1, disk="8G", memory="1G"),
-    HIRESIFY: dict(cpus=2, disk="64G", memory="4G"),
+    HIRESIFY: dict(cpus=4, disk="64G", memory="4G"),
 }
 
 SERVICE_VALUES = {
     service: DEPLOY_DIR / f"{service}.yaml"
     for service
-    in ("postgresql", "redis")
+    in ("minio", "postgresql", "redis")
 }
 
 
@@ -129,9 +129,6 @@ def cluster_create(token: str) -> None:
             click.secho(f"Failed to launch the K3s agent {name}.", fg="red")
             return
 
-        _label_node(name, role=name)
-        _taint_node(name, dedicated=name)
-
 
 @cluster.command("up")
 def cluster_up() -> None:
@@ -173,8 +170,14 @@ def predeploy() -> None:
 
 @predeploy.command("config")
 @click.option(
-    "--postgres-password",
-    envvar="POSTGRES_PASSWORD",
+    "--minio-password",
+    envvar="MINIO_PASSWORD",
+    help="The password used to access the MinIO database.",
+    required=True,
+)
+@click.option(
+    "--postgresql-password",
+    envvar="POSTGRESQL_PASSWORD",
     help="The password used to access the PostgreSQL database.",
     required=True,
 )
@@ -184,21 +187,26 @@ def predeploy() -> None:
     help="The password used to access the Redis server.",
     required=True,
 )
-def predeploy_config(postgres_password: str, redis_password: str) -> None:
+def predeploy_config(
+    minio_password: str,
+    postgresql_password: str,
+    redis_password: str
+) -> None:
     """Set up the pre-deployment configuration."""
     template = MANIFEST.read_text(encoding="utf-8")
 
     try:
         MANIFEST.write_text(
             template.format(
-                postgres_password=_encode_text(postgres_password),
+                minio_password=_encode_text(minio_password),
+                postgresql_password=_encode_text(postgresql_password),
                 redis_password=_encode_text(redis_password),
             ),
             encoding="utf-8",
         )
 
         _transfer(MANIFEST)
-        _apply_manifest(MANIFEST.name)
+        _exec(f"kubectl apply -f {MANIFEST.name}", node=SERVER)
     finally:
         MANIFEST.write_text(template)
 
@@ -238,21 +246,19 @@ def deploy_up() -> None:
         _transfer(values)
         _exec(
             f"helm upgrade --install {service} {BITNAMI_OCI}/{service} "
-            f"-n {HIRESIFY} -f {values.name}"
+            f"-n {HIRESIFY} -f {values.name}",
+            with_root_permission=True,
         )
 
 
 @deploy.command("down")
 def deploy_down() -> None:
     """Spin down the local deployment."""
+    for service in SERVICE_VALUES:
+        _exec(f"helm uninstall {service} -n {HIRESIFY}", with_root_permission=True)
 
 
 # -- helper functions
-
-
-def _apply_manifest(manifest: Path) -> int:
-    """Apply the given manifest on the server node."""
-    return _exec(f"kubectl apply -f {manifest}", node=SERVER)
 
 
 def _create_k3s_node(*, cpus: int, disk: str, memory: str, name: str) -> int:
@@ -317,14 +323,6 @@ def _exec(
         stderr=subprocess.DEVNULL if quiet else None,
         stdout=subprocess.DEVNULL if quiet else None,
     ).returncode
-
-
-def _label_node(node: str, **kwargs: str) -> int:
-    """Label the specified node with the given key-value pairs."""
-    return _exec(
-        f"kubectl label node {node} " +
-        " ".join([f"{key}={value}" for key, value in kwargs.items()])
-    )
 
 
 def _get_bridged_network() -> str | None:
@@ -406,14 +404,6 @@ def _stop(node: str) -> int:
     cmd = ["multipass", "stop", node]
 
     return subprocess.run(cmd, check=False).returncode
-
-
-def _taint_node(node: str, **kwargs: str) -> int:
-    """Taint the specified node with the given key-value pairs."""
-    return _exec(
-        f"kubectl taint nodes {node} " +
-        " ".join([f"{key}={value}:NoSchedule" for key, value in kwargs.items()])
-    )
 
 
 def _transfer(file: Path, node: str = SERVER, path: ty.Optional[Path] = None) -> int:

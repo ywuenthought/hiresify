@@ -6,12 +6,15 @@ image:
   debug: false
 
 auth:
-  enablePostgresUser: false
+  enablePostgresUser: true
   username: user
-  existingSecret: postgres-credentials
+  database: hiresify
+  replicationUsername: user
+  existingSecret: postgresql-credentials
   secretKeys:
-    userPasswordKey: postgres-password
-    replicationPasswordKey: postgres-password
+    adminPasswordKey: postgresql-password
+    userPasswordKey: postgresql-password
+    replicationPasswordKey: postgresql-password
 
 architecture: replication
 
@@ -64,10 +67,6 @@ primary:
     enabled: true
     volumeName: "pgdata"
     size: 8Gi
-  tolerations:
-    - key: "postgres"
-      operator: "Exists"
-      effect: "NoSchedule"
 
 readReplicas:
   extendedConfiguration: |
@@ -111,7 +110,3 @@ readReplicas:
     enabled: true
     volumeName: "pgdata"
     size: 8Gi
-  tolerations:
-    - key: "postgres"
-      operator: "Exists"
-      effect: "NoSchedule"

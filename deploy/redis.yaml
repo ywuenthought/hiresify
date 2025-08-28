@@ -37,10 +37,6 @@ replica:
     type: ClusterIP
     ports:
       redis: 6379
-  tolerations:
-    - key: "redis"
-      operator: "Exists"
-      effect: "NoSchedule"
 
 sentinel:
   enabled: true

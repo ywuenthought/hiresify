@@ -1,0 +1,50 @@
+image:
+  registry: docker.io
+  repository: bitnami/minio
+  tag: 2025.7.23-debian-12-r3
+  pullPolicy: IfNotPresent
+  debug: false
+
+auth:
+  existingSecret: minio-credentials
+  rootUserSecretKey: minio-username
+  rootPasswordSecretKey: minio-password
+
+mode: distributed
+
+containerPorts:
+  api: 9000
+
+resources:
+  requests:
+    cpu: 0.2
+    memory: 256Mi
+  limits:
+    cpu: 0.5
+    memory: 512Mi
+
+service:
+  type: ClusterIP
+  ports:
+    api: 9000
+
+persistence:
+  enabled: true
+  size: 8Gi
+
+console:
+  image:
+    registry: docker.io
+    repository: bitnami/minio-object-browser
+    tag: 2.0.2-debian-12-r3
+    pullPolicy: IfNotPresent
+    debug: false
+  containerPorts:
+    http: 9090
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 128Mi
+    limits:
+      cpu: 0.2
+      memory: 256Mi

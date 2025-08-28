@@ -6,17 +6,27 @@ metadata:
 apiVersion: v1
 kind: Secret
 metadata:
+  name: minio-credentials
+  namespace: hiresify
+type: Opaque
+data:
+  minio-username: user
+  minio-password: {minio_password}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgresql-credentials
+  namespace: hiresify
+type: Opaque
+data:
+  postgresql-password: {postgresql_password}
+---
+apiVersion: v1
+kind: Secret
+metadata:
   name: redis-credentials
   namespace: hiresify
 type: Opaque
 data:
   redis-password: {redis_password}
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-credentials
-  namespace: hiresify
-type: Opaque
-data:
-  postgres-password: {postgres_password}
