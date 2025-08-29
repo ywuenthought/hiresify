@@ -12,6 +12,12 @@ spec:
     matchLabels:
       {{- include "hiresify.selectorLabels" . | nindent 6 }}
   template:
+    metadata:
+      labels:
+        {{- include "hiresify.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       containers:
         - name: {{ .Chart.Name }}

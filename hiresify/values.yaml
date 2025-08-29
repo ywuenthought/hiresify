@@ -1,7 +1,9 @@
 image:
+  registry: docker.io
   repository: ywucontainer/hiresify
-  pullPolicy: IfNotPresent
   tag: latest
+  pullPolicy: IfNotPresent
+  debug: false
 
 ingress:
   enabled: false
@@ -40,6 +42,8 @@ volumeMounts:
     mountPath: /run/secrets/hiresify.env
     subPath: hiresify-config
     readOnly: true
+
+podLabels: {}
 
 nodeSelector: {}
 
