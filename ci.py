@@ -147,12 +147,14 @@ def cluster_up() -> None:
 )
 def cluster_down(purge: bool) -> None:
     """Spin down the node cluster for a local deployment."""
-    failed_nodes = []
+    cmd_prefix = ["multipass", "delete", "--purge"] if purge else ["multipass", "stop"]
 
-    for name in NODE_CONFIGS:
-        # Note: Use this aggressive global operation until a better solution is figured.
-        if (_delete(name, purge=purge) if purge else _stop(name)):
-            failed_nodes.append(name)
+    failed_nodes = []
+    for node in NODE_CONFIGS:
+        cmd_prefix.append(node)
+        if subprocess.run(cmd_prefix, check=False).returncode:
+            failed_nodes.append(node)
+        cmd_prefix.pop()
 
     if failed_nodes:
         raise ClickException(f"Failed to spin down nodes: {', '.join(failed_nodes)}.")
@@ -165,24 +167,31 @@ def predeploy() -> None:
 
 @predeploy.command("config")
 @click.option(
+    "--minio-username",
+    default="user",
+    envvar="MINIO_USERNAME",
+    help="The username used to access the MinIO database.",
+)
+@click.option(
     "--minio-password",
+    default="12345678",
     envvar="MINIO_PASSWORD",
     help="The password used to access the MinIO database.",
-    required=True,
 )
 @click.option(
     "--postgresql-password",
+    default="1234",
     envvar="POSTGRESQL_PASSWORD",
     help="The password used to access the PostgreSQL database.",
-    required=True,
 )
 @click.option(
     "--redis-password",
+    default="1234",
     envvar="REDIS_PASSWORD",
     help="The password used to access the Redis server.",
-    required=True,
 )
 def predeploy_config(
+    minio_username: str,
     minio_password: str,
     postgresql_password: str,
     redis_password: str
@@ -193,7 +202,7 @@ def predeploy_config(
     try:
         MANIFEST.write_text(
             template.format(
-                minio_username=_encode_text("user"),
+                minio_username=_encode_text(minio_username),
                 minio_password=_encode_text(minio_password),
                 postgresql_password=_encode_text(postgresql_password),
                 redis_password=_encode_text(redis_password),
@@ -201,8 +210,8 @@ def predeploy_config(
             encoding="utf-8",
         )
 
-        _transfer(MANIFEST)
-        _exec(f"kubectl apply -f {MANIFEST.name}", node=SERVER)
+        _copy(MANIFEST)
+        _exec(f"kubectl apply -f {MANIFEST.name}")
     finally:
         MANIFEST.write_text(template)
 
@@ -239,7 +248,7 @@ def deploy() -> None:
 def deploy_up() -> None:
     """Spin up the local deployment."""
     for service, values in SERVICE_VALUES.items():
-        _transfer(values)
+        _copy(values)
         _exec(
             f"helm upgrade --install {service} {BITNAMI_OCI}/{service} "
             f"-n {HIRESIFY} -f {values.name}",
@@ -282,19 +291,9 @@ def _create_k3s_node(*, cpus: int, disk: str, memory: str, name: str) -> int:
     ]
 
     if code := subprocess.run(launch_cmd, check=False).returncode:
-        _delete(name, purge=True)
         return code
 
-    _restart(name)
-
-    return 0
-
-
-def _delete(node: str, purge: bool = False) -> int:
-    """Delete the specified multipass instance."""
-    cmd = ["multipass", "delete"] + (["--purge"] if purge else []) + [node]
-
-    return subprocess.run(cmd, check=False).returncode
+    return _restart(name)
 
 
 def _encode_text(text: str) -> str:
@@ -395,19 +394,12 @@ def _start(node: str) -> int:
     return 0
 
 
-def _stop(node: str) -> int:
-    """Stop the specified multipass instance."""
-    cmd = ["multipass", "stop", node]
-
-    return subprocess.run(cmd, check=False).returncode
-
-
-def _transfer(file: Path, node: str = SERVER, path: ty.Optional[Path] = None) -> int:
-    """Transfer a file from the host to the specified multipass instance."""
+def _copy(file: Path, path: ty.Optional[Path] = None) -> int:
+    """Copy a file from the host to the specified multipass instance."""
     if path is not None:
         _exec(f"mkdir -p {path.parent}", with_root_permission=True)
 
-    cmd = ["multipass", "transfer", file, f"{node}:{'' if path is None else path}"]
+    cmd = ["multipass", "transfer", file, f"{SERVER}:{'' if path is None else path}"]
 
     return subprocess.run(cmd, check=False).returncode
 

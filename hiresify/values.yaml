@@ -6,10 +6,6 @@ image:
 ingress:
   enabled: false
 
-service:
-  type: NodePort
-  port: 8000
-
 resources:
   requests:
     cpu: 0.2
@@ -18,12 +14,32 @@ resources:
     cpu: 0.5
     memory: 512Mi
 
+service:
+  type: NodePort
+  port: 8000
+
 autoscaling:
   enabled: true
   minReplicas: 1
   maxReplicas: 2
   targetCPUUtilizationPercentage: 40
   targetMemoryUtilizationPercentage: 40
+
+env:
+  CONFIG_DIR: /run/secrets/hiresify.env
+  DEPLOYMENT: development
+
+volumes:
+  - name: hiresify-config
+    secret:
+      secretName: hiresify-config
+      optional: false
+
+volumeMounts:
+  - name: hiresify-config
+    mountPath: /run/secrets/hiresify.env
+    subPath: hiresify-config
+    readOnly: true
 
 nodeSelector: {}
 

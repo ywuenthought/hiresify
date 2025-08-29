@@ -30,3 +30,24 @@ metadata:
 type: Opaque
 data:
   redis-password: {redis_password}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hiresify-config
+  namespace: hiresify
+type: Opaque
+stringData:
+  hiresify-config: |-
+    access_ttl=900
+    blob_access_key={minio_username}
+    blob_secret_key={minio_password}
+    blob_store_region=us-east-1
+    blob_store_url=http://minio:9000
+    blob_ttl=30
+    cache_ttl=300
+    database_config={"pool_size": 5, "max_overflow": 5, "pool_pre_ping": true}
+    database_url=postgresql+asyncpg://user:{postgresql_password}@postgres:5432/hiresify
+    redis_url=redis://:{redis_password}@redis:6379/0
+    refresh_ttl=30
+    upload_ttl=7
