@@ -12,7 +12,6 @@ import subprocess
 import textwrap
 import time
 import typing as ty
-from base64 import b64encode
 from pathlib import Path
 
 import click
@@ -44,20 +43,17 @@ HELM_PLATFORM = "linux-amd64"
 
 HELM_ARCHIVE = f"helm-v{HELM_VERSION}-{HELM_PLATFORM}.tar.gz"
 
-SERVER = "server"
+API_NODE = "api"
 
-HIRESIFY = "hiresify"
+APP_NODE = "app"
 
-NODE_CONFIGS = {
-    SERVER: dict(cpus=2, disk="8G", memory="2G"),
-    HIRESIFY: dict(cpus=4, disk="64G", memory="4G"),
-}
+APP_NAME = "hiresify"
 
-SERVICE_VALUES = {
-    service: DEPLOY_DIR / f"{service}.yaml"
-    for service
-    in ("minio", "postgresql", "redis")
-}
+APP_CHART = ROOT_DIR / APP_NAME
+
+API_RESOURCES = dict(cpus=2, disk="8G", memory="2G")
+
+APP_RESOURCES = dict(cpus=4, disk="64G", memory="4G")
 
 
 @click.group()
@@ -81,14 +77,14 @@ def cluster() -> None:
 def cluster_create(token: str) -> None:
     """Create the node cluster for a local deployment."""
 
-    # -- create the server node.
+    # -- create the API node.
 
-    if _create_k3s_node(name=SERVER, **NODE_CONFIGS[SERVER]):
-        click.secho(f"Failed to launch node {SERVER}.", fg="red")
+    if _create_k3s_node(**API_RESOURCES, name=API_NODE):
+        click.secho(f"Failed to launch node {API_NODE}.", fg="red")
         return
 
     if _exec(f"{K3S_PREFIX} server --token {token} --write-kubeconfig-mode=644"):
-        click.secho(f"Failed to launch the K3s server.", fg="red")
+        click.secho("Failed to launch the K3s server.", fg="red")
         return
 
     # -- install helm from a binary release.
@@ -97,32 +93,30 @@ def cluster_create(token: str) -> None:
         f"curl -sfL -o {HELM_ARCHIVE} {HELM_URL}/{HELM_ARCHIVE} && "
         f"tar -zxvf {HELM_ARCHIVE} && "
         f"mv {HELM_PLATFORM}/helm /usr/local/bin && "
-        f"rm -rf {HELM_ARCHIVE} {HELM_PLATFORM} && "
-        "mkdir -p ~/.kube && "
-        "cp /etc/rancher/k3s/k3s.yaml ~/.kube/config"
+        f"rm -rf {HELM_ARCHIVE} {HELM_PLATFORM}"
     )
 
-    if _exec(helm_cmd, with_root_permission=True):
-        click.secho(f"Failed to install and configure helm.", fg="red")
+    if _exec(helm_cmd, admin=True):
+        click.secho("Failed to install and configure helm.", fg="red")
         return
 
-    # -- create the agent nodes.
+    # -- create the app node.
 
-    if (url := _get_server_url()) is None:
-        click.secho("Failed to get the K3s server URL.", fg="red")
+    if (ip := _get_node_ip()) is None:
+        click.secho("Failed to get the K3s server IP.", fg="red")
         return
 
-    for name, config in NODE_CONFIGS.items():
-        if name == SERVER:
-            continue
+    if _create_k3s_node(**APP_RESOURCES, name=APP_NODE):
+        click.secho(f"Failed to launch node {APP_NODE}.", fg="red")
+        return
 
-        if _create_k3s_node(name=name, **config):
-            click.secho(f"Failed to launch node {name}.", fg="red")
-            return
-
-        if _exec(f"{K3S_PREFIX} agent --server {url} --token {token}", node=name):
-            click.secho(f"Failed to launch the K3s agent {name}.", fg="red")
-            return
+    if _exec(
+        # 6443 is the default port.
+        f"{K3S_PREFIX} agent --server https://{ip}:6443 --token {token}",
+        node=APP_NODE,
+    ):
+        click.secho("Failed to launch the K3s agent.", fg="red")
+        return
 
 
 @cluster.command("up")
@@ -130,9 +124,9 @@ def cluster_up() -> None:
     """Spin up the node cluster for a local deployment."""
     failed_nodes = []
 
-    for name in NODE_CONFIGS:
-        if _start(name):
-            failed_nodes.append(name)
+    for node in (API_NODE, APP_NODE):
+        if _start(node):
+            failed_nodes.append(node)
 
     if failed_nodes:
         raise ClickException(f"Failed to spin up nodes: {', '.join(failed_nodes)}.")
@@ -150,7 +144,7 @@ def cluster_down(purge: bool) -> None:
     cmd_prefix = ["multipass", "delete", "--purge"] if purge else ["multipass", "stop"]
 
     failed_nodes = []
-    for node in NODE_CONFIGS:
+    for node in (API_NODE, APP_NODE):
         cmd_prefix.append(node)
         if subprocess.run(cmd_prefix, check=False).returncode:
             failed_nodes.append(node)
@@ -160,60 +154,22 @@ def cluster_down(purge: bool) -> None:
         raise ClickException(f"Failed to spin down nodes: {', '.join(failed_nodes)}.")
 
 
+@cli.command()
+def ip() -> None:
+    """Display the IP address to the app server."""
+    click.echo(_get_node_ip(APP_NODE))
+
+
 @cli.group()
 def predeploy() -> None:
     """Perform pre-deployment operations on the local cluster."""
 
 
 @predeploy.command("config")
-@click.option(
-    "--minio-username",
-    default="user",
-    envvar="MINIO_USERNAME",
-    help="The username used to access the MinIO database.",
-)
-@click.option(
-    "--minio-password",
-    default="12345678",
-    envvar="MINIO_PASSWORD",
-    help="The password used to access the MinIO database.",
-)
-@click.option(
-    "--postgresql-password",
-    default="1234",
-    envvar="POSTGRESQL_PASSWORD",
-    help="The password used to access the PostgreSQL database.",
-)
-@click.option(
-    "--redis-password",
-    default="1234",
-    envvar="REDIS_PASSWORD",
-    help="The password used to access the Redis server.",
-)
-def predeploy_config(
-    minio_username: str,
-    minio_password: str,
-    postgresql_password: str,
-    redis_password: str
-) -> None:
+def predeploy_config() -> None:
     """Set up the pre-deployment configuration."""
-    template = MANIFEST.read_text(encoding="utf-8")
-
-    try:
-        MANIFEST.write_text(
-            template.format(
-                minio_username=_encode_text(minio_username),
-                minio_password=_encode_text(minio_password),
-                postgresql_password=_encode_text(postgresql_password),
-                redis_password=_encode_text(redis_password),
-            ),
-            encoding="utf-8",
-        )
-
-        _copy(MANIFEST)
-        _exec(f"kubectl apply -f {MANIFEST.name}")
-    finally:
-        MANIFEST.write_text(template)
+    _copy(MANIFEST)
+    _exec(f"kubectl apply -f {MANIFEST.name}")
 
 
 @predeploy.command("login")
@@ -247,20 +203,24 @@ def deploy() -> None:
 @deploy.command("up")
 def deploy_up() -> None:
     """Spin up the local deployment."""
-    for service, values in SERVICE_VALUES.items():
-        _copy(values)
-        _exec(
-            f"helm upgrade --install {service} {BITNAMI_OCI}/{service} "
-            f"-n {HIRESIFY} -f {values.name}",
-            with_root_permission=True,
-        )
+    cmd = (
+        "mkdir -p ~/.kube && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config && "
+        f"helm upgrade --install {APP_NAME} {APP_CHART.name} -n {APP_NAME}"
+    )
+
+    _copy(APP_CHART, recursive=True)
+    _exec(cmd, admin=True)
 
 
 @deploy.command("down")
 def deploy_down() -> None:
     """Spin down the local deployment."""
-    for service in SERVICE_VALUES:
-        _exec(f"helm uninstall {service} -n {HIRESIFY}", with_root_permission=True)
+    cmd = (
+        "mkdir -p ~/.kube && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config && "
+        f"helm uninstall {APP_NAME} -n {APP_NAME}"
+    )
+
+    _exec(cmd, admin=True)
 
 
 # -- helper functions
@@ -296,20 +256,16 @@ def _create_k3s_node(*, cpus: int, disk: str, memory: str, name: str) -> int:
     return _restart(name)
 
 
-def _encode_text(text: str) -> str:
-    """Encode the given text in the base64 format."""
-    return b64encode(text.encode("utf-8")).decode("utf-8")
-
-
 def _exec(
     cmd: str,
-    node: str = SERVER,
+    *,
+    node: str = API_NODE,
     quiet: bool = False,
-    with_root_permission: bool = False,
+    admin: bool = False
 ) -> int:
     """Execute a command on the specified node."""
     cmd = ["multipass", "exec", node, "--"] + (
-        ["sudo"] if with_root_permission else []
+        ["sudo"] if admin else []
     ) + ["bash", "-lc", cmd]
 
     return subprocess.run(
@@ -338,10 +294,10 @@ def _get_bridged_network() -> str | None:
     return None
 
 
-def _get_server_url() -> str | None:
-    """Get the URL to the K3s server."""
+def _get_node_ip(node: str = API_NODE) -> str | None:
+    """Get the IP address to the specified node."""
     result = subprocess.run(
-        ["multipass", "info", SERVER],
+        ["multipass", "info", node],
         capture_output=True,
         check=False,
         text=True,
@@ -349,9 +305,7 @@ def _get_server_url() -> str | None:
 
     for line in result.splitlines():
         if line.strip().startswith("IPv4"):
-            ip = line.split(":", 1)[1].strip()
-            # 6443 is the default port.
-            return f"https://{ip}:6443"
+            return line.split(":", 1)[1].strip()
 
     return None
 
@@ -394,12 +348,18 @@ def _start(node: str) -> int:
     return 0
 
 
-def _copy(file: Path, path: ty.Optional[Path] = None) -> int:
-    """Copy a file from the host to the specified multipass instance."""
-    if path is not None:
-        _exec(f"mkdir -p {path.parent}", with_root_permission=True)
+def _copy(
+    source: Path,
+    target: ty.Optional[Path] = None,
+    recursive: bool = False,
+) -> int:
+    """Copy the source from the host to the target in the multipass instance."""
+    if target is not None:
+        _exec(f"mkdir -p {target.parent}", admin=True)
 
-    cmd = ["multipass", "transfer", file, f"{SERVER}:{'' if path is None else path}"]
+    cmd = ["multipass", "transfer"] + (
+        ["-r"] if recursive else []
+    ) + [source, f"{API_NODE}:{'' if target is None else target}"]
 
     return subprocess.run(cmd, check=False).returncode
 

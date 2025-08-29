@@ -49,6 +49,7 @@ affinity: {}
 
 minio:
   enabled: true
+  fullnameOverride: minio
 
   image:
     registry: docker.io
@@ -103,6 +104,7 @@ minio:
 
 postgresql:
   enabled: true
+  fullnameOverride: postgresql
 
   image:
     registry: docker.io
@@ -219,6 +221,7 @@ postgresql:
 
 redis:
   enabled: true
+  fullnameOverride: redis
 
   image:
     registry: docker.io

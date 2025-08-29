@@ -10,8 +10,8 @@ metadata:
   namespace: hiresify
 type: Opaque
 data:
-  minio-username: {minio_username}
-  minio-password: {minio_password}
+  minio-username: dXNlcg==
+  minio-password: MTIzNDU2Nzg=
 ---
 apiVersion: v1
 kind: Secret
@@ -20,7 +20,7 @@ metadata:
   namespace: hiresify
 type: Opaque
 data:
-  postgresql-password: {postgresql_password}
+  postgresql-password: MTIzNA==
 ---
 apiVersion: v1
 kind: Secret
@@ -29,7 +29,7 @@ metadata:
   namespace: hiresify
 type: Opaque
 data:
-  redis-password: {redis_password}
+  redis-password: MTIzNA==
 ---
 apiVersion: v1
 kind: Secret
@@ -40,14 +40,14 @@ type: Opaque
 stringData:
   hiresify-config: |-
     access_ttl=900
-    blob_access_key={minio_username}
-    blob_secret_key={minio_password}
+    blob_access_key=user
+    blob_secret_key=12345678
     blob_store_region=us-east-1
     blob_store_url=http://minio:9000
     blob_ttl=30
     cache_ttl=300
     database_config={"pool_size": 5, "max_overflow": 5, "pool_pre_ping": true}
-    database_url=postgresql+asyncpg://user:{postgresql_password}@postgres:5432/hiresify
-    redis_url=redis://:{redis_password}@redis:6379/0
+    database_url=postgresql+asyncpg://user:1234@postgres:5432/hiresify
+    redis_url=redis://:1234@redis:6379/0
     refresh_ttl=30
     upload_ttl=7
