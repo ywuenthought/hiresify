@@ -9,13 +9,7 @@ import subprocess
 import click
 from click.exceptions import ClickException
 
-from .const import (
-    DEV_DOCKER_COMPOSE,
-    DOCKER_FILE,
-    DOCKER_REGISTRY,
-    PROJECT_ROOT,
-    REQUIREMENTS_FILE,
-)
+from .const import DEV_DOCKER_COMPOSE, DOCKER_FILE, PROJECT_ROOT, REQUIREMENTS_FILE
 
 
 @click.group()
@@ -32,12 +26,6 @@ def build_wheel() -> None:
     cmd = ["uv", "build", ".", "-o", "build", "--wheel"]
     if subprocess.run(cmd, check=False, cwd=PROJECT_ROOT).returncode:
         raise ClickException("Failed to build the wheel.")
-
-
-@cli.command()
-def ip() -> None:
-    """Show the IP address of the host."""
-    click.echo(_get_host_ip())
 
 
 @cli.group()
@@ -81,71 +69,16 @@ def build(tag: str) -> None:
 
 @docker.command()
 @click.option(
-    "--local",
-    help="To push the image to the local registry.",
-    is_flag=True,
-)
-@click.option(
     "-t",
     "--tag",
     default="latest",
     envvar="TAG",
 )
-def push(local: bool, tag: str) -> None:
+def push(tag: str) -> None:
     """Push the Docker image of this project."""
     image = f"hiresify:{tag}"
-
-    if local:
-        port = DOCKER_REGISTRY["port"]
-        registry_url = f"{_get_host_ip()}:{port}"
-        target_image = f"{registry_url}/{image}"
-        cmd = f"docker tag {image} {target_image} && docker push {target_image}"
-
-        if subprocess.run(
-            cmd,
-            check=False,
-            shell=True,
-            stderr=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-        ).returncode:
-            raise ClickException("Failed to push the image to the local registry.")
-
-
-@docker.group()
-def registry() -> None:
-    """Manage a local Docker registry hosting this project."""
-
-
-@registry.command("up")
-def registry_up() -> None:
-    """Spin up the local Docker registry."""
-    port = DOCKER_REGISTRY["port"]
-    cmd = [
-        "docker",
-        "run",
-        "-d",
-        "-p",
-        f"0.0.0.0:{port}:{port}",
-        "--restart=always",
-        "--name",
-        DOCKER_REGISTRY["name"],
-        "registry:latest",
-    ]
-
-    if subprocess.run(
-        cmd,
-        check=False,
-        stderr=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-    ).returncode:
-        raise ClickException("Failed to start the local Docker registry.")
-
-
-@registry.command("down")
-def registry_down() -> None:
-    """Spin down the local Docker registry."""
-    name = DOCKER_REGISTRY["name"]
-    cmd = f"docker stop {name} && docker rm {name}"
+    target_image = f"ywucontainer/{image}"
+    cmd = f"docker tag {image} {target_image} && docker push {target_image}"
 
     if subprocess.run(
         cmd,
@@ -154,7 +87,7 @@ def registry_down() -> None:
         stderr=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
     ).returncode:
-        raise ClickException("Failed to stop the local Docker registry.")
+        raise ClickException("Failed to push the app image.")
 
 
 @docker.group()
@@ -213,25 +146,6 @@ def stack_down(ctx: click.Context, tag: str) -> None:
     ]
     if subprocess.run(cmd, check=False, env=dict(TAG=tag)).returncode:
         raise ClickException("Failed to stop the container stack.")
-
-
-# -- helper functions
-
-
-def _get_host_ip() -> str:
-    """Get the IP address of the host."""
-    process = subprocess.run(
-        "ip -4 addr show dev mpqemubr0 | grep inet | awk '{print $2}' | cut -d/ -f1",
-        capture_output=True,
-        check=False,
-        shell=True,
-        text=True,
-    )
-
-    if process.returncode:
-        raise ClickException("Failed to get the host IP.")
-
-    return process.stdout.rstrip()
 
 
 if __name__ == "__main__":

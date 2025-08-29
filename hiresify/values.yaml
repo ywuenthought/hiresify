@@ -1,5 +1,5 @@
 image:
-  repository: 10.147.254.1:5000/hiresify
+  repository: ywucontainer/hiresify
   pullPolicy: IfNotPresent
   tag: latest
 
