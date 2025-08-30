@@ -207,29 +207,6 @@ def predeploy_config(docker_username: str, docker_password: str) -> None:
         MANIFEST.write_text(template)
 
 
-@predeploy.command("login")
-@click.option(
-    "-u",
-    "--username",
-    envvar="DOCKER_USERNAME",
-    help="The username used to log into Docker Hub.",
-    required=True,
-)
-@click.option(
-    "-p",
-    "--password",
-    envvar="DOCKER_PASSWORD",
-    help="The password used to log into Docker Hub.",
-    required=True,
-)
-def predeploy_login(username: str, password: str) -> None:
-    """Log into Docker Hub using the given credentials."""
-    _exec(
-        f"echo {password} | helm registry login {DOCKER_HUB} "
-        f"--username {username} --password-stdin"
-    )
-
-
 @cli.group()
 def deploy() -> None:
     """Manage a local deployment of this project."""
