@@ -31,7 +31,7 @@ autoscaling:
   targetMemoryUtilizationPercentage: 40
 
 env:
-  CONFIG_DIR: /run/secrets/hiresify.env
+  CONFIG_DIR: /run/secrets
   DEPLOYMENT: development
 
 volumes:
@@ -42,13 +42,14 @@ volumes:
 
 volumeMounts:
   - name: hiresify-config
-    mountPath: /run/secrets/hiresify.env
+    mountPath: /run/secrets/.env.development
     subPath: hiresify-config
     readOnly: true
 
 podLabels: {}
 
-nodeSelector: {}
+nodeSelector:
+  kubernetes.io/hostname: app
 
 tolerations: []
 
@@ -74,6 +75,9 @@ minio:
 
   containerPorts:
     minio: 9000
+
+  nodeSelector:
+    kubernetes.io/hostname: app
 
   resources:
     requests:
@@ -109,64 +113,26 @@ minio:
         cpu: 0.2
         memory: 256Mi
 
-postgresql:
+postgresql-ha:
   enabled: true
   fullnameOverride: postgresql
 
-  image:
-    registry: docker.io
-    repository: bitnami/postgresql
-    tag: 17.6.0-debian-12-r0
-    pullPolicy: IfNotPresent
-    debug: false
+  postgresql:
+    image:
+      registry: docker.io
+      repository: bitnami/postgresql-repmgr
+      tag: 17.6.0-debian-12-r2
+      pullPolicy: IfNotPresent
+      debug: false
 
-  auth:
-    enablePostgresUser: true
-    username: user
-    database: hiresify
-    replicationUsername: user
-    existingSecret: postgresql-credentials
-    secretKeys:
-      adminPasswordKey: postgresql-password
-      userPasswordKey: postgresql-password
-      replicationPasswordKey: postgresql-password
+    replicaCount: 3
 
-  architecture: replication
+    containerPorts:
+      postgresql: 5432
 
-  replication:
-    synchronousCommit: "on"
-    numSynchronousReplicas: 1
-    applicationName: hiresify
+    nodeSelector:
+      kubernetes.io/hostname: app
 
-  containerPorts:
-    postgresql: 5432
-
-  primary:
-    extendedConfiguration: |
-      # Logging
-      logging_collector = on
-      log_statement = 'ddl'
-      log_min_duration_statement = 5000
-      log_checkpoints = on
-      log_connections = on
-      log_disconnections = on
-
-      # Memory & WAL
-      shared_buffers = 128MB
-      work_mem = 4MB
-      maintenance_work_mem = 64MB
-      effective_cache_size = 256MB
-      wal_level = replica
-      max_wal_senders = 10
-      max_replication_slots = 10
-
-      # Connections
-      max_connections = 100
-      idle_in_transaction_session_timeout = 10min
-
-      # General safety
-      hot_standby = on
-      timezone = 'UTC'
     resources:
       requests:
         cpu: 0.2
@@ -174,17 +140,11 @@ postgresql:
       limits:
         cpu: 0.5
         memory: 512Mi
-    service:
-      type: ClusterIP
-      ports:
-        postgresql: 5432
-    persistence:
-      enabled: true
-      volumeName: "pgdata"
-      size: 8Gi
 
-  readReplicas:
-    extendedConfiguration: |
+    database: hiresify
+    existingSecret: postgresql-credentials
+
+    extendedConf: |
       # Logging
       logging_collector = on
       log_statement = 'ddl'
@@ -209,7 +169,18 @@ postgresql:
       # General safety
       hot_standby = on
       timezone = 'UTC'
-    replicaCount: 1
+
+  pgpool:
+    image:
+      registry: docker.io
+      repository: bitnami/pgpool
+      tag: 4.6.3-debian-12-r0
+      pullPolicy: IfNotPresent
+      debug: false
+
+    nodeSelector:
+      kubernetes.io/hostname: app
+
     resources:
       requests:
         cpu: 0.1
@@ -217,14 +188,33 @@ postgresql:
       limits:
         cpu: 0.2
         memory: 256Mi
-    service:
-      type: ClusterIP
-      ports:
-        postgresql: 5432
-    persistence:
-      enabled: true
-      volumeName: "pgdata"
-      size: 8Gi
+
+  persistence:
+    enabled: true
+    size: 8Gi
+
+  service:
+    type: ClusterIP
+    ports:
+      postgresql: 5432
+
+  volumePermissions:
+    enabled: true
+
+    image:
+      registry: docker.io
+      repository: bitnami/os-shell
+      tag: 12-debian-12-r51
+      pullPolicy: IfNotPresent
+      debug: false
+
+    resources:
+      requests:
+        cpu: 0.1
+        memory: 128Mi
+      limits:
+        cpu: 0.2
+        memory: 256Mi
 
 redis:
   enabled: true
@@ -261,6 +251,8 @@ redis:
       limits:
         cpu: 0.5
         memory: 512Mi
+    nodeSelector:
+      kubernetes.io/hostname: app
     persistence:
       enabled: true
       path: /data

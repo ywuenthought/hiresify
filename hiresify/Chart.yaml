@@ -12,8 +12,8 @@ dependencies:
   - name: minio
     version: 17.0.21
     repository: oci://registry-1.docker.io/bitnamicharts
-  - name: postgresql
-    version: 16.7.27
+  - name: postgresql-ha
+    version: 16.3.2
     repository: oci://registry-1.docker.io/bitnamicharts
   - name: redis
     version: 22.0.7
