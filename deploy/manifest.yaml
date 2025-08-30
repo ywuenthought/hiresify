@@ -6,6 +6,15 @@ metadata:
 apiVersion: v1
 kind: Secret
 metadata:
+  name: docker-config
+  namespace: hiresify
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: {docker_config}
+---
+apiVersion: v1
+kind: Secret
+metadata:
   name: minio-credentials
   namespace: hiresify
 type: Opaque
@@ -46,7 +55,7 @@ stringData:
     blob_store_url=http://minio:9000
     blob_ttl=30
     cache_ttl=300
-    database_config={"pool_size": 5, "max_overflow": 5, "pool_pre_ping": true}
+    database_config={{"pool_size": 5, "max_overflow": 5, "pool_pre_ping": true}}
     database_url=postgresql+asyncpg://user:1234@postgres:5432/hiresify
     redis_url=redis://:1234@redis:6379/0
     refresh_ttl=30

@@ -5,6 +5,9 @@ image:
   pullPolicy: IfNotPresent
   debug: false
 
+imagePullSecrets:
+  - name: docker-config
+
 ingress:
   enabled: false
 

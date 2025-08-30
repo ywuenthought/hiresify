@@ -8,10 +8,12 @@
 # dependencies = ["click"]
 # ///
 
+import json
 import subprocess
 import textwrap
 import time
 import typing as ty
+from base64 import b64encode
 from pathlib import Path
 
 import click
@@ -166,10 +168,43 @@ def predeploy() -> None:
 
 
 @predeploy.command("config")
-def predeploy_config() -> None:
+@click.option(
+    "--docker-username",
+    envvar="DOCKER_USERNAME",
+    help="The username used to log in Docker Hub",
+    required=True,
+)
+@click.option(
+    "--docker-password",
+    envvar="DOCKER_PASSWORD",
+    help="The password used to log in Docker Hub",
+    required=True,
+)
+def predeploy_config(docker_username: str, docker_password: str) -> None:
     """Set up the pre-deployment configuration."""
-    _copy(MANIFEST)
-    _exec(f"kubectl apply -f {MANIFEST.name}")
+    docker_config = _encode_text(
+        json.dumps(
+            {
+                "auths": {
+                    "docker.io": {
+                        "username": docker_username,
+                        "password": docker_password,
+                        "auth": _encode_text(f"{docker_username}:{docker_password}"),
+                    }
+                }
+            }
+        )
+    )
+
+    template = MANIFEST.read_text(encoding="utf-8")
+
+    try:
+        MANIFEST.write_text(template.format(docker_config=docker_config))
+
+        _copy(MANIFEST)
+        _exec(f"kubectl apply -f {MANIFEST.name}")
+    finally:
+        MANIFEST.write_text(template)
 
 
 @predeploy.command("login")
@@ -254,6 +289,11 @@ def _create_k3s_node(*, cpus: int, disk: str, memory: str, name: str) -> int:
         return code
 
     return _restart(name)
+
+
+def _encode_text(text: str) -> str:
+    """Encode the given text in base64."""
+    return b64encode(text.encode()).decode()
 
 
 def _exec(
