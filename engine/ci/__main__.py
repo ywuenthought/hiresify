@@ -11,6 +11,13 @@ from click.exceptions import ClickException
 
 from .const import DEV_DOCKER_COMPOSE, DOCKER_FILE, PROJECT_ROOT, REQUIREMENTS_FILE
 
+tag_option = click.option(
+    "-t",
+    "--tag",
+    default="engine.latest",
+    envvar="TAG",
+)
+
 
 @click.group()
 def cli() -> None:
@@ -34,12 +41,7 @@ def docker() -> None:
 
 
 @docker.command()
-@click.option(
-    "-t",
-    "--tag",
-    default="latest",
-    envvar="TAG",
-)
+@tag_option
 def build(tag: str) -> None:
     """Build the Docker image of this project."""
     cmd = [
@@ -68,12 +70,7 @@ def build(tag: str) -> None:
 
 
 @docker.command()
-@click.option(
-    "-t",
-    "--tag",
-    default="latest",
-    envvar="TAG",
-)
+@tag_option
 def push(tag: str) -> None:
     """Push the Docker image of this project."""
     image = f"hiresify:{tag}"
@@ -100,12 +97,7 @@ def stack(ctx: click.Context) -> None:
 
 
 @stack.command("up")
-@click.option(
-    "-t",
-    "--tag",
-    default="latest",
-    envvar="TAG",
-)
+@tag_option
 @click.pass_context
 def stack_up(ctx: click.Context, tag: str) -> None:
     """Launch the development container stack."""
@@ -124,12 +116,7 @@ def stack_up(ctx: click.Context, tag: str) -> None:
 
 
 @stack.command("down")
-@click.option(
-    "-t",
-    "--tag",
-    default="latest",
-    envvar="TAG",
-)
+@tag_option
 @click.pass_context
 def stack_down(ctx: click.Context, tag: str) -> None:
     """Stop the development container stack."""
