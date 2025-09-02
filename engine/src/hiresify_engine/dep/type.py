@@ -12,15 +12,19 @@ from fastapi import Depends
 from hiresify_engine.config import AppConfig
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.service.blob import BlobService
+from hiresify_engine.service.broker import BrokerService
 from hiresify_engine.service.cache import CacheService
 
-from .getter import get_blob, get_cache, get_config, get_repo
+from .getter import get_blob, get_broker, get_cache, get_config, get_repo
 
 # The type for the app configuration dependency.
 AppConfigDep = ty.Annotated[AppConfig, Depends(get_config)]
 
 # The type for the blob service dependency.
 BlobServiceDep = ty.Annotated[BlobService, Depends(get_blob)]
+
+# The type for the broker service dependency.
+BrokerServiceDep = ty.Annotated[BrokerService, Depends(get_broker)]
 
 # The type for the cache service dependency.
 CacheServiceDep = ty.Annotated[CacheService, Depends(get_cache)]

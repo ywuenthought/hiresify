@@ -488,10 +488,8 @@ class Repository:
 
             return [to_job(job) for job in blob.jobs]
 
-    async def start_job(
-        self, blob_uid: str, *, uid: str, requested_at: datetime,
-    ) -> ComputeJob:
-        """Start a compute job for the given blob UID."""
+    async def submit_job(self, blob_uid: str, *, requested_at: datetime) -> ComputeJob:
+        """Submit a compute job for the given blob UID."""
         whereclause = BlobORM.uid == blob_uid
         stmt = select(BlobORM).where(whereclause)
 
@@ -502,11 +500,7 @@ class Repository:
             if not (blob := result.scalar_one_or_none()):
                 raise EntityNotFoundError(BlobORM, uid=blob_uid)
 
-            job = ComputeJobORM(
-                uid=uid,
-                requested_at=requested_at,
-                blob_id=blob.id,
-            )
+            job = ComputeJobORM(requested_at=requested_at, blob_id=blob.id)
 
             async with session.begin():
                 session.add(job)

@@ -57,5 +57,5 @@ def to_job(obj: ComputeJobORM) -> ComputeJob:
         blob_uid=obj.blob.uid,
         requested_at=obj.requested_at,
         completed_at=obj.completed_at,
-        status=obj.status,
+        status=obj.status,  # type: ignore[arg-type]
     )

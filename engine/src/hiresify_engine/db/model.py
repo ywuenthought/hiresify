@@ -175,7 +175,9 @@ class ComputeJobORM(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     #: The UID of this job.
-    uid: Mapped[str] = mapped_column(String(128), nullable=False)
+    uid: Mapped[str] = mapped_column(
+        String(32), default=lambda: uuid4().hex, unique=True,
+    )
 
     #: The date and time when the job was requested.
     requested_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)

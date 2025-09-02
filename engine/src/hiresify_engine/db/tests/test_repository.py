@@ -427,12 +427,9 @@ async def test_start_job(repository: Repository) -> None:
         valid_thru=valid_thru,
     )
 
-    job_uid = uuid4().hex
-    requested_at = datetime.now(UTC)
-
     # When
-    await repository.start_job(blob.uid, uid=job_uid, requested_at=requested_at)
-    job = await repository.find_job(blob.uid, job_id=job_uid)
+    job = await repository.submit_job(blob.uid, requested_at=datetime.now(UTC))
+    job = await repository.find_job(blob.uid, job_id=job.uid)
 
     # Then
     assert job.status == "pending"
@@ -463,12 +460,11 @@ async def test_update_job(repository: Repository) -> None:
         valid_thru=valid_thru,
     )
 
-    job_uid = uuid4().hex
-    await repository.start_job(blob.uid, uid=job_uid, requested_at=datetime.now(UTC))
+    job = await repository.submit_job(blob.uid, requested_at=datetime.now(UTC))
 
     # When
-    await repository.update_job(job_uid, status="started")
-    job = await repository.find_job(blob.uid, job_id=job_uid)
+    await repository.update_job(job.uid, status="started")
+    job = await repository.find_job(blob.uid, job_id=job.uid)
 
     # Then
     assert job.status == "started"

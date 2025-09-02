@@ -4,6 +4,7 @@
 # explicit written permission from the copyright holder.
 
 from .blob import router as blob_router
+from .job import router as job_router
 from .token import router as token_router
 from .user import router as user_router
 
@@ -14,4 +15,5 @@ routers = [
 
 api_routers = [
     blob_router,
+    job_router,
 ]

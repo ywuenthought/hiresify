@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request
 from hiresify_engine.config import AppConfig
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.service.blob import BlobService
+from hiresify_engine.service.broker import BrokerService
 from hiresify_engine.service.cache import CacheService
 
 
@@ -17,6 +18,13 @@ def get_blob(request: Request) -> BlobService:
     """Get the blob service from app.state."""
     app: FastAPI = request.app
     service: BlobService = app.state.blob
+    return service
+
+
+def get_broker(request: Request) -> BrokerService:
+    """Get the broker service from app.state."""
+    app: FastAPI = request.app
+    service: BrokerService = app.state.broker
     return service
 
 
