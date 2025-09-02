@@ -15,11 +15,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload, with_loader_criteria
 
-from hiresify_engine.model import Blob, JWTToken, Upload, User
+from hiresify_engine.model import Blob, ComputeJob, JobStatus, JWTToken, Upload, User
 
 from .exception import EntityConflictError, EntityNotFoundError
-from .mapper import to_blob, to_token, to_upload, to_user
-from .model import Base, BlobORM, RefreshTokenORM, UploadORM, UserORM
+from .mapper import to_blob, to_job, to_token, to_upload, to_user
+from .model import Base, BlobORM, ComputeJobORM, RefreshTokenORM, UploadORM, UserORM
 
 
 class Repository:
@@ -425,7 +425,7 @@ class Repository:
 
         An upload is removable when it's either finished or canceled.
         """
-        whereclause = and_(UploadORM.uid == uid)
+        whereclause = UploadORM.uid == uid
         stmt = delete(UploadORM).where(whereclause)
 
         async with self.session() as session:
@@ -447,3 +447,84 @@ class Repository:
                 uploads = result.scalars().all()
                 await session.execute(delete_stmt)
                 return [to_upload(upload) for upload in uploads]
+
+    ##############
+    # compute jobs
+    ##############
+
+    async def find_job(self, blob_uid: str, *, job_id: str) -> ComputeJob:
+        """Find the specified compute job for the given blob UID."""
+        option = selectinload(ComputeJobORM.blob)
+        whereclause = and_(
+            ComputeJobORM.uid == job_id,
+            ComputeJobORM.blob.has(BlobORM.uid == blob_uid),
+        )
+        stmt = (
+            select(ComputeJobORM)
+            .join(ComputeJobORM.blob)
+            .options(option)
+            .where(whereclause)
+        )
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+
+            if not (job := result.scalar_one_or_none()):
+                raise EntityNotFoundError(ComputeJobORM, uid=job_id)
+
+            return to_job(job)
+
+    async def find_jobs(self, blob_uid: str) -> list[ComputeJob]:
+        """Find all the compute jobs for the given blob UID."""
+        option = selectinload(BlobORM.jobs)
+        whereclause = BlobORM.uid == blob_uid
+        stmt = select(BlobORM).options(option).where(whereclause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+
+            if not (blob := result.scalar_one_or_none()):
+                raise EntityNotFoundError(BlobORM, uid=blob_uid)
+
+            return [to_job(job) for job in blob.jobs]
+
+    async def start_job(
+        self, blob_uid: str, *, uid: str, requested_at: datetime,
+    ) -> ComputeJob:
+        """Start a compute job for the given blob UID."""
+        whereclause = BlobORM.uid == blob_uid
+        stmt = select(BlobORM).where(whereclause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (blob := result.scalar_one_or_none()):
+                raise EntityNotFoundError(BlobORM, uid=blob_uid)
+
+            job = ComputeJobORM(
+                uid=uid,
+                requested_at=requested_at,
+                blob_id=blob.id,
+            )
+
+            async with session.begin():
+                session.add(job)
+
+            await session.refresh(job)
+            return to_job(job)
+
+    async def update_job(self, uid: str, *, status: JobStatus) -> None:
+        """Update a compute job with the given status."""
+        whereclause = ComputeJobORM.uid == uid
+        stmt = select(ComputeJobORM).where(whereclause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+            await session.commit()
+
+            if not (job := result.scalar_one_or_none()):
+                raise EntityNotFoundError(ComputeJobORM, uid=uid)
+
+            async with session.begin():
+                job.status = status

@@ -404,3 +404,71 @@ async def test_purge_uploads(repository: Repository) -> None:
 
     # Then
     assert not uploads
+
+##############
+# compute jobs
+##############
+
+async def test_start_job(repository: Repository) -> None:
+    # Given
+    user = await repository.register_user("ywu", "123")
+
+    blob_key = f"{user.uid}/image/{uuid4().hex}.png"
+    file_name = "blob.png"
+
+    created_at = datetime.now(UTC)
+    valid_thru = created_at + timedelta(seconds=1)
+
+    blob = await repository.create_blob(
+        user.uid,
+        blob_key=blob_key,
+        file_name=file_name,
+        created_at=created_at,
+        valid_thru=valid_thru,
+    )
+
+    job_uid = uuid4().hex
+    requested_at = datetime.now(UTC)
+
+    # When
+    await repository.start_job(blob.uid, uid=job_uid, requested_at=requested_at)
+    job = await repository.find_job(blob.uid, job_id=job_uid)
+
+    # Then
+    assert job.status == "pending"
+    assert job.completed_at is None
+
+    # When
+    jobs = await repository.find_jobs(blob.uid)
+
+    # Then
+    assert len(jobs) == 1
+    assert jobs[0] == job
+
+async def test_update_job(repository: Repository) -> None:
+    # Given
+    user = await repository.register_user("ywu", "123")
+
+    blob_key = f"{user.uid}/image/{uuid4().hex}.png"
+    file_name = "blob.png"
+
+    created_at = datetime.now(UTC)
+    valid_thru = created_at + timedelta(seconds=1)
+
+    blob = await repository.create_blob(
+        user.uid,
+        blob_key=blob_key,
+        file_name=file_name,
+        created_at=created_at,
+        valid_thru=valid_thru,
+    )
+
+    job_uid = uuid4().hex
+    await repository.start_job(blob.uid, uid=job_uid, requested_at=datetime.now(UTC))
+
+    # When
+    await repository.update_job(job_uid, status="started")
+    job = await repository.find_job(blob.uid, job_id=job_uid)
+
+    # Then
+    assert job.status == "started"

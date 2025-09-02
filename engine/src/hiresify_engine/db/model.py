@@ -102,7 +102,7 @@ class RefreshTokenORM(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     # Each refresh token belongs to one user.
-    user: Mapped["UserORM"] = relationship(back_populates="refresh_tokens")
+    user: Mapped[UserORM] = relationship(back_populates="refresh_tokens")
 
 
 class BlobORM(Base):
@@ -133,7 +133,12 @@ class BlobORM(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     # Each blob belongs to one user.
-    user: Mapped["UserORM"] = relationship(back_populates="blobs")
+    user: Mapped[UserORM] = relationship(back_populates="blobs")
+
+    # A blob can have many compute jobs.
+    jobs: Mapped[list["ComputeJobORM"]] = relationship(
+        back_populates="blob", cascade="all, delete-orphan",
+    )
 
 
 class UploadORM(Base):
@@ -159,4 +164,30 @@ class UploadORM(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     # Each upload belongs to one user.
-    user: Mapped["UserORM"] = relationship(back_populates="uploads")
+    user: Mapped[UserORM] = relationship(back_populates="uploads")
+
+
+class ComputeJobORM(Base):
+    """The database model for a compute job."""
+
+    __tablename__ = "compute_job"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    #: The UID of this job.
+    uid: Mapped[str] = mapped_column(String(128), nullable=False)
+
+    #: The date and time when the job was requested.
+    requested_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
+
+    #: The date and time when the job was completed.
+    completed_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=True)
+
+    #: The current status of this job.
+    status: Mapped[str] = mapped_column(String(8), default="pending", nullable=False)
+
+    #: The blob ID that this job is associated with.
+    blob_id: Mapped[int] = mapped_column(ForeignKey("blob.id"))
+
+    # Each job belongs to one blob.
+    blob: Mapped[BlobORM] = relationship(back_populates="jobs")

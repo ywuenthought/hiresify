@@ -6,6 +6,7 @@
 """Export all the domain models to be used across modules."""
 
 from .blob import Blob
+from .job import ComputeJob, JobStatus
 from .session import CSRFSession, UserSession
 from .token import JWTToken
 from .upload import Upload, UploadPart
@@ -14,7 +15,9 @@ from .user import User
 __all__ = [
     "Blob",
     "CSRFSession",
+    "ComputeJob",
     "JWTToken",
+    "JobStatus",
     "Upload",
     "UploadPart",
     "User",
