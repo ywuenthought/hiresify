@@ -22,6 +22,9 @@ DEPLOYMENT = os.environ.get("DEPLOYMENT", DEVELOPMENT)
 class AppConfig(BaseSettings):
     """The data model for the app configuration."""
 
+    # The allowed origin for CORS.
+    allowed_origin: str = ""
+
     # The access token TTL (sec).
     access_ttl: int = 900
 

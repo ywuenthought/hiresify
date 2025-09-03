@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "tsc -b && rm -rf dist && vite build --mode development",
+    "build": "tsc -b && rm -rf dist && vite build",
     "dev": "vite",
     "docker:build": "docker build -f docker/Dockerfile -t hiresify:client.${TAG:-latest} .",
     "docker:push": "docker tag hiresify:client.${TAG:-latest} ywucontainer/hiresify:client.${TAG:-latest} && docker push ywucontainer/hiresify:client.${TAG:-latest}",

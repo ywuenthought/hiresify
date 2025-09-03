@@ -226,22 +226,8 @@ redis:
     existingSecret: redis-credentials
     existingSecretPasswordKey: redis-password
 
-  sentinel:
-    enabled: true
-
-    image:
-      registry: docker.io
-      repository: bitnami/redis-sentinel
-      tag: 8.2.1-debian-12-r0
-      pullPolicy: IfNotPresent
-      debug: false
-
-    quorum: 2
-    getMasterTimeout: 90
-    automateClusterRecovery: true
-    redisShutdownWaitFailover: true
-    downAfterMilliseconds: 60000
-    failoverTimeout: 180000
+  replica:
+    replicaCount: 3
 
     configuration: |-
       save 60 1000
@@ -250,18 +236,22 @@ redis:
       aof-use-rdb-preamble yes
 
     containerPorts:
-      sentinel: 26379
+      redis: 6379
 
     resources:
       requests:
-        cpu: 0.05
-        memory: 64Mi
+        cpu: 0.2
+        memory: 256Mi
       limits:
-        cpu: 0.1
-        memory: 128Mi
+        cpu: 0.5
+        memory: 512Mi
+
+    persistence:
+      enabled: true
+      path: /data
+      size: 2Gi
 
     service:
       type: ClusterIP
       ports:
         redis: 6379
-        sentinel: 26379
