@@ -15,7 +15,7 @@ export default function LogoutButton(props: ButtonProps) {
 
   const handleClick = async () => {
     // Send a request to revoke the refresh token.
-    await fetch(tokenUrls.revoke, { method: 'POST' });
+    await fetch(tokenUrls.revoke, { method: 'POST', credentials: 'include' });
 
     // Navigate to home after a logout.
     navigate(routes.home.root);

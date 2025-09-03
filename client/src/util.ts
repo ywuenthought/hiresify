@@ -43,6 +43,7 @@ export async function postWithUrlEncodedFormData(
     body,
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     method: 'POST',
+    credentials: 'include',
   });
 }
 

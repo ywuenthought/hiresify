@@ -54,7 +54,7 @@ metadata:
 type: Opaque
 stringData:
   engine-config: |-
-    allowed_origin=http://localhost:30030
+    allowed_origin=http://172.20.105.218:30030
     access_ttl=900
     blob_access_key=user
     blob_secret_key=12345678
