@@ -21,6 +21,12 @@ DEPLOY_DIR = ROOT_DIR / "deploy"
 
 MANIFEST = DEPLOY_DIR / "manifest.yaml"
 
+ENGINE_CHART = DEPLOY_DIR / "engine"
+
+CLIENT_CHART = DEPLOY_DIR / "client"
+
+K3S_NAMESPACE = "hiresify"
+
 K3S_URL = "https://get.k3s.io"
 
 K3S_VERSION = "1.33.3+k3s1"
@@ -39,10 +45,6 @@ HELM_PLATFORM = "linux-amd64"
 
 HELM_ARCHIVE = f"helm-v{HELM_VERSION}-{HELM_PLATFORM}.tar.gz"
 
-APP_NAME = "hiresify"
-
-APP_CHART = ROOT_DIR / APP_NAME
-
 
 @click.group()
 def cli() -> None:
@@ -57,7 +59,11 @@ def cluster() -> None:
 @cluster.command("create")
 def cluster_create() -> None:
     """Create the node cluster for a local deployment."""
-    cmd = f"{K3S_PREFIX} server --write-kubeconfig-mode=644"
+    cmd = (
+        f"{K3S_PREFIX} server --write-kubeconfig-mode=644 && "
+        "mkdir -p ~/.kube && "
+        "cp /etc/rancher/k3s/k3s.yaml ~/.kube/config"
+    )
 
     if subprocess.run(cmd, check=False, shell=True).returncode:
         click.secho("Failed to launch the K3s server.", fg="red")
@@ -65,7 +71,7 @@ def cluster_create() -> None:
     cmd = (
         f"curl -sfL -o {HELM_ARCHIVE} {HELM_URL}/{HELM_ARCHIVE} && "
         f"tar -zxvf {HELM_ARCHIVE} && "
-        f"sudo mv {HELM_PLATFORM}/helm /usr/local/bin && "
+        f"sudo cp {HELM_PLATFORM}/helm /usr/local/bin && "
         f"rm -rf {HELM_ARCHIVE} {HELM_PLATFORM}"
     )
 
@@ -126,9 +132,11 @@ def deploy() -> None:
 @deploy.command("up")
 def deploy_up() -> None:
     """Spin up the local deployment."""
-    cmd = (
-        "mkdir -p ~/.kube && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config && "
-        f"sudo helm upgrade --install {APP_NAME} {APP_CHART} -n {APP_NAME}"
+    cmd = " && ".join(
+        [
+            _build_helm_command(f"upgrade --install {chart.name} {chart}")
+            for chart in (ENGINE_CHART, CLIENT_CHART)
+        ]
     )
 
     if subprocess.run(cmd, check=False, shell=True).returncode:
@@ -138,9 +146,11 @@ def deploy_up() -> None:
 @deploy.command("down")
 def deploy_down() -> None:
     """Spin down the local deployment."""
-    cmd = (
-        "mkdir -p ~/.kube && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config && "
-        f"sudo helm uninstall {APP_NAME} -n {APP_NAME}"
+    cmd = " && ".join(
+        [
+            _build_helm_command(f"uninstall {chart.name}")
+            for chart in (ENGINE_CHART, CLIENT_CHART)
+        ]
     )
 
     if subprocess.run(cmd, check=False, shell=True).returncode:
@@ -153,6 +163,11 @@ def deploy_down() -> None:
 def _encode_text(text: str) -> str:
     """Encode the given text in base64."""
     return b64encode(text.encode()).decode()
+
+
+def _build_helm_command(cmd: str) -> str:
+    """Build the full Helm command with the given subcommand."""
+    return f"sudo helm {cmd} -n {K3S_NAMESPACE} --kubeconfig ~/.kube/config"
 
 
 if __name__ == "__main__":

@@ -4,10 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && rm -rf dist && vite build --mode development",
     "dev": "vite",
+    "docker:build": "docker build -f docker/Dockerfile -t hiresify:client.${TAG:-latest} .",
+    "docker:push": "docker tag hiresify:client.${TAG:-latest} ywucontainer/hiresify:client.${TAG:-latest} && docker push ywucontainer/hiresify:client.${TAG:-latest}",
     "lint": "eslint .",
-    "lint-fix": "eslint . --fix",
+    "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "test": "vitest run --mode testing"
   },

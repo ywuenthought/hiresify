@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "hiresify.fullname" . }}
+  name: {{ include "client.fullname" . }}
   labels:
-    {{- include "hiresify.labels" . | nindent 4 }}
+    {{- include "client.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "hiresify.selectorLabels" . | nindent 6 }}
+      {{- include "client.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "hiresify.labels" . | nindent 8 }}
+        {{- include "client.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -26,6 +26,7 @@ spec:
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
@@ -34,19 +35,6 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.volumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          env:
-            - name: CONFIG_DIR
-              value: {{ .Values.env.CONFIG_DIR }}
-            - name: DEPLOYMENT
-              value: {{ .Values.env.DEPLOYMENT }}
-      {{- with .Values.volumes }}
-      volumes:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

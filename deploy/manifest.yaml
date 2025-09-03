@@ -49,11 +49,11 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: hiresify-config
+  name: engine-config
   namespace: hiresify
 type: Opaque
 stringData:
-  hiresify-config: |-
+  engine-config: |-
     access_ttl=900
     blob_access_key=user
     blob_secret_key=12345678
@@ -63,6 +63,6 @@ stringData:
     cache_ttl=300
     database_config={{"pool_size": 5, "max_overflow": 5, "pool_pre_ping": true}}
     database_url=postgresql+asyncpg://postgres:1234@postgresql-pgpool:5432/hiresify
-    redis_url=redis://:1234@redis:6379/0
+    redis_url=redis://:1234@redis:26379/0##mymaster
     refresh_ttl=30
     upload_ttl=7

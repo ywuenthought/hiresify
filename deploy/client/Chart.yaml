@@ -1,0 +1,8 @@
+apiVersion: v2
+name: hiresify-client
+description: Helm chart for deploying Hiresify Client, the frontend.
+type: application
+sources:
+  - https://github.com/ywuenthought/hiresify/tree/main/client
+appVersion: 0.1.0
+version: 0.1.0  # chart version
