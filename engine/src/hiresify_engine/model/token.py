@@ -86,7 +86,7 @@ class JWTToken:
         encrypted_token: str,
         *,
         path: str = "/",
-        same: str = "none",
+        same: str = "lax",
     ) -> dict[str, ty.Any]:
         """Generate a cookie with the available information."""
         elapsed = self.expire_at - self.issued_at
@@ -99,6 +99,6 @@ class JWTToken:
             max_age=max_age,
             path=path,
             samesite=same,
-            secure=True,
+            secure=False,
             value=encrypted_token,
         )

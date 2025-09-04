@@ -2,12 +2,12 @@
 // This file is part of incredible-me and is licensed under the MIT License.
 // See the LICENSE file for more details.
 
+import { sha256 } from 'js-sha256';
+
 export async function generateCodeChallenge(
   codeVerifier: string
 ): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(codeVerifier);
-  const digest = await window.crypto.subtle.digest('SHA-256', data);
+  const digest = sha256.arrayBuffer(codeVerifier);
   return base64UrlEncode(new Uint8Array(digest));
 }
 

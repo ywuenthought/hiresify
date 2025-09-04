@@ -60,7 +60,7 @@ class _BaseSession:
             max_age=max_age,
             path=path,
             samesite=same,
-            secure=True,
+            secure=False,
             value=self.id,
         )
 

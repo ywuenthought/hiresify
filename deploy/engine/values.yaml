@@ -20,9 +20,8 @@ resources:
     memory: 512Mi
 
 service:
-  type: NodePort
+  type: ClusterIP
   port: 8000
-  nodePort: 30080
 
 autoscaling:
   enabled: true

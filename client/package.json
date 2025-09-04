@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc -b && rm -rf dist && vite build",
     "dev": "vite",
-    "docker:build": "docker build -f docker/Dockerfile -t hiresify:client.${TAG:-latest} .",
+    "docker:build": "docker build -f Dockerfile -t hiresify:client.${TAG:-latest} .",
     "docker:push": "docker tag hiresify:client.${TAG:-latest} ywucontainer/hiresify:client.${TAG:-latest} && docker push ywucontainer/hiresify:client.${TAG:-latest}",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -20,6 +20,7 @@
     "@mui/material": "^7.1.2",
     "@reduxjs/toolkit": "^2.8.2",
     "denque": "^2.1.0",
+    "js-sha256": "^0.11.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-dropzone": "^14.3.8",
