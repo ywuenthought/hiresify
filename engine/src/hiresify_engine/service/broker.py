@@ -28,12 +28,18 @@ class BrokerService:
 
     async def init_stream(self) -> None:
         """Initialize a stream for the consumer groups."""
-        await self._store.xgroup_create(
-            name=self._stream_key,
-            groupname=self._group_name,
-            id="$",
-            mkstream=True,
-        )
+        groups = await self._store.xinfo_groups(self._stream_key)
+
+        for group in groups:
+            if group["name"] == self._group_name:
+                break
+        else:
+            await self._store.xgroup_create(
+                name=self._stream_key,
+                groupname=self._group_name,
+                id="$",
+                mkstream=True,
+            )
 
     async def dispose(self) -> None:
         """Dispose of the underlying cache store."""
