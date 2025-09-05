@@ -20,7 +20,7 @@ import {
   selectAllPersistedBlobs,
 } from '@/feature/blob/slice';
 import type { InTransitBlob } from '@/type';
-import { getUuid4 } from '@/util';
+import { buildBlobFromSchema, getUuid4 } from '@/util';
 
 const buildActionCreators = () => {
   return {
@@ -31,7 +31,8 @@ const buildActionCreators = () => {
 export default function Main() {
   const indexedJSBlobs = useRef<Map<string, File>>(new Map()).current;
   const inTransitBlobs = useAppSelector(selectAllInTransitBlobs);
-  const persistedBlobs = useAppSelector(selectAllPersistedBlobs);
+  const schemas = useAppSelector(selectAllPersistedBlobs);
+  const persistedBlobs = schemas.map((schema) => buildBlobFromSchema(schema));
   const blobUids = new Set(inTransitBlobs.map(({ uid }) => uid));
 
   indexedJSBlobs.forEach((_, uid) => {

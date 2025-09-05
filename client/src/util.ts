@@ -4,6 +4,19 @@
 
 import { v4 as uuid4 } from 'uuid';
 
+import type { BlobSchema } from './json-schema';
+import type { PersistedBlob } from './type';
+
+export function buildBlobFromSchema(schema: BlobSchema): PersistedBlob {
+  const { createdAt, validThru, ...rest } = schema;
+
+  return {
+    ...rest,
+    createdAt: new Date(createdAt),
+    validThru: new Date(validThru),
+  };
+}
+
 export async function defer() {
   await new Promise<void>((resolve) => queueMicrotask(resolve));
 }

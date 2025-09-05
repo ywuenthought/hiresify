@@ -7,7 +7,7 @@ import { createEntityAdapter, type EntityState } from '@reduxjs/toolkit';
 
 import { createAppSlice } from '@/app/createAppSlice';
 import type { BlobSchema } from '@/json-schema';
-import type { InTransitBlob, PersistedBlob } from '@/type';
+import type { InTransitBlob } from '@/type';
 
 import { cancelThunk, finishThunk, gatherThunk, removeThunk } from './thunk';
 
@@ -119,28 +119,14 @@ const blobSlice = createAppSlice({
   selectors: {
     selectAllInTransitBlobs: (state) =>
       selectInTransitBlobEntities(state.inTransit),
-    selectAllPersistedBlobs: (state) => {
-      const schemas = selectPersistedBlobEntities(state.persisted);
-      return schemas.map((schema) => buildBlobFromSchema(schema));
-    },
+    selectAllPersistedBlobs: (state) =>
+      selectPersistedBlobEntities(state.persisted),
     selectOneInTransitBlob: (state, uid: string) =>
       selectInTransitBlobById(state.inTransit, uid),
-    selectOnePersistedBlob: (state, uid: string) => {
-      const schema = selectPersistedBlobById(state.persisted, uid);
-      return buildBlobFromSchema(schema);
-    },
+    selectOnePersistedBlob: (state, uid: string) =>
+      selectPersistedBlobById(state.persisted, uid),
   },
 });
-
-function buildBlobFromSchema(schema: BlobSchema): PersistedBlob {
-  const { createdAt, validThru, ...rest } = schema;
-
-  return {
-    ...rest,
-    createdAt: new Date(createdAt),
-    validThru: new Date(validThru),
-  };
-}
 
 const { reducer } = blobSlice;
 
