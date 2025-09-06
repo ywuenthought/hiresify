@@ -8,15 +8,15 @@
 from .type import (
     AppConfigDep,
     BlobServiceDep,
-    BrokerServiceDep,
     CacheServiceDep,
+    QueueServiceDep,
     RepositoryDep,
 )
 
 __all__ = [
     "AppConfigDep",
     "BlobServiceDep",
-    "BrokerServiceDep",
     "CacheServiceDep",
+    "QueueServiceDep",
     "RepositoryDep",
 ]

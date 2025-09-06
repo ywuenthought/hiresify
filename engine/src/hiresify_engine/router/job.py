@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Query
 
-from hiresify_engine.dep import BrokerServiceDep, RepositoryDep
+from hiresify_engine.dep import QueueServiceDep, RepositoryDep
 from hiresify_engine.model import ComputeJob
 
 router = APIRouter(prefix="/job")
@@ -18,11 +18,11 @@ router = APIRouter(prefix="/job")
 async def submit_job(
     blob_uid: str = Query(..., max_length=32, min_length=32),
     *,
-    broker: BrokerServiceDep,
+    queue: QueueServiceDep,
     repo: RepositoryDep,
 ) -> ComputeJob:
     """Submit a compute job for the given blob UID."""
     job = await repo.submit_job(blob_uid, requested_at=datetime.now(UTC))
-    await broker.enqueue_job(job.uid)
+    await queue.enqueue_job(job.uid)
 
     return job

@@ -13,8 +13,8 @@ from fastapi import FastAPI
 from hiresify_engine.config import AppConfig
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.service.blob import BlobService
-from hiresify_engine.service.broker import BrokerService
 from hiresify_engine.service.cache import CacheService
+from hiresify_engine.service.queue import QueueService
 
 ##########
 # lifespan
@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     )
 
     # Initialize the broker service for compute jobs.
-    app.state.broker = broker = BrokerService(config.redis_url)
+    app.state.broker = broker = QueueService(config.redis_url)
 
     # Initialize the cache store manager.
     app.state.cache = cache = CacheService(config.redis_url)
@@ -46,8 +46,8 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     async with blob.start_session(config.production) as session:
         await session.init_bucket()
 
-    # Initialize the broker stream.
-    await broker.init_stream()
+    # Initialize the job queue.
+    await broker.init_queue()
 
     # Initialize the database schema.
     await repo.init_schema()
