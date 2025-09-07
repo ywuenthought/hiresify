@@ -52,6 +52,9 @@ class AppConfig(BaseSettings):
     # The database URL.
     database_url: str = ""
 
+    # The heartbeat timeout (s) for streaming job progress.
+    heartbeat_timeout: int = 1
+
     # The secret key used to encrypt and decrypt JWT tokens.
     jwt_secret_key: str = token_urlsafe(64)
 
@@ -60,6 +63,9 @@ class AppConfig(BaseSettings):
 
     # The refresh token TTL (day).
     refresh_ttl: int = 30
+
+    # The returning timeout (s) for streaming job progress.
+    returning_timeout: int = 1
 
     # The TTL for an upload of a blob file (day).
     upload_ttl: int = 7

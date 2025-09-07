@@ -10,7 +10,7 @@ import typing as ty
 from collections import abc
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload, with_loader_criteria
@@ -123,12 +123,9 @@ class Repository:
 
     async def find_token(self, token_uid: str) -> JWTToken:
         """Find the refresh token with the given token UID."""
+        option = selectinload(RefreshTokenORM.user)
         whereclause = RefreshTokenORM.uid == token_uid
-        stmt = (
-            select(RefreshTokenORM)
-            .options(selectinload(RefreshTokenORM.user))
-            .where(whereclause)
-        )
+        stmt = select(RefreshTokenORM).options(option).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -245,12 +242,11 @@ class Repository:
 
     async def find_blob(self, user_uid, *, blob_uid: str) -> tuple[Blob, str]:
         """Find the specified blob and its blob key for the given user UID."""
-        option = selectinload(BlobORM.user)
         whereclause = and_(
             BlobORM.uid == blob_uid,
             BlobORM.user.has(UserORM.uid == user_uid),
         )
-        stmt = select(BlobORM).join(BlobORM.user).options(option).where(whereclause)
+        stmt = select(BlobORM).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -357,12 +353,11 @@ class Repository:
 
     async def find_upload(self, user_uid: str, *, upload_id: str) -> Upload:
         """Find the specified blob upload for the given user UID."""
-        option = selectinload(UploadORM.user)
         whereclause = and_(
             UploadORM.uid == upload_id,
             UploadORM.user.has(UserORM.uid == user_uid),
         )
-        stmt = select(UploadORM).join(UploadORM.user).options(option).where(whereclause)
+        stmt = select(UploadORM).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -454,17 +449,11 @@ class Repository:
 
     async def find_job(self, blob_uid: str, *, job_id: str) -> ComputeJob:
         """Find the specified compute job for the given blob UID."""
-        option = selectinload(ComputeJobORM.blob)
         whereclause = and_(
             ComputeJobORM.uid == job_id,
             ComputeJobORM.blob.has(BlobORM.uid == blob_uid),
         )
-        stmt = (
-            select(ComputeJobORM)
-            .join(ComputeJobORM.blob)
-            .options(option)
-            .where(whereclause)
-        )
+        stmt = select(ComputeJobORM).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
@@ -487,6 +476,27 @@ class Repository:
                 raise EntityNotFoundError(BlobORM, uid=blob_uid)
 
             return [to_job(job) for job in blob.jobs]
+
+    async def find_latest_job(self, blob_uid: str) -> ComputeJob:
+        """Find the latest compute job for a blob with the given UID."""
+        whereclause = ComputeJobORM.blob.has(BlobORM.uid == blob_uid)
+
+        latest = (
+            select(func.max(ComputeJobORM.requested_at))
+            .where(whereclause)
+            .scalar_subquery()
+        )
+
+        whereclause = and_(whereclause, ComputeJobORM.requested_at == latest)
+        stmt = select(ComputeJobORM).where(whereclause)
+
+        async with self.session() as session:
+            result = await session.execute(stmt)
+
+            if (job := result.scalar_one_or_none()) is None:
+                raise EntityNotFoundError(ComputeJobORM, blob_uid=blob_uid)
+
+            return to_job(job)
 
     async def submit_job(self, blob_uid: str, *, requested_at: datetime) -> ComputeJob:
         """Submit a compute job for the given blob UID."""

@@ -14,7 +14,7 @@ from hiresify_engine.util import check_tz
 
 from .config import DEFAULT_CONFIG
 
-JobStatus = ty.Literal["canceled", "crashed", "finished", "pending", "started"]
+JobStatus = ty.Literal["aborted", "created", "finished"]
 
 
 @dataclass(frozen=True, config=DEFAULT_CONFIG)
@@ -23,9 +23,6 @@ class ComputeJob:
 
     #: The UID of this job.
     uid: str
-
-    #: The UID of the blob that's worked on.
-    blob_uid: str
 
     #: The current status of this job.
     status: JobStatus

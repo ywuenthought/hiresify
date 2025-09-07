@@ -409,7 +409,7 @@ async def test_purge_uploads(repository: Repository) -> None:
 # compute jobs
 ##############
 
-async def test_start_job(repository: Repository) -> None:
+async def test_create_job(repository: Repository) -> None:
     # Given
     user = await repository.register_user("ywu", "123")
 
@@ -432,7 +432,7 @@ async def test_start_job(repository: Repository) -> None:
     job = await repository.find_job(blob.uid, job_id=job.uid)
 
     # Then
-    assert job.status == "pending"
+    assert job.status == "created"
     assert job.completed_at is None
 
     # When
@@ -441,6 +441,41 @@ async def test_start_job(repository: Repository) -> None:
     # Then
     assert len(jobs) == 1
     assert jobs[0] == job
+
+async def test_find_latest_job(repository: Repository) -> None:
+    # Given
+    user = await repository.register_user("ywu", "123")
+
+    blob_key = f"{user.uid}/image/{uuid4().hex}.png"
+    file_name = "blob.png"
+
+    created_at = datetime.now(UTC)
+    valid_thru = created_at + timedelta(seconds=1)
+
+    blob = await repository.create_blob(
+        user.uid,
+        blob_key=blob_key,
+        file_name=file_name,
+        created_at=created_at,
+        valid_thru=valid_thru,
+    )
+
+    # When/Then
+    with pytest.raises(EntityNotFoundError):
+        await repository.find_latest_job(blob.uid)
+
+    # Given
+    requested_at = datetime.now(UTC)
+
+    for _ in range(3):
+        requested_at += timedelta(seconds=1)
+        await repository.submit_job(blob.uid, requested_at=requested_at)
+
+    # When
+    job = await repository.find_latest_job(blob.uid)
+
+    # Then
+    assert job.requested_at == requested_at
 
 async def test_update_job(repository: Repository) -> None:
     # Given
@@ -463,8 +498,8 @@ async def test_update_job(repository: Repository) -> None:
     job = await repository.submit_job(blob.uid, requested_at=datetime.now(UTC))
 
     # When
-    await repository.update_job(job.uid, status="started")
+    await repository.update_job(job.uid, status="created")
     job = await repository.find_job(blob.uid, job_id=job.uid)
 
     # Then
-    assert job.status == "started"
+    assert job.status == "created"

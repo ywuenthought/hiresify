@@ -186,7 +186,7 @@ class ComputeJobORM(Base):
     completed_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=True)
 
     #: The current status of this job.
-    status: Mapped[str] = mapped_column(String(8), default="pending", nullable=False)
+    status: Mapped[str] = mapped_column(String(8), default="created", nullable=False)
 
     #: The blob ID that this job is associated with.
     blob_id: Mapped[int] = mapped_column(ForeignKey("blob.id"))

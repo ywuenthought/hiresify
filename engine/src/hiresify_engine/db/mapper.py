@@ -54,7 +54,6 @@ def to_job(obj: ComputeJobORM) -> ComputeJob:
     """Convert a compute job ORM object to a domain one."""
     return ComputeJob(
         uid=obj.uid,
-        blob_uid=obj.blob.uid,
         requested_at=obj.requested_at,
         completed_at=obj.completed_at,
         status=obj.status,  # type: ignore[arg-type]

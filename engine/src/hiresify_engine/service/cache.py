@@ -5,6 +5,7 @@
 
 """Export the cache service layer for user authorization."""
 
+import asyncio
 import json
 import typing as ty
 from uuid import uuid4
@@ -95,6 +96,61 @@ class CacheService:
     async def get_user_session(self, session_id: str) -> UserSession | None:
         """Get the user session with the given session ID."""
         return await self._get_session(UserSession, session_id)
+
+    ##############
+    # job progress
+    ##############
+
+    async def set_job_progress(self, job_id: str, progress: float) -> None:
+        """Set the current progress of a job with the given ID.
+
+        The numerical range of a normal progress is [0, 1]. But there are two special
+        numbers -1 and 2. -1 is used when a job is aborted abnormally. 2 is used when
+        a job result has been synced to the blob store and database.
+        """
+        await self._store.set(f"job:{job_id}", str(progress))
+
+    async def get_job_progress(self, job_id: str) -> float | None:
+        """Get the current progress of a job with the given ID."""
+        progress = await self._store.get(f"job:{job_id}")
+        return None if progress is None else float(progress)
+
+    async def pub_job_progress(self, job_id: str, progress: float) -> None:
+        """Publish the progress of a job with the given ID."""
+        await self._store.publish(f"job:{job_id}", str(progress))
+
+    async def sub_job_progress(
+        self,
+        job_id: str,
+        *,
+        returning_timeout: int = 1,
+        heartbeat_timeout: int = 1,
+    ) -> ty.AsyncGenerator[float, None]:
+        """Subscribe to a real-time progress stream for a job with the given ID."""
+        key = f"job:{job_id}"
+
+        subscriber = self._store.pubsub()
+        await subscriber.subscribe(key)
+
+        try:
+            while True:
+                message = await subscriber.get_message(
+                    ignore_subscribe_messages=True,
+                    timeout=float(returning_timeout),
+                )
+
+                if message is None:
+                    await asyncio.sleep(float(heartbeat_timeout))
+                    continue
+
+                yield float(message["data"])
+        finally:
+            await subscriber.unsubscribe(key)
+            await subscriber.aclose()
+
+    async def delete_job(self, job_id: str) -> None:
+        """Delete the job with the given ID from the cache store."""
+        await self._store.delete(f"job:{job_id}")
 
     # -- helper functions
 
