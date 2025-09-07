@@ -497,8 +497,24 @@ async def test_update_job(repository: Repository) -> None:
 
     job = await repository.submit_job(blob.uid, requested_at=datetime.now(UTC))
 
+    # When/Then
+    with pytest.raises(ValueError):
+        await repository.update_job(job.uid, status="finished")
+
+    # When/Then
+    with pytest.raises(ValueError):
+        await repository.update_job(
+            job.uid,
+            status="aborted",
+            result_blob_key=f"{job.uid}.png",
+        )
+
     # When
-    await repository.update_job(job.uid, status="finished")
+    await repository.update_job(
+        job.uid,
+        status="finished",
+        result_blob_key=f"{job.uid}.png",
+    )
     job = await repository.find_latest_job(blob.uid)
 
     # Then

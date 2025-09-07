@@ -487,6 +487,32 @@ class Repository:
             await session.refresh(job)
             return to_job(job)
 
+    async def update_job(
+        self,
+        job_id: str,
+        *,
+        status: JobStatus = "finished",
+        result_blob_key: str | None = None,
+    ) -> None:
+        """Update the specified compute job with the given metadata."""
+        if (status == "finished" and not result_blob_key) or (
+            status != "finished" and result_blob_key
+        ):
+            raise ValueError(f"{result_blob_key=} is disallowed when {status=}.")
+
+        whereclause = ComputeJobORM.uid == job_id
+        stmt = select(ComputeJobORM).where(whereclause)
+
+        async with self.session() as session:
+            async with session.begin():
+                result = await session.execute(stmt)
+
+                if not (job := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(ComputeJobORM, uid=job_id)
+
+                job.status = status
+                job.result_blob_key = result_blob_key
+
     async def load_blob_key(self, job_id: str) -> str:
         """Get the blob key for the job with the given ID."""
         option = selectinload(ComputeJobORM.blob)
@@ -501,16 +527,15 @@ class Repository:
 
             return job.blob.blob_key
 
-    async def update_job(self, job_id: str, *, status: JobStatus) -> None:
-        """Update the specified compute job with the given status."""
+    async def load_result_blob_key(self, job_id: str) -> str | None:
+        """Get the result blob key for the job with the given ID."""
         whereclause = ComputeJobORM.uid == job_id
         stmt = select(ComputeJobORM).where(whereclause)
 
         async with self.session() as session:
-            async with session.begin():
-                result = await session.execute(stmt)
+            result = await session.execute(stmt)
 
-                if not (job := result.scalar_one_or_none()):
-                    raise EntityNotFoundError(ComputeJobORM, uid=job_id)
+            if not (job := result.scalar_one_or_none()):
+                raise EntityNotFoundError(ComputeJobORM, uid=job_id)
 
-                job.status = status
+            return job.result_blob_key

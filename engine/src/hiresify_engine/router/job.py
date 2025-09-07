@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 from hiresify_engine.db.exception import EntityNotFoundError
 from hiresify_engine.dep import (
     AppConfigDep,
+    BlobServiceDep,
     CacheServiceDep,
     QueueServiceDep,
     RepositoryDep,
@@ -79,3 +80,32 @@ async def stream_job(
             "Connection":"keep-alive",
         },
     )
+
+
+@router.get("/download")
+async def download_result(
+    job_id: str = Query(..., max_length=32, min_length=32),
+    *,
+    blob: BlobServiceDep,
+    config: AppConfigDep,
+    repo: RepositoryDep,
+) -> str:
+    """Get a presigned URL to download the result for the given job ID."""
+    try:
+        blob_key = await repo.load_result_blob_key(job_id)
+    except EntityNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job with {job_id=} was not found.",
+        ) from e
+
+    if not blob_key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Result for {job_id=} was not found.",
+        )
+
+    async with blob.start_session(config.production) as session:
+        return await session.get_presigned_url(
+            blob_key, expires_in=config.presigned_ttl,
+        )

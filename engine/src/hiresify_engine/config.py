@@ -58,6 +58,9 @@ class AppConfig(BaseSettings):
     # The secret key used to encrypt and decrypt JWT tokens.
     jwt_secret_key: str = token_urlsafe(64)
 
+    # The TTL for a presigned download URL (s).
+    presigned_ttl: int = 300
+
     # The redis server URL.
     redis_url: str = ""
 

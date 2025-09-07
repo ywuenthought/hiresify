@@ -90,13 +90,13 @@ class RefreshTokenORM(Base):
     revoked: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     #: The user agent or device name for this token.
-    device: Mapped[str] = mapped_column(String(128), nullable=True)
+    device: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     #: The IP address where this token was requested.
-    ip: Mapped[str] = mapped_column(String(45), nullable=True)
+    ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
 
     #: The platform used when requesting this token.
-    platform: Mapped[str] = mapped_column(String(32), nullable=True)
+    platform: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     #: The user ID that this refresh token is associated with.
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
@@ -179,11 +179,16 @@ class ComputeJobORM(Base):
         String(32), default=lambda: uuid4().hex, unique=True,
     )
 
+    #: The blob key to identify the compute result stored in the blob store.
+    result_blob_key: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
     #: The date and time when the job was requested.
     requested_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
 
     #: The date and time when the job was completed.
-    completed_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(
+        AwareDateTime(), nullable=True,
+    )
 
     #: The current status of this job.
     status: Mapped[str] = mapped_column(String(8), default="created", nullable=False)
