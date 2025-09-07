@@ -76,10 +76,6 @@ class BlobSession:
     async def dispose(self) -> None:
         """Dispose of resources held by the blob service."""
 
-    #################
-    # blob management
-    #################
-
     async def upload_file(self, file_path: Path, blob_key: str) -> None:
         """Upload an entire file to the blob store."""
         await self._client.upload_file(
@@ -160,3 +156,19 @@ class BlobSession:
     async def delete_blob(self, blob_key: str) -> None:
         """Delete the blob given its blob key."""
         await self._client.delete_object(Bucket=BUCKET_NAME, Key=blob_key)
+
+    async def download_blob(self, file_path: Path, blob_key: str) -> None:
+        """Download the specified blob to the given file path."""
+        await self._client.download_file(
+            Bucket=BUCKET_NAME,
+            Key=blob_key,
+            Filename=str(file_path),
+        )
+
+    async def get_presigned_url(self, blob_key: str, *, expires_in: int = 300) -> str:
+        """Generate and return a presigned URL for the given blob key."""
+        return await self._client.generate_presigned_url(
+            "get_object",
+            Params=dict(Bucket=BUCKET_NAME, Key=blob_key),
+            ExpiresIn=expires_in,
+        )
