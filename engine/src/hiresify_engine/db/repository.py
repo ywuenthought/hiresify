@@ -93,13 +93,12 @@ class Repository:
         stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (user := result.scalar_one_or_none()):
-                raise EntityNotFoundError(UserORM, username=username)
-
             async with session.begin():
+                result = await session.execute(stmt)
+
+                if not (user := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(UserORM, username=username)
+
                 user.password = password
 
     async def delete_user(self, username: str) -> None:
@@ -108,13 +107,12 @@ class Repository:
         stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (user := result.scalar_one_or_none()):
-                raise EntityNotFoundError(UserORM, username=username)
-
             async with session.begin():
+                result = await session.execute(stmt)
+
+                if not (user := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(UserORM, username=username)
+
                 await session.delete(user)
 
     ###############
@@ -162,20 +160,18 @@ class Repository:
         stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (user := result.scalar_one_or_none()):
-                raise EntityNotFoundError(UserORM, uid=user_uid)
-
-            refresh_token = RefreshTokenORM(
-                issued_at=issued_at,
-                expire_at=expire_at,
-                user_id=user.id,
-                **metadata,
-            )
-
             async with session.begin():
+                result = await session.execute(stmt)
+
+                if not (user := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(UserORM, uid=user_uid)
+
+                refresh_token = RefreshTokenORM(
+                    issued_at=issued_at,
+                    expire_at=expire_at,
+                    user_id=user.id,
+                    **metadata,
+                )
                 session.add(refresh_token)
 
             await session.refresh(refresh_token)
@@ -187,13 +183,12 @@ class Repository:
         stmt = select(RefreshTokenORM).where(whereclause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (refresh_token := result.scalar_one_or_none()):
-                raise EntityNotFoundError(RefreshTokenORM, uid=token_uid)
-
             async with session.begin():
+                result = await session.execute(stmt)
+
+                if not (refresh_token := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(RefreshTokenORM, uid=token_uid)
+
                 refresh_token.revoked = True
 
     async def revoke_tokens(self, user_uid: str) -> int:
@@ -207,13 +202,12 @@ class Repository:
         stmt = select(UserORM).options(*options).where(where_clause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (user := result.scalar_one_or_none()):
-                raise EntityNotFoundError(UserORM, uid=user_uid)
-
             async with session.begin():
+                result = await session.execute(stmt)
+
+                if not (user := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(UserORM, uid=user_uid)
+
                 if not (refresh_tokens := user.refresh_tokens):
                     return 0
 
@@ -233,7 +227,6 @@ class Repository:
         async with self.session() as session:
             async with session.begin():
                 result = await session.execute(stmt)
-
                 return result.rowcount
 
     #############
@@ -284,21 +277,20 @@ class Repository:
         stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (user := result.scalar_one_or_none()):
-                raise EntityNotFoundError(UserORM, uid=user_uid)
-
-            blob = BlobORM(
-                blob_key=blob_key,
-                file_name=file_name,
-                created_at=created_at,
-                valid_thru=valid_thru,
-                user_id=user.id,
-            )
-
             async with session.begin():
+                result = await session.execute(stmt)
+
+                if not (user := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(UserORM, uid=user_uid)
+
+                blob = BlobORM(
+                    blob_key=blob_key,
+                    file_name=file_name,
+                    created_at=created_at,
+                    valid_thru=valid_thru,
+                    user_id=user.id,
+                )
+
                 session.add(blob)
 
             await session.refresh(blob)
@@ -319,18 +311,16 @@ class Repository:
         select_stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
-            result = await session.execute(select_stmt)
-            await session.commit()
-
-            if not (user := result.scalar_one_or_none()):
-                raise EntityNotFoundError(UserORM, uid=user_uid)
-
-            whereclause = BlobORM.user_id == user.id
-            delete_stmt = delete(BlobORM).where(whereclause)
-
             async with session.begin():
-                result = await session.execute(delete_stmt)
+                result = await session.execute(select_stmt)
 
+                if not (user := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(UserORM, uid=user_uid)
+
+                whereclause = BlobORM.user_id == user.id
+                delete_stmt = delete(BlobORM).where(whereclause)
+
+                result = await session.execute(delete_stmt)
                 return result.rowcount
 
     async def purge_blobs(
@@ -344,7 +334,6 @@ class Repository:
         async with self.session() as session:
             async with session.begin():
                 result = await session.execute(stmt)
-
                 return result.rowcount
 
     ##############
@@ -395,21 +384,19 @@ class Repository:
         stmt = select(UserORM).where(whereclause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (user := result.scalar_one_or_none()):
-                raise EntityNotFoundError(UserORM, uid=user_uid)
-
-            upload = UploadORM(
-                uid=uid,
-                blob_key=blob_key,
-                created_at=created_at,
-                valid_thru=valid_thru,
-                user_id=user.id,
-            )
-
             async with session.begin():
+                result = await session.execute(stmt)
+
+                if not (user := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(UserORM, uid=user_uid)
+
+                upload = UploadORM(
+                    uid=uid,
+                    blob_key=blob_key,
+                    created_at=created_at,
+                    valid_thru=valid_thru,
+                    user_id=user.id,
+                )
                 session.add(upload)
 
             await session.refresh(upload)
@@ -446,22 +433,6 @@ class Repository:
     ##############
     # compute jobs
     ##############
-
-    async def find_job(self, blob_uid: str, *, job_id: str) -> ComputeJob:
-        """Find the specified compute job for the given blob UID."""
-        whereclause = and_(
-            ComputeJobORM.uid == job_id,
-            ComputeJobORM.blob.has(BlobORM.uid == blob_uid),
-        )
-        stmt = select(ComputeJobORM).where(whereclause)
-
-        async with self.session() as session:
-            result = await session.execute(stmt)
-
-            if not (job := result.scalar_one_or_none()):
-                raise EntityNotFoundError(ComputeJobORM, uid=job_id)
-
-            return to_job(job)
 
     async def find_jobs(self, blob_uid: str) -> list[ComputeJob]:
         """Find all the compute jobs for the given blob UID."""
@@ -504,31 +475,42 @@ class Repository:
         stmt = select(BlobORM).where(whereclause)
 
         async with self.session() as session:
-            result = await session.execute(stmt)
-            await session.commit()
-
-            if not (blob := result.scalar_one_or_none()):
-                raise EntityNotFoundError(BlobORM, uid=blob_uid)
-
-            job = ComputeJobORM(requested_at=requested_at, blob_id=blob.id)
-
             async with session.begin():
+                result = await session.execute(stmt)
+
+                if not (blob := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(BlobORM, uid=blob_uid)
+
+                job = ComputeJobORM(requested_at=requested_at, blob_id=blob.id)
                 session.add(job)
 
             await session.refresh(job)
             return to_job(job)
 
-    async def update_job(self, uid: str, *, status: JobStatus) -> None:
-        """Update a compute job with the given status."""
-        whereclause = ComputeJobORM.uid == uid
-        stmt = select(ComputeJobORM).where(whereclause)
+    async def load_blob_key(self, job_id: str) -> str:
+        """Get the blob key for the job with the given ID."""
+        option = selectinload(ComputeJobORM.blob)
+        whereclause = ComputeJobORM.uid == job_id
+        stmt = select(ComputeJobORM).options(option).where(whereclause)
 
         async with self.session() as session:
             result = await session.execute(stmt)
-            await session.commit()
 
             if not (job := result.scalar_one_or_none()):
-                raise EntityNotFoundError(ComputeJobORM, uid=uid)
+                raise EntityNotFoundError(ComputeJobORM, uid=job_id)
 
+            return job.blob.blob_key
+
+    async def update_job(self, job_id: str, *, status: JobStatus) -> None:
+        """Update the specified compute job with the given status."""
+        whereclause = ComputeJobORM.uid == job_id
+        stmt = select(ComputeJobORM).where(whereclause)
+
+        async with self.session() as session:
             async with session.begin():
+                result = await session.execute(stmt)
+
+                if not (job := result.scalar_one_or_none()):
+                    raise EntityNotFoundError(ComputeJobORM, uid=job_id)
+
                 job.status = status

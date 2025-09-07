@@ -7,6 +7,7 @@
 
 import typing as ty
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from aioboto3 import Session
 from aiobotocore.config import AioConfig
@@ -78,6 +79,14 @@ class BlobSession:
     #################
     # blob management
     #################
+
+    async def upload_file(self, file_path: Path, blob_key: str) -> None:
+        """Upload an entire file to the blob store."""
+        await self._client.upload_file(
+            Filename=str(file_path),
+            Bucket=BUCKET_NAME,
+            Key=blob_key,
+        )
 
     async def start_upload(self, blob_key: str) -> str:
         """Start a session for a multipart upload of a file."""

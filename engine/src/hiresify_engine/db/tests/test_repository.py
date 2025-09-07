@@ -428,8 +428,8 @@ async def test_create_job(repository: Repository) -> None:
     )
 
     # When
-    job = await repository.submit_job(blob.uid, requested_at=datetime.now(UTC))
-    job = await repository.find_job(blob.uid, job_id=job.uid)
+    await repository.submit_job(blob.uid, requested_at=datetime.now(UTC))
+    job = await repository.find_latest_job(blob.uid)
 
     # Then
     assert job.status == "created"
@@ -498,8 +498,8 @@ async def test_update_job(repository: Repository) -> None:
     job = await repository.submit_job(blob.uid, requested_at=datetime.now(UTC))
 
     # When
-    await repository.update_job(job.uid, status="created")
-    job = await repository.find_job(blob.uid, job_id=job.uid)
+    await repository.update_job(job.uid, status="finished")
+    job = await repository.find_latest_job(blob.uid)
 
     # Then
-    assert job.status == "created"
+    assert job.status == "finished"
