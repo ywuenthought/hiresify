@@ -1,18 +1,11 @@
 [project]
 dependencies = [
-    "aioboto3>=15.0.0",
     "aiosqlite>=0.21.0",
-    "argon2-cffi>=25.1.0",
     "asyncpg>=0.30.0",
-    "fastapi[all]>=0.115.12",
-    "pydantic-settings>=2.9.1",
-    "python-jose[cryptography]>=3.5.0",
-    "python-magic>=0.4.27",
     "redis>=6.2.0",
     "sqlalchemy>=2.0.41",
-    "types-aioboto3[s3]>=15.0.0",
 ]
-description = "Hiresify Engine"
+description = "Hiresify Compute"
 name = "engine"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,8 +13,6 @@ version = "0.1.0"
 
 [project.optional-dependencies]
 dev = [
-    "asgi-lifespan>=2.1.0",
-    "httpx>=0.28.1",
     "mypy>=1.16.0",
     "pytest>=8.4.0",
     "pytest-asyncio>=1.0.0",
@@ -83,14 +74,3 @@ target-version = "py311"
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
-
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.package-data]
-"hiresify_engine" = [
-    "static/*.css",
-    "static/*.js",
-    "static/*.svg",
-    "templates/*.html",
-]
