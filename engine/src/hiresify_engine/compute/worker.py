@@ -11,7 +11,7 @@ import typing as ty
 from pathlib import Path
 
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.service import BlobService, QueueService
+from hiresify_engine.service import BlobService, CacheService, QueueService
 from hiresify_engine.util import generate_blob_key, parse_blob_key
 
 
@@ -20,9 +20,10 @@ class ComputeWorker:
 
     def __init__(
         self,
-        callback: ty.Callable[[Path], ty.Awaitable[Path]],
+        callback: ty.Callable[[Path, Path], ty.AsyncGenerator[float, None]],
         *,
         index: int = 1,
+        cache: CacheService,
         queue: QueueService,
         repo: Repository,
         blob: BlobService,
@@ -31,6 +32,7 @@ class ComputeWorker:
         self._callback = callback
 
         self._index = index
+        self._cache = cache
         self._queue = queue
         self._repo = repo
         self._blob = blob
@@ -49,29 +51,35 @@ class ComputeWorker:
 
             job_id = fields["job_id"]
             blob_key = await self._repo.load_blob_key(job_id)
-            user_uid, _, _ = parse_blob_key(blob_key)
+            user_uid, _, mime_type = parse_blob_key(blob_key)
 
-            file_path = Path(blob_key)
-            file_path.parent.mkdir(exist_ok=True, parents=True)
+            input_path = Path(blob_key)
+            input_path.parent.mkdir(exist_ok=True, parents=True)
+
+            _, sub = mime_type.split("/")
+            result_blob_key = generate_blob_key(user_uid, f"result/{sub}")
+            output_path = Path(result_blob_key)
 
             async with self._blob.start_session(production) as session:
-                await session.download_blob(file_path, blob_key)
+                await session.download_blob(input_path, blob_key)
                 
-                result_path = await self._callback(file_path)
-                custom_mime_type = f"result/{result_path.suffix[1:]}"
-                result_blob_key = generate_blob_key(user_uid, custom_mime_type)
+                async for progress in self._callback(input_path, output_path):
+                    await self._cache.pub_job_progress(job_id, progress)
 
                 try:
-                    await session.upload_file(result_path, result_blob_key)
+                    await session.upload_file(output_path, result_blob_key)
                     await self._repo.update_job(
                         job_id,
                         status="finished",
                         blob_key=result_blob_key,
                     )
+
                 except RuntimeError:
                     await session.delete_blob(result_blob_key)
                     await self._repo.update_job(job_id, status="aborted")
+
                 finally:
+                    await self._cache.pub_job_progress(job_id, -1.0)
                     await self._queue.acknowledge(message_id)
 
     def stop(self) -> None:

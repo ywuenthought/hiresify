@@ -104,9 +104,8 @@ class CacheService:
     async def set_job_progress(self, job_id: str, progress: float) -> None:
         """Set the current progress of a job with the given ID.
 
-        The numerical range of a normal progress is [0, 1]. But there are two special
-        numbers -1 and 2. -1 is used when a job is aborted abnormally. 2 is used when
-        a job result has been synced to the blob store and database.
+        The numerical range of a normal progress is [0, 1]. But the special number -1 is
+        used to indicate the client that the stream ends.
         """
         await self._store.set(f"job:{job_id}", str(progress))
 

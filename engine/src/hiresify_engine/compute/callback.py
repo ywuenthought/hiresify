@@ -5,9 +5,20 @@
 
 """Export the compute callbacks used by compute workers."""
 
+import shutil
+import typing as ty
 from pathlib import Path
 
 
-async def callback(file_path: Path) -> Path:
-    """Mock a real compute callback."""
-    return file_path
+async def callback(
+    input_path: Path, output_path: Path,
+) -> ty.AsyncGenerator[float, None]:
+    """Mock a real compute callback.
+
+    A callback should return a generator of the current progress of this compute job.
+    """
+    for progress_percent in range(0, 101):
+        yield progress_percent / 100
+
+    output_path.parent.mkdir(exist_ok=True, parents=True)
+    shutil.copy(input_path, output_path)

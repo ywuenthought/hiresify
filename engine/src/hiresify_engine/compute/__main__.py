@@ -10,7 +10,7 @@ import asyncio
 
 from hiresify_engine.config import AppConfig
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.service import BlobService, QueueService
+from hiresify_engine.service import BlobService, CacheService, QueueService
 
 from .callback import callback
 from .worker import ComputeWorker
@@ -37,6 +37,9 @@ async def main(index: int = 1) -> None:
         secret_key=config.blob_secret_key,
     )
 
+    # Initialize the cache store manager.
+    cache = CacheService(config.redis_url)
+
     # Initialize the queue service for compute jobs.
     queue = QueueService(config.redis_url)
 
@@ -47,6 +50,7 @@ async def main(index: int = 1) -> None:
     worker = ComputeWorker(
         callback,
         index=index,
+        cache=cache,
         queue=queue,
         repo=repo,
         blob=blob,
