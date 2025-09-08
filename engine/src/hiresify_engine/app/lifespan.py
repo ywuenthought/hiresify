@@ -31,8 +31,8 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
         secret_key=config.blob_secret_key,
     )
 
-    # Initialize the broker service for compute jobs.
-    app.state.broker = broker = QueueService(config.redis_url)
+    # Initialize the queue service for compute jobs.
+    app.state.queue = queue = QueueService(config.redis_url)
 
     # Initialize the cache store manager.
     app.state.cache = cache = CacheService(config.redis_url)
@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
         await session.init_bucket()
 
     # Initialize the job queue.
-    await broker.init_queue()
+    await queue.init_queue()
 
     # Initialize the database schema.
     await repo.init_schema()
@@ -55,6 +55,6 @@ async def lifespan(app: FastAPI) -> ty.AsyncGenerator[None, None]:
     async with blob.start_session(config.production) as session:
         await session.dispose()
 
-    await broker.dispose()
+    await queue.dispose()
     await cache.dispose()
     await repo.dispose()
