@@ -492,13 +492,13 @@ class Repository:
         job_id: str,
         *,
         status: JobStatus = "finished",
-        result_blob_key: str | None = None,
+        blob_key: str | None = None,
     ) -> None:
         """Update the specified compute job with the given metadata."""
-        if (status == "finished" and not result_blob_key) or (
-            status != "finished" and result_blob_key
+        if (status == "finished" and not blob_key) or (
+            status != "finished" and blob_key
         ):
-            raise ValueError(f"{result_blob_key=} is disallowed when {status=}.")
+            raise ValueError(f"{blob_key=} is disallowed when {status=}.")
 
         whereclause = ComputeJobORM.uid == job_id
         stmt = select(ComputeJobORM).where(whereclause)
@@ -511,10 +511,10 @@ class Repository:
                     raise EntityNotFoundError(ComputeJobORM, uid=job_id)
 
                 job.status = status
-                job.result_blob_key = result_blob_key
+                job.blob_key = blob_key
 
     async def load_blob_key(self, job_id: str) -> str:
-        """Get the blob key for the job with the given ID."""
+        """Get the blob key for the given job ID."""
         option = selectinload(ComputeJobORM.blob)
         whereclause = ComputeJobORM.uid == job_id
         stmt = select(ComputeJobORM).options(option).where(whereclause)
@@ -528,7 +528,7 @@ class Repository:
             return job.blob.blob_key
 
     async def load_result_blob_key(self, job_id: str) -> str | None:
-        """Get the result blob key for the job with the given ID."""
+        """Get the result blob key for the given job ID."""
         whereclause = ComputeJobORM.uid == job_id
         stmt = select(ComputeJobORM).where(whereclause)
 
@@ -538,4 +538,4 @@ class Repository:
             if not (job := result.scalar_one_or_none()):
                 raise EntityNotFoundError(ComputeJobORM, uid=job_id)
 
-            return job.result_blob_key
+            return job.blob_key

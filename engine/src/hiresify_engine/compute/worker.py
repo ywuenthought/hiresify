@@ -12,6 +12,7 @@ from pathlib import Path
 
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.service import BlobService, QueueService
+from hiresify_engine.util import generate_blob_key, parse_blob_key
 
 
 class ComputeWorker:
@@ -48,26 +49,30 @@ class ComputeWorker:
 
             job_id = fields["job_id"]
             blob_key = await self._repo.load_blob_key(job_id)
+            user_uid, _, _ = parse_blob_key(blob_key)
+
             file_path = Path(blob_key)
             file_path.parent.mkdir(exist_ok=True, parents=True)
 
             async with self._blob.start_session(production) as session:
                 await session.download_blob(file_path, blob_key)
+                
+                result_path = await self._callback(file_path)
+                custom_mime_type = f"result/{result_path.suffix[1:]}"
+                result_blob_key = generate_blob_key(user_uid, custom_mime_type)
 
                 try:
-                    result_file_path = await self._callback(file_path)
-                    result_blob_key = f"{job_id}{result_file_path.suffix}"
-
-                    await session.upload_file(result_file_path, result_blob_key)
+                    await session.upload_file(result_path, result_blob_key)
                     await self._repo.update_job(
                         job_id,
                         status="finished",
-                        result_blob_key=result_blob_key,
+                        blob_key=result_blob_key,
                     )
                 except RuntimeError:
+                    await session.delete_blob(result_blob_key)
                     await self._repo.update_job(job_id, status="aborted")
-
-                await self._queue.acknowledge(message_id)
+                finally:
+                    await self._queue.acknowledge(message_id)
 
     def stop(self) -> None:
         """Stop the compute worker."""

@@ -180,7 +180,7 @@ class ComputeJobORM(Base):
     )
 
     #: The blob key to identify the compute result stored in the blob store.
-    result_blob_key: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    blob_key: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
     #: The date and time when the job was requested.
     requested_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)

@@ -8,17 +8,19 @@
 import typing as ty
 
 from hiresify_engine.model import Blob, ComputeJob, JWTToken, Upload, User
-from hiresify_engine.util import restore_mime_type
+from hiresify_engine.util import parse_blob_key
 
 from .model import BlobORM, ComputeJobORM, RefreshTokenORM, UploadORM, UserORM
 
 
 def to_blob(obj: BlobORM) -> Blob:
     """Convert a blob ORM object to a domain one."""
+    _, _, mime_type = parse_blob_key(obj.blob_key)
+
     return Blob(
         uid=obj.uid,
         file_name=obj.file_name,
-        mime_type=restore_mime_type(obj.blob_key),
+        mime_type=mime_type,
         created_at=obj.created_at,
         valid_thru=obj.valid_thru,
     )
