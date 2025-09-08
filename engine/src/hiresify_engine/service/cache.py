@@ -3,7 +3,7 @@
 # This file is not licensed for use, modification, or distribution without
 # explicit written permission from the copyright holder.
 
-"""Export the cache service layer for user authorization."""
+"""Export the cache service layer for state management."""
 
 import asyncio
 import json
@@ -148,7 +148,7 @@ class CacheService:
             await subscriber.unsubscribe(key)
             await subscriber.aclose()
 
-    async def delete_job(self, job_id: str) -> None:
+    async def del_job_progress(self, job_id: str) -> None:
         """Delete the job with the given ID from the cache store."""
         await self._store.delete(f"job:{job_id}")
 

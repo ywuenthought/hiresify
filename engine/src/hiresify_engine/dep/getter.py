@@ -9,9 +9,7 @@ from fastapi import FastAPI, Request
 
 from hiresify_engine.config import AppConfig
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.service.blob import BlobService
-from hiresify_engine.service.cache import CacheService
-from hiresify_engine.service.queue import QueueService
+from hiresify_engine.service import BlobService, CacheService, QueueService
 
 
 def get_blob(request: Request) -> BlobService:

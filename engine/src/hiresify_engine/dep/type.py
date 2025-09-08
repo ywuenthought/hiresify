@@ -11,9 +11,7 @@ from fastapi import Depends
 
 from hiresify_engine.config import AppConfig
 from hiresify_engine.db.repository import Repository
-from hiresify_engine.service.blob import BlobService
-from hiresify_engine.service.cache import CacheService
-from hiresify_engine.service.queue import QueueService
+from hiresify_engine.service import BlobService, CacheService, QueueService
 
 from .getter import get_blob, get_cache, get_config, get_queue, get_repo
 

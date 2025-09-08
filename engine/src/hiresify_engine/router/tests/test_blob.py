@@ -13,7 +13,7 @@ from hiresify_engine.config import AppConfig
 from hiresify_engine.const import ACCESS_TOKEN_NAME
 from hiresify_engine.db.repository import Repository
 from hiresify_engine.model import JWTToken
-from hiresify_engine.service.blob import BlobService
+from hiresify_engine.service import BlobService
 from hiresify_engine.testing.data import PNG_STREAM
 from hiresify_engine.tool import hash_password
 from hiresify_engine.util import generate_blob_key, get_interval_from_now

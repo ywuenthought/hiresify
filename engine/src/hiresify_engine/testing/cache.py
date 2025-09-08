@@ -8,7 +8,7 @@
 import typing as ty
 from datetime import UTC, datetime, timedelta
 
-from hiresify_engine.service.cache import CacheService
+from hiresify_engine.service import CacheService
 
 
 class MockCacheStore:

@@ -7,6 +7,8 @@
 
 from redis.asyncio import Redis
 
+Response = list[tuple[str, list[tuple[str, dict[str, str]]]]]
+
 
 class QueueService:
     """A wrapper class exposing APIs for job queue service."""
@@ -15,13 +17,15 @@ class QueueService:
         self,
         db_url,
         *,
-        queue_name: str = "job",
-        max_length: int = 10000,
+        block_time: int = 10,
         group_name: str = "worker",
+        max_length: int = 10000,
+        queue_name: str = "job",
     ) -> None:
         """Initialize a new instance of QueueService."""
         self._store = Redis.from_url(db_url, decode_responses=True)
 
+        self._block_time = block_time * 1000  # s -> ms
         self._queue_name = queue_name
         self._max_length = max_length
         self._group_name = group_name
@@ -53,3 +57,17 @@ class QueueService:
             maxlen=self._max_length,
             approximate=True,
         )
+
+    async def consume_job(self, worker_index: int) -> Response:
+        """Consume the first-in job from the queue as the specified consumer."""
+        return await self._store.xreadgroup(
+            groupname=self._group_name,
+            consumername=f"{self._group_name}:{worker_index}",
+            streams={self._queue_name: ">"},
+            block=self._block_time,
+            count=1,
+        )
+
+    async def acknowledge(self, message_id: str) -> None:
+        """Acknowledge successful processing of a message in the consumer group."""
+        await self._store.xack(self._queue_name, self._group_name, message_id)

@@ -43,6 +43,9 @@ class AppConfig(BaseSettings):
     # The TTL for persisting a blob file (day).
     blob_ttl: int = 30
 
+    # The blocking time to read next job ID from the queue.
+    block_time: int = 10000
+
     # The TTL for a cache entry (sec).
     cache_ttl: int = 300
 

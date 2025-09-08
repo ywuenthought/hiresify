@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from uuid import uuid4
 
-from hiresify_engine.service.blob import BlobService, BlobSession
+from hiresify_engine.service import BlobService, BlobSession
 
 
 @dataclass(frozen=True)
